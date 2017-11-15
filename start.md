@@ -1,4 +1,3 @@
-## Empa nanotech@surfaces Laboratory
 - [Upload structures](./upload_structure.ipynb)
 - [Scale structures](./rescale_structure.ipynb)
 - [Construct cell](./construct_cell.ipynb)
