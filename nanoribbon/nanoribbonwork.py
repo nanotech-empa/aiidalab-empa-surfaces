@@ -5,9 +5,9 @@ from aiida.orm.data.base import Int, Float, Str
 from aiida.orm.data.structure import StructureData
 from aiida.orm.data.upf import get_pseudos_dict, get_pseudos_from_structure
 
-from aiida.orm.calculation.job.quantumespresso.pw import PwCalculation
-from aiida.orm.calculation.job.quantumespresso.pp import PpCalculation
-from aiida.orm.calculation.job.quantumespresso.projwfc import ProjwfcCalculation
+from aiida_quantumespresso.calculations.pw import PwCalculation
+from aiida_quantumespresso.calculations.pp import PpCalculation
+from aiida_quantumespresso.calculations.projwfc import ProjwfcCalculation
 
 from aiida.orm import load_node
 from aiida.orm.code import Code
