@@ -12,7 +12,6 @@ from aiida_cp2k.calculations import Cp2kCalculation
 import tempfile
 import shutil
 import numpy as np
-from copy import deepcopy
 
 
 class SlabGeoOptWorkChain(WorkChain):
@@ -27,6 +26,7 @@ class SlabGeoOptWorkChain(WorkChain):
         spec.input("vdw_switch", valid_type=Bool, default=Bool(False))
         spec.input("mgrid_cutoff", valid_type=Int, default=Int(600))
         spec.input("fixed_atoms", valid_type=Str, default=Str(''))
+        spec.input("center_switch", valid_type=Bool, default=Bool(False))
 
         spec.outline(
             cls.run_geopt,
@@ -51,6 +51,7 @@ class SlabGeoOptWorkChain(WorkChain):
                                         self.inputs.mgrid_cutoff,
                                         self.inputs.vdw_switch,
                                         self.inputs.fixed_atoms,
+                                        self.inputs.center_switch,
                                         None)
 
         self.report("inputs: "+str(inputs))
@@ -67,8 +68,9 @@ class SlabGeoOptWorkChain(WorkChain):
                                             self.inputs.mgrid_cutoff,
                                             self.inputs.vdw_switch,
                                             self.inputs.fixed_atoms,
+                                            self.inputs.center_switch,
                                             self.ctx.geo_opt.out.remote_folder)
-        
+
         self.report("inputs (restart): "+str(inputs_new))
         future_new = submit(Cp2kCalculation.process(), **inputs_new)
         return ToContext(geo_opt=Calc(future_new))
@@ -76,7 +78,8 @@ class SlabGeoOptWorkChain(WorkChain):
     # ==========================================================================
     @classmethod
     def build_calc_inputs(cls, structure, code, max_force, calc_type,
-                          mgrid_cutoff, vdw_switch, fixed_atoms, remote_calc_folder=None):
+                          mgrid_cutoff, vdw_switch, fixed_atoms, center_switch,
+                          remote_calc_folder):
 
         inputs = {}
         inputs['_label'] = "slab_geo_opt"
@@ -127,14 +130,15 @@ class SlabGeoOptWorkChain(WorkChain):
                                  vdw_switch,
                                  machine_cores*num_machines,
                                  fixed_atoms,
-                                 walltime*0.98)
+                                 walltime*0.97,
+                                 center_switch)
 
         if remote_calc_folder is not None:
             inp['EXT_RESTART'] = {
                 'RESTART_FILE_NAME': './parent_calc/aiida-1.restart'
             }
             inputs['parent_folder'] = remote_calc_folder
-            
+
         inputs['parameters'] = ParameterData(dict=inp)
 
         # settings
@@ -172,12 +176,13 @@ class SlabGeoOptWorkChain(WorkChain):
     @classmethod
     def get_cp2k_input(cls, cell_abc, first_slab_atom, last_slab_atom,
                        max_force, calc_type, mgrid_cutoff, vdw_switch,
-                       machine_cores, fixed_atoms, walltime):
+                       machine_cores, fixed_atoms, walltime, center_switch):
 
         inp = {
             'GLOBAL': {
                 'RUN_TYPE': 'GEO_OPT',
-                'WALLTIME': '%d' % walltime
+                'WALLTIME': '%d' % walltime,
+                'PRINT_LEVEL': 'LOW'
             },
             'MOTION': cls.get_motion(first_slab_atom, last_slab_atom,
                                      max_force, fixed_atoms),
@@ -214,6 +219,7 @@ class SlabGeoOptWorkChain(WorkChain):
                                    cell_abc,
                                    mgrid_cutoff,
                                    vdw_switch,
+                                   center_switch,
                                    topology='mol_on_slab.xyz'
                                  )]
 
@@ -406,7 +412,7 @@ class SlabGeoOptWorkChain(WorkChain):
 
     # ==========================================================================
     @classmethod
-    def get_force_eval_qs_dft(cls, cell_abc, mgrid_cutoff, vdw_switch,
+    def get_force_eval_qs_dft(cls, cell_abc, mgrid_cutoff, vdw_switch, center_switch,
                               topology='mol.xyz'):
         force_eval = {
             'METHOD': 'Quickstep',
@@ -457,7 +463,6 @@ class SlabGeoOptWorkChain(WorkChain):
                 'TOPOLOGY': {
                     'COORD_FILE_NAME': topology,
                     'COORDINATE': 'xyz',
-                    'CENTER_COORDINATES': {'_': ''},
                 },
                 'KIND': [],
             }
@@ -474,6 +479,9 @@ class SlabGeoOptWorkChain(WorkChain):
                     'R_CUTOFF': '15',
                 }
             }
+            
+        if center_switch is True:
+            force_eval['SUBSYS']['TOPOLOGY']['CENTER_COORDINATES'] = {'_': ''},
 
         force_eval['SUBSYS']['KIND'].append({
             '_': 'Au',
