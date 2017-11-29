@@ -28,6 +28,7 @@ def get_start_widget(appbase, jupbase):
     <li><a href="{appbase}/slab/build.ipynb" target="_blank">Construct slab</a>
     <li><a href="{appbase}/slab/submit_geopt.ipynb" target="_blank">Submit geo-opt</a>
     <li><a href="{appbase}/slab/search.ipynb" target="_blank">Search database</a>
+    <li><a href="{appbase}/slab/submit_adsorption.ipynb" target="_blank">Adsorption energy</a>
     </ul></td>
     </tr></table>
 """
