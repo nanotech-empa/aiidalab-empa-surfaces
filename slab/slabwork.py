@@ -73,6 +73,7 @@ class SlabGeoOptWorkChain(WorkChain):
                                             self.inputs.center_switch,
                                             self.inputs.num_machines,
                                             self.ctx.geo_opt.out.remote_folder)
+        
 
         self.report("inputs (restart): "+str(inputs_new))
         future_new = submit(Cp2kCalculation.process(), **inputs_new)
@@ -208,7 +209,8 @@ class SlabGeoOptWorkChain(WorkChain):
                                  cls.force_eval_fist(cell_abc),
                                  cls.get_force_eval_qs_dft(cell_abc,
                                                            mgrid_cutoff,
-                                                           vdw_switch)]
+                                                           vdw_switch,
+                                                           center_switch)]
             inp['MULTIPLE_FORCE_EVALS'] = {
                 'FORCE_EVAL_ORDER': '2 3',
                 'MULTIPLE_SUBSYS': 'T'
@@ -467,7 +469,7 @@ class SlabGeoOptWorkChain(WorkChain):
             }
         }
 
-        if vdw_switch is True:
+        if vdw_switch:
             force_eval['DFT']['XC']['VDW_POTENTIAL'] = {
                 'DISPERSION_FUNCTIONAL': 'PAIR_POTENTIAL',
                 'PAIR_POTENTIAL': {
@@ -478,8 +480,8 @@ class SlabGeoOptWorkChain(WorkChain):
                     'R_CUTOFF': '15',
                 }
             }
-            
-        if center_switch is True:
+
+        if center_switch:
             force_eval['SUBSYS']['TOPOLOGY']['CENTER_COORDINATES'] = {'_': ''},
 
         force_eval['SUBSYS']['KIND'].append({
