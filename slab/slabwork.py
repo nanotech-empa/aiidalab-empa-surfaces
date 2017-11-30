@@ -27,6 +27,7 @@ class SlabGeoOptWorkChain(WorkChain):
         spec.input("mgrid_cutoff", valid_type=Int, default=Int(600))
         spec.input("fixed_atoms", valid_type=Str, default=Str(''))
         spec.input("center_switch", valid_type=Bool, default=Bool(False))
+        spec.input("num_machines", valid_type=Int, default=Int(1))
 
         spec.outline(
             cls.run_geopt,
@@ -52,6 +53,7 @@ class SlabGeoOptWorkChain(WorkChain):
                                         self.inputs.vdw_switch,
                                         self.inputs.fixed_atoms,
                                         self.inputs.center_switch,
+                                        self.inputs.num_machines,
                                         None)
 
         self.report("inputs: "+str(inputs))
@@ -69,6 +71,7 @@ class SlabGeoOptWorkChain(WorkChain):
                                             self.inputs.vdw_switch,
                                             self.inputs.fixed_atoms,
                                             self.inputs.center_switch,
+                                            self.inputs.num_machines,
                                             self.ctx.geo_opt.out.remote_folder)
 
         self.report("inputs (restart): "+str(inputs_new))
@@ -79,7 +82,7 @@ class SlabGeoOptWorkChain(WorkChain):
     @classmethod
     def build_calc_inputs(cls, structure, code, max_force, calc_type,
                           mgrid_cutoff, vdw_switch, fixed_atoms, center_switch,
-                          remote_calc_folder):
+                          num_machines, remote_calc_folder):
 
         inputs = {}
         inputs['_label'] = "slab_geo_opt"
@@ -113,12 +116,8 @@ class SlabGeoOptWorkChain(WorkChain):
         remote_computer = code.get_remote_computer()
         machine_cores = remote_computer.get_default_mpiprocs_per_machine()
         if calc_type == 'Mixed DFTB':
-            num_machines = int(np.ceil(1. + first_slab_atom/30.))
-            walltime = int((1. + first_slab_atom/30.) * 3600.)
-            if walltime > 86000:
-                walltime = 86000
+            walltime = 18000
         else:
-            num_machines = int(np.ceil(1. + first_slab_atom/120.))
             walltime = 86000
 
         inp = cls.get_cp2k_input(cell_abc,
