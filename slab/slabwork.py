@@ -500,6 +500,16 @@ class SlabGeoOptWorkChain(WorkChain):
             'POTENTIAL': 'GTH-PBE-q7'
         })
         force_eval['SUBSYS']['KIND'].append({
+            '_': 'O',
+            'BASIS_SET': 'TZV2P-MOLOPT-GTH',
+            'POTENTIAL': 'GTH-PBE-q6'
+        })
+        force_eval['SUBSYS']['KIND'].append({
+            '_': 'N',
+            'BASIS_SET': 'TZV2P-MOLOPT-GTH',
+            'POTENTIAL': 'GTH-PBE-q5'
+        })
+        force_eval['SUBSYS']['KIND'].append({
             '_': 'H',
             'BASIS_SET': 'TZV2P-MOLOPT-GTH',
             'POTENTIAL': 'GTH-PBE-q1'
