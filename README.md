@@ -1,6 +1,6 @@
 # Materials Cloud - Empa Surfaces App
 
-This [Materials Cloud jupyter](jupyter.materialscloud.org) app is a GUI for
+This [Materials Cloud jupyter](https://jupyter.materialscloud.org) app is a GUI for
 AiiDA workflows that allows to easily compute and plot in a standardized way
 basic DFT properties for graphene-based nanoribbons.
 
@@ -32,3 +32,7 @@ A unit cell is created identifying two equivalent atoms in the edited (scaled) s
 
 The status of the workflow can be monitored either from the AiiDA status or from the list of submitted workflows.
 
+## Contact
+
+For inquiries concerning Materials Cloud, please use the [public issue tracker](https://github.com/materialscloud-org/issues).
+For inquiries concerning the Empa Surfaces App, please contact [carlo.pignedoli@empa.ch](mailto:carlo.pignedoli@empa.ch).
