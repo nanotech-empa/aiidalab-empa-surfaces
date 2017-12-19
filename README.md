@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/110861368.svg)](https://zenodo.org/badge/latestdoi/110861368)
+
 # Materials Cloud - Empa Surfaces App
 
 This [Materials Cloud jupyter](https://jupyter.materialscloud.org) app is a GUI for
