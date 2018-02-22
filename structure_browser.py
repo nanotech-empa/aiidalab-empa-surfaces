@@ -1,3 +1,13 @@
+from aiida.orm.querybuilder import QueryBuilder
+from aiida.orm.data.structure import StructureData
+from aiida.orm.calculation.job import JobCalculation
+from aiida.orm.calculation.work import WorkCalculation
+from aiida.orm import Node
+    
+from collections import OrderedDict
+import ipywidgets as ipw
+import datetime
+
 class StructureBrowser(ipw.VBox):
     
     def __init__(self):
@@ -17,27 +27,47 @@ class StructureBrowser(ipw.VBox):
 
         layout = ipw.Layout(width="900px")
 
-        self.mode = ipw.RadioButtons(options=['all', 'uploaded', 'edited', 'calculated'], layout=ipw.Layout(width="100px"))
+        self.mode = ipw.RadioButtons(options=['all', 'uploaded', 'edited', 'calculated'],
+                                     layout=ipw.Layout(width="25%"))
         
         
-        self.age_range = ipw.IntRangeSlider(value=[0, 7], min=0, max=100, step=1, continuous_update=False,
-                                            description='age in days:', layout=ipw.Layout(width="800px"))
+        # Date range
+        self.dt_now = datetime.datetime.now()
+        self.dt_end = self.dt_now - datetime.timedelta(days=7)
+        self.date_start = ipw.Text(value='',
+                                   description='From: ',
+                                   style={'description_width': '120px'})
+
+        self.date_end = ipw.Text(value='',
+                                 description='To: ')
+
+        self.date_text = ipw.HTML(value='<p>Select the date range:</p>')
+        
+        self.btn_date = ipw.Button(description='Search',
+                                   layout={'margin': '1em 0 0 0'})
+
+        self.age_selection = ipw.VBox([self.date_text, ipw.HBox([self.date_start, self.date_end]), self.btn_date],
+                                      layout={'border': '1px solid #fafafa', 'padding': '1em'})
+
 
         # Labels
         self.drop_label = ipw.Dropdown(options=(['All',] + process_labels),
                                        description='Process Label',
-                                       style = {'description_width': '120px'})
+                                       style = {'description_width': '120px'},
+                                       layout={'width': '50%'})
 
-        self.age_range.observe(self.search, names='value')
+        self.btn_date.on_click(self.search)
         self.mode.observe(self.search, names='value')
         self.drop_label.observe(self.search, names='value')
         
-        box = ipw.HBox([self.mode, self.age_range])
+        hr = ipw.HTML('<hr>')
+        box = ipw.VBox([self.age_selection,
+                        hr,
+                        ipw.HBox([self.mode, self.drop_label])])
         
         self.results = ipw.Dropdown(layout=layout)
-        border = ipw.Layout(border="2px solid black")
         self.search()
-        super(StructureBrowser, self).__init__([box, self.drop_label, self.results], layout=border)
+        super(StructureBrowser, self).__init__([box, hr, self.results])
     
     
     def preprocess(self):
@@ -52,11 +82,18 @@ class StructureBrowser(ipw.VBox):
         self.preprocess()
         
         qb = QueryBuilder()
-        min_age = datetime.datetime.now() - datetime.timedelta(days=self.age_range.value[0])
-        max_age = datetime.datetime.now() - datetime.timedelta(days=self.age_range.value[1])
+        try: # If the date range is valid, use it for the search
+            self.start_date = datetime.datetime.strptime(self.date_start.value, '%Y-%m-%d')
+            self.end_date = datetime.datetime.strptime(self.date_end.value, '%Y-%m-%d')
+        except ValueError: # Otherwise revert to the standard (i.e. last 7 days)
+            self.start_date = self.dt_end
+            self.end_date = self.dt_now
+
+            self.date_start.value = self.start_date.strftime('%Y-%m-%d')
+            self.date_end.value = self.end_date.strftime('%Y-%m-%d')
+
         filters = {}
-        filters["ctime"] = {'and':[{'<=': min_age},{'>': max_age}]}
-        
+        filters['ctime'] = {'and':[{'<=': self.end_date},{'>': self.start_date}]}        
         if self.drop_label.value != 'All':
             qb.append(WorkCalculation,
                       filters={
