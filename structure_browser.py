@@ -84,10 +84,10 @@ class StructureBrowser(ipw.VBox):
         qb = QueryBuilder()
         try: # If the date range is valid, use it for the search
             self.start_date = datetime.datetime.strptime(self.date_start.value, '%Y-%m-%d')
-            self.end_date = datetime.datetime.strptime(self.date_end.value, '%Y-%m-%d')
+            self.end_date = datetime.datetime.strptime(self.date_end.value, '%Y-%m-%d') + datetime.timedelta(hours=24)
         except ValueError: # Otherwise revert to the standard (i.e. last 7 days)
             self.start_date = self.dt_end
-            self.end_date = self.dt_now
+            self.end_date = self.dt_now + datetime.timedelta(hours=24)
 
             self.date_start.value = self.start_date.strftime('%Y-%m-%d')
             self.date_end.value = self.end_date.strftime('%Y-%m-%d')
