@@ -114,6 +114,7 @@ class SlabGeoOptWorkChain(WorkChain):
         cell_abc = "%f  %f  %f" % (atoms.cell[0, 0],
                                    atoms.cell[1, 1],
                                    atoms.cell[2, 2])
+
         remote_computer = code.get_remote_computer()
         machine_cores = remote_computer.get_default_mpiprocs_per_machine()
         if calc_type == 'Mixed DFTB':
