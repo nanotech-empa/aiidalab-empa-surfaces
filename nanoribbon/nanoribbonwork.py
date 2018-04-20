@@ -271,6 +271,10 @@ class NanoribbonWorkChain(WorkChain):
         nhours = 2 + min(22, 2*int(volume/1500))
         inputs['parent_folder'] = prev_calc.out.remote_folder
 
+        # use the same number of pools as in bands calculation
+        bands_cmdline = prev_calc.inp.settings.get_dict()['cmdline']
+        npools = int(bands_cmdline[bands_cmdline.index('-npools')+1])
+
         parameters = ParameterData(dict={
                   'projwfc': {
                       'ngauss': 1,
@@ -293,8 +297,11 @@ class NanoribbonWorkChain(WorkChain):
 
         settings = ParameterData(
            dict={'additional_retrieve_list':
-                 ['./out/aiida.save/atomic_proj.xml',
-                  '*_up', '*_down', '*_tot']}
+                     ['./out/aiida.save/atomic_proj.xml',
+                      '*_up', '*_down', '*_tot'],
+                 'cmdline':
+                     ["-npools", str(npools)]
+                }
         )
         inputs['settings'] = settings
 
