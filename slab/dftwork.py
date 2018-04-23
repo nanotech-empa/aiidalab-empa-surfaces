@@ -97,7 +97,7 @@ class DFTGeoOptWorkChain(WorkChain):
                                    atoms.cell[1, 1],
                                    atoms.cell[2, 2])
 
-        num_machines = int(np.round(1. + len(atoms)/120.))
+        num_machines = int(np.round(10. + len(atoms)/120.))
         walltime = 86000
 
         inp = cls.get_cp2k_input(cell_abc,
