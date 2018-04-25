@@ -221,7 +221,7 @@ class DFTGeoOptWorkChain(WorkChain):
             }
         }
 
-        if vdw_switch is True:
+        if vdw_switch:
             force_eval['DFT']['XC']['VDW_POTENTIAL'] = {
                 'DISPERSION_FUNCTIONAL': 'PAIR_POTENTIAL',
                 'PAIR_POTENTIAL': {
