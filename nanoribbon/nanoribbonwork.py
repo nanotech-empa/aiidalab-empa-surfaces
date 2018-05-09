@@ -176,43 +176,49 @@ class NanoribbonWorkChain(WorkChain):
         nbnd = prev_calc.res.number_of_bands
         nspin = prev_calc.res.number_of_spin_components
         volume = prev_calc.res.volume
+        #for....
         kband1 = max(int(nel/2) - 6, 1)
         kband2 = min(int(nel/2) + 7, nbnd)
         kpoint1 = 1
         kpoint2 = nkpt * nspin
-        nhours = 2 + min(22, 2*int(volume/1500))
+        nhours = 2#24# 2 + min(22, 2*int(volume/1500))
 
-        parameters = ParameterData(dict={
+        for inb in range(kband1,kband2+1):     
+            parameters = ParameterData(dict={
                   'inputpp': {
                       # contribution of a selected wavefunction
                       # to charge density
                       'plot_num': 7,
                       'kpoint(1)': kpoint1,
                       'kpoint(2)': kpoint2,
-                      'kband(1)': kband1,
-                      'kband(2)': kband2,
+                      #'kband(1)': kband1,
+                      #'kband(2)': kband2,
+                      'kband(1)': inb,
+                      'kband(2)': inb,
                   },
                   'plot': {
                       'iflag': 3,  # 3D plot
                       'output_format': 6,  # CUBE format
                       'fileout': '_orbital.cube',
                   },
-        })
-        inputs['parameters'] = parameters
+            })
+            inputs['parameters'] = parameters
 
-        inputs['_options'] = {
-            "resources": {"num_machines": 1},
-            "max_wallclock_seconds": nhours * 60 * 60,  # 6 hours
-            "append_text": self._get_cube_cutter(),
-        }
+            inputs['_options'] = {
+                "resources": {"num_machines": 1},
+                "max_wallclock_seconds": nhours * 60 * 60,  # 6 hours
+                "append_text": self._get_cube_cutter(),
+            }
 
-        settings = ParameterData(
+            settings = ParameterData(
                      dict={'additional_retrieve_list': ['*.cube.gz']}
                    )
-        inputs['settings'] = settings
+            inputs['settings'] = settings
 
-        future = submit(PpCalculation.process(), **inputs)
-        return ToContext(orbitals=Calc(future))
+        #future = submit(PpCalculation.process(), **inputs)
+            submit(PpCalculation.process(), **inputs)
+        #return ToContext(orbitals=Calc(future))
+        return
 
     # =========================================================================
     def run_export_spinden(self):
@@ -267,8 +273,18 @@ class NanoribbonWorkChain(WorkChain):
         prev_calc = self.ctx.bands
         self._check_prev_calc(prev_calc)
         volume = prev_calc.res.volume
-        nnodes = max(1, int(volume/1500))
-        nhours = 2 + min(22, 2*int(volume/1500))
+        natoms=len(prev_calc.inp.structure.get_ase())
+        #nnodes = 2*max(1, int(natoms/60))
+        if natoms < 60:
+            nnodes=2
+        elif natoms <120:
+            nnodes=4
+        elif natoms < 200:
+            nnodes=10
+        else:
+            nnodes=20
+        
+        nhours = 24 #2 + min(22, 2*int(volume/1500))
         inputs['parent_folder'] = prev_calc.out.remote_folder
 
         # use the same number of pools as in bands calculation
