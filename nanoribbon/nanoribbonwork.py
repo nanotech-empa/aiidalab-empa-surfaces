@@ -181,7 +181,7 @@ class NanoribbonWorkChain(WorkChain):
         kband2 = min(int(nel/2) + 7, nbnd)
         kpoint1 = 1
         kpoint2 = nkpt * nspin
-        nhours = 2#24# 2 + min(22, 2*int(volume/1500))
+        nhours = 8 #24# 2 + min(22, 2*int(volume/1500))
 
         for inb in range(kband1,kband2+1):     
             parameters = ParameterData(dict={
@@ -277,19 +277,23 @@ class NanoribbonWorkChain(WorkChain):
         #nnodes = 2*max(1, int(natoms/60))
         if natoms < 60:
             nnodes=2
+            npools=2
         elif natoms <120:
             nnodes=4
+            npools=4
         elif natoms < 200:
             nnodes=10
+            npools=8
         else:
             nnodes=20
+            npools=16
         
         nhours = 24 #2 + min(22, 2*int(volume/1500))
         inputs['parent_folder'] = prev_calc.out.remote_folder
 
         # use the same number of pools as in bands calculation
-        bands_cmdline = prev_calc.inp.settings.get_dict()['cmdline']
-        npools = int(bands_cmdline[bands_cmdline.index('-npools')+1])
+        #bands_cmdline = prev_calc.inp.settings.get_dict()['cmdline']
+        #npools = int(bands_cmdline[bands_cmdline.index('-npools')+1])
 
         parameters = ParameterData(dict={
                   'projwfc': {
@@ -306,7 +310,7 @@ class NanoribbonWorkChain(WorkChain):
         inputs['_options'] = {
             "resources": {
               "num_machines": nnodes,
-              "num_mpiprocs_per_machine": 1
+              "num_mpiprocs_per_machine": 4
             },
             "max_wallclock_seconds":  nhours * 60 * 60,  # 12 hours
         }
