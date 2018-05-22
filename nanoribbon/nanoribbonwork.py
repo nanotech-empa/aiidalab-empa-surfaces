@@ -275,6 +275,7 @@ class NanoribbonWorkChain(WorkChain):
         volume = prev_calc.res.volume
         natoms=len(prev_calc.inp.structure.get_ase())
         #nnodes = 2*max(1, int(natoms/60))
+        #nkpt=len(prev_calc.inp.kpoints.get_kpoints())
         if natoms < 60:
             nnodes=2
             npools=2
