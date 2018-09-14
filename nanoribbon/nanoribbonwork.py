@@ -181,8 +181,11 @@ class NanoribbonWorkChain(WorkChain):
         kband2 = min(int(nel/2) + 7, nbnd)
         kpoint1 = 1
         kpoint2 = nkpt * nspin
-        nhours = 8 #24# 2 + min(22, 2*int(volume/1500))
-
+        nhours = 2 #24# 2 + min(22, 2*int(volume/1500))
+        bands_cmdline = prev_calc.inp.settings.get_dict()['cmdline']
+        nnodes=int(prev_calc.get_resources()['num_machines'])
+        npools = int(bands_cmdline[bands_cmdline.index('-npools')+1])
+        nproc_mach=int(prev_calc.get_resources()['default_mpiprocs_per_machine'])
         for inb in range(kband1,kband2+1):     
             parameters = ParameterData(dict={
                   'inputpp': {
@@ -205,13 +208,18 @@ class NanoribbonWorkChain(WorkChain):
             inputs['parameters'] = parameters
 
             inputs['_options'] = {
-                "resources": {"num_machines": 1},
+                "resources": {"num_machines": nnodes,
+                              "num_mpiprocs_per_machine": nproc_mach
+                             },
                 "max_wallclock_seconds": nhours * 60 * 60,  # 6 hours
                 "append_text": self._get_cube_cutter(),
             }
 
             settings = ParameterData(
-                     dict={'additional_retrieve_list': ['*.cube.gz']}
+                     dict={'additional_retrieve_list': ['*.cube.gz'],
+                           'cmdline':
+                     ["-npools", str(npools)]                         
+                          }
                    )
             inputs['settings'] = settings
 
@@ -232,6 +240,10 @@ class NanoribbonWorkChain(WorkChain):
         inputs['parent_folder'] = prev_calc.out.remote_folder
 
         nspin = prev_calc.res.number_of_spin_components
+        bands_cmdline = prev_calc.inp.settings.get_dict()['cmdline']
+        nnodes=int(prev_calc.get_resources()['num_machines'])
+        npools = int(bands_cmdline[bands_cmdline.index('-npools')+1])
+        nproc_mach=int(prev_calc.get_resources()['default_mpiprocs_per_machine'])
         if nspin == 1:
             self.report("Skipping, got only one spin channel")
             return
@@ -250,13 +262,18 @@ class NanoribbonWorkChain(WorkChain):
         inputs['parameters'] = parameters
 
         inputs['_options'] = {
-            "resources": {"num_machines": 1},
+            "resources": {"num_machines": nnodes,
+                          "num_mpiprocs_per_machine": nproc_mach
+                         },
             "max_wallclock_seconds": 30 * 60,  # 30 minutes
             "append_text": self._get_cube_cutter(),
         }
 
         settings = ParameterData(
-                     dict={'additional_retrieve_list': ['*.cube.gz']}
+                     dict={'additional_retrieve_list': ['*.cube.gz'],
+                           'cmdline':
+                     ["-npools", str(npools)]
+                          }
                    )
         inputs['settings'] = settings
 
@@ -368,7 +385,12 @@ class NanoribbonWorkChain(WorkChain):
         inputs['kpoints'] = kpoints
 
         # parallelization settings
-        npools = min(1+nkpoints/5, 5)
+        ## TEMPORARY double pools in case of spin
+        spinpools=1
+        start_mag = self._get_magnetization(structure)
+        if any([m != 0 for m in start_mag.values()]):
+            spinpools = 2
+        npools = min(spinpools+nkpoints/5, 5)
         natoms = len(structure.sites)
         nnodes = (1 + natoms/60) * npools
         inputs['_options'] = {
