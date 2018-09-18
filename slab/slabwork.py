@@ -183,7 +183,8 @@ class SlabGeoOptWorkChain(WorkChain):
             'GLOBAL': {
                 'RUN_TYPE': 'GEO_OPT',
                 'WALLTIME': '%d' % walltime,
-                'PRINT_LEVEL': 'LOW'
+                'PRINT_LEVEL': 'LOW',
+                'EXTENDED_FFT_LENGTHS': ''
             },
             'MOTION': cls.get_motion(first_slab_atom, last_slab_atom,
                                      max_force, fixed_atoms),
