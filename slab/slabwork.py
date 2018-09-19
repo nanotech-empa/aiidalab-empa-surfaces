@@ -95,6 +95,8 @@ class SlabGeoOptWorkChain(WorkChain):
         atoms = structure.get_ase()  # slow
         found_metal = False
         for el in [29, 47, 79]:
+            if len(np.argwhere(atoms.numbers == el)) == 0:
+                continue
             first_slab_atom = np.argwhere(atoms.numbers == el)[0, 0] + 1
             is_H = atoms.numbers[first_slab_atom-1:] == 1
             is_Metal = atoms.numbers[first_slab_atom-1:] == el
