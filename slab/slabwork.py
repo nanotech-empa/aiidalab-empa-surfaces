@@ -90,7 +90,6 @@ class SlabGeoOptWorkChain(WorkChain):
         inputs['code'] = code
         inputs['file'] = {}
 
-        # ~make sure we're really dealing with a gold slab~
         # make sure we're dealing with a metal slab
         # and figure out which one
         atoms = structure.get_ase()  # slow
@@ -102,8 +101,7 @@ class SlabGeoOptWorkChain(WorkChain):
             if np.all(np.logical_or(is_H, is_Metal)):
                 found_metal = el
                 break
-            # DEPRECATED => the slab can be larger than 4
-            # assert np.sum(is_Metal) / np.sum(is_H) == 4
+        
         if not found_metal:
             raise Exception("Structure is not a proper slab.")
 
@@ -239,8 +237,8 @@ class SlabGeoOptWorkChain(WorkChain):
                                    mgrid_cutoff,
                                    vdw_switch,
                                    center_switch,
-                                   topology='mol_on_slab.xyz',
-                                   metal_atom
+                                   metal_atom,
+                                   topology='mol_on_slab.xyz'
                                  )]
 
         return inp
@@ -433,7 +431,7 @@ class SlabGeoOptWorkChain(WorkChain):
     # ==========================================================================
     @classmethod
     def get_force_eval_qs_dft(cls, cell_abc, mgrid_cutoff, vdw_switch, center_switch,
-                              topology='mol.xyz', metal_atom):
+                              metal_atom, topology='mol.xyz'):
         force_eval = {
             'METHOD': 'Quickstep',
             'DFT': {
