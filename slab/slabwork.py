@@ -90,16 +90,29 @@ class SlabGeoOptWorkChain(WorkChain):
         inputs['code'] = code
         inputs['file'] = {}
 
-        # make sure we're really dealing with a gold slab
+        # ~make sure we're really dealing with a gold slab~
+        # make sure we're dealing with a metal slab
+        # and figure out which one
         atoms = structure.get_ase()  # slow
-        try:
-            first_slab_atom = np.argwhere(atoms.numbers == 79)[0, 0] + 1
+        found_metal = False
+        for el in [29, 47, 79]:
+            first_slab_atom = np.argwhere(atoms.numbers == el)[0, 0] + 1
             is_H = atoms.numbers[first_slab_atom-1:] == 1
-            is_Au = atoms.numbers[first_slab_atom-1:] == 79
-            assert np.all(np.logical_or(is_H, is_Au))
-            assert np.sum(is_Au) / np.sum(is_H) == 4
-        except AssertionError:
+            is_Metal = atoms.numbers[first_slab_atom-1:] == el
+            if np.all(np.logical_or(is_H, is_Metal)):
+                found_metal = el
+                break
+            # DEPRECATED => the slab can be larger than 4
+            # assert np.sum(is_Metal) / np.sum(is_H) == 4
+        if not found_metal:
             raise Exception("Structure is not a proper slab.")
+
+        if found_metal == 79:
+            metal_atom = 'Au'
+        elif found_metal == 47:
+            metal_atom = 'Ag'
+        elif found_metal == 29:
+            metal_atom = 'Cu'
 
         # structure
         molslab_f, mol_f = cls.mk_coord_files(atoms, first_slab_atom)
@@ -132,7 +145,8 @@ class SlabGeoOptWorkChain(WorkChain):
                                  machine_cores*num_machines,
                                  fixed_atoms,
                                  walltime*0.97,
-                                 center_switch)
+                                 center_switch,
+                                 metal_atom)
 
         if remote_calc_folder is not None:
             inp['EXT_RESTART'] = {
@@ -177,7 +191,8 @@ class SlabGeoOptWorkChain(WorkChain):
     @classmethod
     def get_cp2k_input(cls, cell_abc, first_slab_atom, last_slab_atom,
                        max_force, calc_type, mgrid_cutoff, vdw_switch,
-                       machine_cores, fixed_atoms, walltime, center_switch):
+                       machine_cores, fixed_atoms, walltime, center_switch,
+                       metal_atom):
 
         inp = {
             'GLOBAL': {
@@ -196,7 +211,7 @@ class SlabGeoOptWorkChain(WorkChain):
                                                       first_slab_atom,
                                                       last_slab_atom,
                                                       machine_cores),
-                                 cls.force_eval_fist(cell_abc),
+                                 cls.force_eval_fist(cell_abc, metal_atom),
                                  cls.get_force_eval_qs_dftb(cell_abc,
                                                             vdw_switch)]
             inp['MULTIPLE_FORCE_EVALS'] = {
@@ -208,11 +223,12 @@ class SlabGeoOptWorkChain(WorkChain):
                                                       first_slab_atom,
                                                       last_slab_atom,
                                                       machine_cores),
-                                 cls.force_eval_fist(cell_abc),
+                                 cls.force_eval_fist(cell_abc, metal_atom),
                                  cls.get_force_eval_qs_dft(cell_abc,
                                                            mgrid_cutoff,
                                                            vdw_switch,
-                                                           center_switch)]
+                                                           center_switch,
+                                                           metal_atom)]
             inp['MULTIPLE_FORCE_EVALS'] = {
                 'FORCE_EVAL_ORDER': '2 3',
                 'MULTIPLE_SUBSYS': 'T'
@@ -223,7 +239,8 @@ class SlabGeoOptWorkChain(WorkChain):
                                    mgrid_cutoff,
                                    vdw_switch,
                                    center_switch,
-                                   topology='mol_on_slab.xyz'
+                                   topology='mol_on_slab.xyz',
+                                   metal_atom
                                  )]
 
         return inp
@@ -290,7 +307,7 @@ class SlabGeoOptWorkChain(WorkChain):
 
     # ==========================================================================
     @classmethod
-    def force_eval_fist(cls, cell_abc):
+    def force_eval_fist(cls, cell_abc, metal_atom):
         ff = {
             'SPLINE': {
                 'EPS_SPLINE': '1.30E-5',
@@ -315,7 +332,7 @@ class SlabGeoOptWorkChain(WorkChain):
                      ' 113.96850410723008483218 5.84114'
         for x in ('C', 'N', 'O', 'H'):
             ff['NONBONDED']['GENPOT'].append(
-                {'ATOMS': 'Au ' + x,
+                {'ATOMS': metal_atom+' ' + x,
                  'FUNCTION': genpot_fun,
                  'VARIABLES': 'r',
                  'PARAMETERS': 'A av B ac C R',
@@ -416,7 +433,7 @@ class SlabGeoOptWorkChain(WorkChain):
     # ==========================================================================
     @classmethod
     def get_force_eval_qs_dft(cls, cell_abc, mgrid_cutoff, vdw_switch, center_switch,
-                              topology='mol.xyz'):
+                              topology='mol.xyz', metal_atom):
         force_eval = {
             'METHOD': 'Quickstep',
             'DFT': {
@@ -487,7 +504,7 @@ class SlabGeoOptWorkChain(WorkChain):
             force_eval['SUBSYS']['TOPOLOGY']['CENTER_COORDINATES'] = {'_': ''},
 
         force_eval['SUBSYS']['KIND'].append({
-            '_': 'Au',
+            '_': metal_atom,
             'BASIS_SET': 'DZVP-MOLOPT-SR-GTH',
             'POTENTIAL': 'GTH-PBE-q11'
         })
