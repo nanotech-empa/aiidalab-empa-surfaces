@@ -11,6 +11,7 @@ from aiida_cp2k.calculations import Cp2kCalculation
 
 import tempfile
 import shutil
+import itertools
 import numpy as np
 
 
@@ -323,27 +324,32 @@ class SlabGeoOptWorkChain(WorkChain):
                 },
             },
         }
+        
+        element_list = ['H', 'C', 'O', 'N', 'S']
 
-        for x in ('Au', 'H', 'C', 'O', 'N'):
+        for x in element_list + [metal_atom]:
             ff['CHARGE'].append({'ATOM': x, 'CHARGE': 0.0})
 
         genpot_fun = 'A*exp(-av*r)+B*exp(-ac*r)-C/(r^6)/( 1+exp(-20*(r/R-1)) )'
-        genpot_val = '4.13643 1.33747 115.82004 2.206825'\
-                     ' 113.96850410723008483218 5.84114'
-        for x in ('C', 'N', 'O', 'H'):
+        
+        genpot_val = {
+            'H': '0.878363 1.33747 24.594164 2.206825 32.23516124268186181470 5.84114',
+            'else':  '4.13643 1.33747 115.82004 2.206825 113.96850410723008483218 5.84114'
+        }
+        
+        for x in element_list:
             ff['NONBONDED']['GENPOT'].append(
                 {'ATOMS': metal_atom+' ' + x,
                  'FUNCTION': genpot_fun,
                  'VARIABLES': 'r',
                  'PARAMETERS': 'A av B ac C R',
-                 'VALUES': genpot_val,
+                 'VALUES': genpot_val[x] if x in genpot_val else genpot_val['else'],
                  'RCUT': '15'}
             )
 
-        for x in ('C H', 'H H', 'H N', 'C C', 'C O', 'C N', 'N N', 'O H',
-                  'O N', 'O O'):
+        for x in itertools.combinations_with_replacement(element_list, 2):
             ff['NONBONDED']['LENNARD-JONES'].append(
-                {'ATOMS': x,
+                {'ATOMS': " ".join(x),
                  'EPSILON': '0.0',
                  'SIGMA': '3.166',
                  'RCUT': '15'}
