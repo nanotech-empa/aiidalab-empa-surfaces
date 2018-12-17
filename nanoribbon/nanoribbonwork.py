@@ -223,9 +223,10 @@ class NanoribbonWorkChain(WorkChain):
                    )
             inputs['settings'] = settings
 
-        #future = submit(PpCalculation.process(), **inputs)
-            submit(PpCalculation.process(), **inputs)
-        #return ToContext(orbitals=Calc(future))
+            pp_future = submit(PpCalculation.process(), **inputs)
+            key = 'pp_{}'.format(inb)
+            self.to_context(**{key:pp_future})
+            
         return
 
     # =========================================================================
