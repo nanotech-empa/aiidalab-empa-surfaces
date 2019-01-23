@@ -262,17 +262,24 @@ class NanoribbonWorkChain(WorkChain):
         })
         inputs['parameters'] = parameters
         
+        # Add the post-processing python scripts
+        aux_scripts_dir = "/project/apps/surfaces/nanoribbon/aux_scripts/"
+        cube_cutter_script = SinglefileData(file=aux_scripts_dir+"cube_cutter.py")
+        cube_cropper_script = SinglefileData(file=aux_scripts_dir+"cube_clip-cropper.py")
+        
+        inputs['file'] = {}
+        inputs['file']['cube_cutter'] = cube_cutter_script
+        inputs['file']['cube_cropper'] = cube_cropper_script
         
         # commands to run after the main calculation is finished
         append_text = u""
         # workaround for flaw in PpCalculator.
         # We don't want to retrive this huge intermediate file.
-        append_text += u"rm -v aiida.filplot\n"
-        # process cube file to get a compressed file of slices 
-        append_text += self._get_cube_cutter()
+        append_text += u"rm -v aiida.filplot \n"
+        # execute the python scripts
+        append_text += u"python ./cube_cutter.py \n"
+        append_text += u"python ./cube_clip-cropper.py \n"
         
-        
-
         inputs['_options'] = {
             "resources": {"num_machines": nnodes,
                           "num_mpiprocs_per_machine": nproc_mach
