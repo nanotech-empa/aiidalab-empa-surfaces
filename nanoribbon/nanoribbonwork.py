@@ -261,14 +261,26 @@ class NanoribbonWorkChain(WorkChain):
                   },
         })
         inputs['parameters'] = parameters
+        
+        
+        # commands to run after the main calculation is finished
+        append_text = u""
+        # workaround for flaw in PpCalculator.
+        # We don't want to retrive this huge intermediate file.
+        append_text += u"rm -v aiida.filplot\n"
+        # process cube file to get a compressed file of slices 
+        append_text += self._get_cube_cutter()
+        
+        
 
         inputs['_options'] = {
             "resources": {"num_machines": nnodes,
                           "num_mpiprocs_per_machine": nproc_mach
                          },
             "max_wallclock_seconds": 30 * 60,  # 30 minutes
-            "append_text": self._get_cube_cutter(),
+            "append_text": append_text,
         }
+
 
         settings = ParameterData(
                      dict={'additional_retrieve_list': ['*.cube.gz'],
