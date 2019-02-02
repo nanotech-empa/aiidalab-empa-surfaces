@@ -3,6 +3,7 @@ from aiida.orm.data.parameter import ParameterData
 from aiida.orm.data.array.kpoints import KpointsData
 from aiida.orm.data.base import Int, Float, Str
 from aiida.orm.data.structure import StructureData
+from aiida.orm.data.singlefile import SinglefileData
 from aiida.orm.data.upf import get_pseudos_dict, get_pseudos_from_structure
 
 from aiida_quantumespresso.calculations.pw import PwCalculation
@@ -18,6 +19,8 @@ from aiida.work.workchain import WorkChain, ToContext, Calc
 from aiida.work.run import run, submit
 
 import numpy as np
+
+import aux_script_strings
 
 
 class NanoribbonWorkChain(WorkChain):
@@ -212,7 +215,7 @@ class NanoribbonWorkChain(WorkChain):
                               "num_mpiprocs_per_machine": nproc_mach
                              },
                 "max_wallclock_seconds": nhours * 60 * 60,  # 6 hours
-                "append_text": self._get_cube_cutter(),
+                "append_text": aux_script_strings.cube_cutter,
             }
 
             settings = ParameterData(
@@ -261,24 +264,15 @@ class NanoribbonWorkChain(WorkChain):
                   },
         })
         inputs['parameters'] = parameters
-        
-        # Add the post-processing python scripts
-        aux_scripts_dir = "/project/apps/surfaces/nanoribbon/aux_scripts/"
-        cube_cutter_script = SinglefileData(file=aux_scripts_dir+"cube_cutter.py")
-        cube_cropper_script = SinglefileData(file=aux_scripts_dir+"cube_clip-cropper.py")
-        
-        inputs['file'] = {}
-        inputs['file']['cube_cutter'] = cube_cutter_script
-        inputs['file']['cube_cropper'] = cube_cropper_script
-        
+
         # commands to run after the main calculation is finished
         append_text = u""
         # workaround for flaw in PpCalculator.
         # We don't want to retrive this huge intermediate file.
         append_text += u"rm -v aiida.filplot \n"
-        # execute the python scripts
-        append_text += u"python ./cube_cutter.py \n"
-        append_text += u"python ./cube_clip-cropper.py \n"
+        # Add the post-processing python scripts
+        append_text += aux_script_strings.cube_cutter
+        append_text += aux_script_strings.cube_clipper_cropper
         
         inputs['_options'] = {
             "resources": {"num_machines": nnodes,
@@ -506,39 +500,3 @@ class NanoribbonWorkChain(WorkChain):
                 start_mag[i.name] = 0.0
         return start_mag
 
-    # =========================================================================
-    def _get_cube_cutter(self):
-        append_text = ur"""
-cat > postprocess.py << EOF
-
-from glob import glob
-import numpy as np
-import gzip
-
-for fn in glob("*.cube"):
-    # parse
-    lines = open(fn).readlines()
-    header = np.fromstring("".join(lines[2:6]), sep=' ').reshape(4,4)
-    natoms, nx, ny, nz = header[:,0].astype(int)
-    cube = np.fromstring("".join(lines[natoms+6:]), sep=' ').reshape(nx, ny, nz)
-
-    # plan
-    dz = header[3,3]
-    angstrom = int(1.88972 / dz)
-    z0 = nz/2 + 1*angstrom # start one angstrom above surface
-    z1 = z0   + 3*angstrom # take three layers at one angstrom distance
-    zcuts = range(z0, z1+1, angstrom)
-
-    # output
-    ## change offset header
-    lines[2] = "%5.d 0.0 0.0 %f\n"%(natoms,  z0*dz)
-    ## change shape header
-    lines[5] = "%6.d 0.0 0.0 %f\n"%(len(zcuts), angstrom*dz)
-    with gzip.open(fn+".gz", "w") as f:
-        f.write("".join(lines[:natoms+6])) # write header
-        np.savetxt(f, cube[:,:,zcuts].reshape(-1, len(zcuts)), fmt="%.5e")
-EOF
-
-python ./postprocess.py
-"""
-        return append_text
