@@ -33,7 +33,7 @@ class StructureBrowser(ipw.VBox):
         
         # Date range
         self.dt_now = datetime.datetime.now()
-        self.dt_end = self.dt_now - datetime.timedelta(days=60)
+        self.dt_end = self.dt_now - datetime.timedelta(days=10)
         self.date_start = ipw.Text(value='',
                                    description='From: ',
                                    style={'description_width': '120px'})
