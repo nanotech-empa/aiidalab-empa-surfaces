@@ -1,6 +1,6 @@
 {
-    "description": "Tools for graphene nanoribbons, developed at the nanotech@surfaces laboratory, Empa",
-    "title": "Empa nanotech@surfaces Laboratory - Graphene nanoribbons",
+    "description": "Tools for on-surface chemistry, developed at the nanotech@surfaces laboratory, Empa",
+    "title": "Empa nanotech@surfaces Laboratory - On-Surface Chemistry",
     "version": "0.1.1",
     "logo": "miscellaneous/logos/empa.png"
 }
