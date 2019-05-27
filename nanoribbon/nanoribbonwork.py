@@ -184,7 +184,7 @@ class NanoribbonWorkChain(WorkChain):
         kband2 = min(int(nel/2) + 7, nbnd)
         kpoint1 = 1
         kpoint2 = nkpt * nspin
-        nhours = 2 #24# 2 + min(22, 2*int(volume/1500))
+        nhours = 2 + min(22, 2*int(volume/1500))
         bands_cmdline = prev_calc.inp.settings.get_dict()['cmdline']
         nnodes=int(prev_calc.get_resources()['num_machines'])
         npools = int(bands_cmdline[bands_cmdline.index('-npools')+1])
