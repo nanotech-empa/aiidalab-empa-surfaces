@@ -6,19 +6,20 @@ from aiida.orm.data.base import Int, Float, Str, Bool, List
 from aiida.orm.data.parameter import  ParameterData
 
 ATOMIC_KINDS = {
-    'H' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'  , 'pseudo' : 'GTH-PBE-q1'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
-    'Au':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
-    'Ag':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
-    'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
-    'Al':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q3'  , 'RI_HFX_BASIS_all': None  },
-    'B' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'  , 'pseudo' : 'GTH-PBE-q1'  , 'RI_HFX_BASIS_all': None  },
-    'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q7'  , 'RI_HFX_BASIS_all': None  },
-    'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'  , 'pseudo' : 'GTH-PBE-q4'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
-    'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q13' , 'RI_HFX_BASIS_all': None  },        
-    'N' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'  , 'pseudo' : 'GTH-PBE-q5'  , 'RI_HFX_BASIS_all': None  },
-    'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'  , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  },
-    'Pd':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q18' , 'RI_HFX_BASIS_all': None  },
-    'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'  , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  }
+    'H' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q1'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
+    'Au':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
+    'Ag':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
+    'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
+    'Al':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'  , 'RI_HFX_BASIS_all': None  },
+    'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q1'  , 'RI_HFX_BASIS_all': None  },
+    'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q7'  , 'RI_HFX_BASIS_all': None  },
+    'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q4'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
+    'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13' , 'RI_HFX_BASIS_all': None  },        
+    'N' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q5'  , 'RI_HFX_BASIS_all': None  },
+    'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  },
+    'Pd':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q18' , 'RI_HFX_BASIS_all': None  },
+    'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  },
+    'Zn':{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q12' , 'RI_HFX_BASIS_all': None  },
 }
 
 for element in ATOMIC_KINDS.keys():
@@ -292,7 +293,7 @@ class Get_CP2K_Input():
             self.xc_gw={
                      'XC_FUNCTIONAL': {'_': 'PBE'},
                      'WF_CORRELATION' : {
-                                           'ERI_METHOD' :  OS,
+                                           'ERI_METHOD' :  'OS',
                                            'GROUP_SIZE' : '%d' %(self.inp_dict['group_size']),
                                            'METHOD'     : 'RI_RPA_GPW',
                                            'RI'         : 'OVERLAP',
@@ -939,40 +940,40 @@ class Get_CP2K_Input():
                 force_eval['SUBSYS']['KIND'][-1]['RI_AUX_BASIS_SET'] = ba
 
 
-            ### ADD KINDS for SPIN GUESS : DFT AND GW cases
-            if self.inp_dict['spin_guess'] !='' and self.inp_dict['spin_guess']:
-                spin_splitted = str(self.inp_dict['spin_guess']).split() ## e.g. ['C1','-1','1','2','C2','1','1','2']
-                for ii,C1 in enumerate(spin_splitted[0::4]):
-                    element=C1[0:-1]
-                    pp = ATOMIC_KINDS[kind]['pseudo']
-                    bs = ATOMIC_KINDS[kind][basis_set] 
-                    force_eval['SUBSYS']['KIND'].append(
+        ### ADD KINDS for SPIN GUESS : DFT AND GW cases
+        if self.inp_dict['spin_guess'] !='' and self.inp_dict['spin_guess']:
+            spin_splitted = str(self.inp_dict['spin_guess']).split() ## e.g. ['C1','-1','1','2','C2','1','1','2']
+            for ii,C1 in enumerate(spin_splitted[0::4]):
+                element=C1[0:-1]
+                pp = ATOMIC_KINDS[element]['pseudo']
+                bs = ATOMIC_KINDS[element][basis_set] 
+                force_eval['SUBSYS']['KIND'].append(
+                                                    {
+                                                    '_': C1,
+                                                    'ELEMENT' : element,
+                                                    'BASIS_SET': bs,
+                                                    'POTENTIAL': pp,
+                                                     'BS':
                                                         {
-                                                        '_': C1,
-                                                        'ELEMENT' : element,
-                                                        'BASIS_SET': bs,
-                                                        'POTENTIAL': pp,
-                                                         'BS':
+                                                         'ALPHA':
                                                             {
-                                                             'ALPHA':
-                                                                {
-                                                                 'NEL': spin_splitted[4*ii+1],
-                                                                 'L': spin_splitted[4*ii+2],
-                                                                 'N': spin_splitted[4*ii+3]
-                                                                 },
-                                                             ####BETA CONSTRAINED TO ALPHA
-                                                             'BETA':
-                                                                {
-                                                                 'NEL': str(-1*int(spin_splitted[4*ii+1])),
-                                                                 'L': spin_splitted[4*ii+2],
-                                                                 'N': spin_splitted[4*ii+3]
-                                                                 }
+                                                             'NEL': spin_splitted[4*ii+1],
+                                                             'L': spin_splitted[4*ii+2],
+                                                             'N': spin_splitted[4*ii+3]
+                                                             },
+                                                         ####BETA CONSTRAINED TO ALPHA
+                                                         'BETA':
+                                                            {
+                                                             'NEL': str(-1*int(spin_splitted[4*ii+1])),
+                                                             'L': spin_splitted[4*ii+2],
+                                                             'N': spin_splitted[4*ii+3]
                                                              }
-                                                        }
-                                                       )           
-                    if self.inp_dict['gw_type']:
-                        ba = ATOMIC_KINDS[kind]['RI_AUX_BASIS_SET']
-                        force_eval['SUBSYS']['KIND'][-1]['RI_AUX_BASIS_SET'] = ba                  
+                                                         }
+                                                    }
+                                                   )           
+                if self.inp_dict['gw_type']:
+                    ba = ATOMIC_KINDS[element]['RI_AUX_BASIS_SET']
+                    force_eval['SUBSYS']['KIND'][-1]['RI_AUX_BASIS_SET'] = ba                  
             ##### END ADD KINDS
 
         ### STRESS TENSOR for CELL_OPT
