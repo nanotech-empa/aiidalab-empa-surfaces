@@ -11,7 +11,7 @@ ATOMIC_KINDS = {
     'Ag':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
     'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
     'Al':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'  , 'RI_HFX_BASIS_all': None  },
-    'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q1'  , 'RI_HFX_BASIS_all': None  },
+    'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'  , 'RI_HFX_BASIS_all': None  },
     'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q7'  , 'RI_HFX_BASIS_all': None  },
     'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q4'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
     'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13' , 'RI_HFX_BASIS_all': None  },        

@@ -10,7 +10,7 @@ ATOMIC_KINDS = {
     'Ag':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q11'),
     'Cu':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q11'),
     'Al':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q3'),
-    'B' :('TZV2P-MOLOPT-GTH','GTH-PBE-q1'),
+    'B' :('DZVP-MOLOPT-SR-GTH','GTH-PBE-q3'),
     'Br':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q7'),
     'C' :('TZV2P-MOLOPT-GTH','GTH-PBE-q4'),
     'Ga':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q13'),        
