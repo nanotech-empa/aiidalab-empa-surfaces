@@ -7,44 +7,63 @@ from ase import Atoms
 
 
 
-def extract_mol_indexes_from_slab(atoms):
-    atoms.set_pbc([True,True,True])
-    exclude=['Au','Ag','Cu','Pd','Ga','Ni']
-    possible_mol_atoms=['C','N','H','O','S','F'] #problem of H making everything slow due to bottom_H
-
-    ismol=[]
-
-
-    zmin=np.min(atoms.positions[:,2])
-    all_guess_mol_atoms = [ia.index for ia in atoms if 
-                           (ia.symbol in possible_mol_atoms and ia.position[2]>zmin+2.0)]
-    
-    for ma in all_guess_mol_atoms:
-        if ma not in ismol:
-            tobeadded=all_connected_to(ma,atoms,exclude)
-            if len(tobeadded) >1:
-                for tba in tobeadded:
-                    ismol.append(tba)
-
-    return ismol
-
-
-def to_ranges(iterable):
-    iterable = sorted(set(iterable))
-    for key, group in itertools.groupby(enumerate(iterable),
-                                        lambda t: t[1] - t[0]):
-        group = list(group)
-        yield group[0][1], group[-1][1]
+def boxfilter(x,thr):
+    return np.asarray([1 if i<thr else 0 for i in x])
+def get_types(frame,thr): ## Piero Gasparotto
+    # classify the atmos in:
+    # 0=molecule
+    # 1=surface atoms
+    # 2=adatoms
+    # 3=hydrogens on the surf
+    #frame=ase frame
+    #thr=threashold in the histogram for being considered a surface layer
+    nat=frame.get_number_of_atoms()
+    atype=np.zeros(nat,dtype=np.int16)
+    surftypes=('Au','N','B','O','Cu','Ag','Pg','Ga','Pd','Ga') #types of surface atoms
+    lbls=frame.get_chemical_symbols()
+    isurf=np.asarray([i for i in range(nat) if lbls[i] in surftypes])
+    irest=np.setdiff1d(range(nat), isurf)
+    # set surf to standard surf
+    atype[isurf]=1
+    hist, bin_edges = np.histogram(frame.positions[isurf,2], density=True,bins=100)
+    # find the positions of the layers
+    layers=bin_edges[np.where(hist>thr)[0]]
+    # compute the CV: simply the z_coord_of_the_atoms - the_closest_surface_layer
+    #relz=np.asarray([i-layers[np.argsort(np.abs(i-layers))[0]] for i in frame.positions[:,2]])
+    relz=np.asarray([np.sort(np.abs(i-layers))[0] for i in frame.positions[:,2]])
+    # the surf atoms in an ordered layer have relz=0, this is enough to classify all the different atoms
+    # since I know the atomic labes I use a switching function on relz to get 1 for the standard surface atoms
+    # and 0 for the adatoms
+    for j in [isurf[i] for i,v in enumerate(boxfilter(relz[isurf],0.5)) if v==0]:
+        atype[j]=2
+      
+    # assign the H types
+    # get the position of the H at the surf
+    ihsurf=[j for j in irest if(relz[j]<1.0 and lbls[j]=='H')]
+    if len(ihsurf)>1 :
+        # set the H at the surf as type 3
+        atype[ihsurf]=3
+        # get the histo in z of these hydrogens
+        hist, bin_edges = np.histogram(frame.positions[ihsurf,2], density=True,bins=100)
+        # check if there are layers
+        layersh=bin_edges[np.where(hist>thr)[0]]
+        # check if an hydrogen is part or not of the layers
+        relzh=np.asarray([np.sort(np.abs(i-layersh))[0] for i in frame.positions[ihsurf,2]])
+        # hydrogens not in the layers should be adatoms
+        for j in [ihsurf[i] for i,v in enumerate(boxfilter(relzh,0.5)) if v==0]:
+            atype[j]=2
         
-def mol_ids_range(ismol):
-    range_string=''
-    ranges=list(to_ranges(ismol))
-    for i in range(len(ranges)):
-        if ranges[i][1]>ranges[i][0]:
-            range_string+=str(ranges[i][0])+'..'+str(ranges[i][1])
-        else:
-            range_string+=' '+str(ranges[i][0])
-    return range_string
+    # assign the other types
+    moltypes=('N','B','O')
+    #for j in irest:
+    #    if(relz[j]<1.0 and lbls[j]=='H'):
+    #        atype[j]=3 # hydrogens of the surf
+    for j in np.asarray([i for i in isurf if lbls[i] in moltypes]):
+        if(relz[j]>0.5):
+            atype[j]=0
+        #    atype[j]=4 # oxygens of the surf
+        #elif(zz[]):
+    return atype
 
 def all_connected_to(id_atom,atoms,exclude):
     cov_radii = [covalent_radii[a.number] for a in atoms]
@@ -122,7 +141,7 @@ def mol_ids_range(ismol):
 
 def analyze_slab(atoms):
     atoms.set_pbc([True,True,True])
-    
+
     total_charge=np.sum(atoms.get_atomic_numbers())
     bottom_H=[]
     adatoms=[]
@@ -146,8 +165,8 @@ def analyze_slab(atoms):
     nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
     nl.update(atoms)
     
-    metalating_atoms=['Ag','Au','Cu','Co','Ni','Fe']
-    possible_slab_atoms=['Au','Ag','Cu','Pd','Ga','Ni']
+    #metalating_atoms=['Ag','Au','Cu','Co','Ni','Fe']
+    #possible_slab_atoms=['Au','Ag','Cu','Pd','Ga','Ni']
     
     summary=''
     if (not vacuum_z) and (not vacuum_x) and (not vacuum_y):
@@ -165,79 +184,42 @@ def analyze_slab(atoms):
         summary+='COM: '+str(com)+', min z: '+str(np.min(atoms.positions[:,2]))
     ####END check
     if not (is_a_bulk or is_a_molecule or vacuum_y):
+        tipii=get_types(atoms,0.1)
+        # 0=molecule
+        # 1=surface atoms
+        # 2=adatoms
+        # 3=hydrogens on the surf
         sys_type='Slab'
-        mol_atoms=extract_mol_indexes_from_slab(atoms)
+        mol_atoms=np.where(tipii==0)[0].tolist()
+        #mol_atoms=extract_mol_indexes_from_slab(atoms)
         all_molecules=molecules(mol_atoms,atoms)
 
 
-        ## bottom_H   
-        zmin=np.min(atoms.positions[:,2])
-        listh=[x[0] for x in np.argwhere(atoms.numbers == 1)]
-        for ih in listh:
-            if atoms[ih].position[2]<zmin+0.8:
-                bottom_H.append(ih)
+        ## bottom_H  
+        bottom_H=np.where(tipii==3)[0].tolist()
+        #zmin=np.min(atoms.positions[:,2])
+        #listh=[x[0] for x in np.argwhere(atoms.numbers == 1)]
+        #for ih in listh:
+        #    if atoms[ih].position[2]<zmin+0.8:
+        #        bottom_H.append(ih)
 
 
-        #nice but too slow and does not distinguish top from bottom    
-        #    for h in listh:
-        #        indices, offsets = nl.get_neighbors(h)
-        #        #aus=[i for i in indices if atoms[i].symbol=='Au' ]
-        #        aus=[i for i in indices if (atoms[i].symbol in possible_slab_atoms) ]
-        #        for the_au in aus:
-        #            iau,oau = nl.get_neighbors(the_au)
-        #            h_of_one_au=[ish for ish in iau if atoms[ish].symbol=='H']
-        #            if len(h_of_one_au) >1:
-        #                bottom_H.append(h)
-        #                break
 
-        for ra in range(len(atoms)):
-            if ra not in mol_atoms+bottom_H:
-                remaining.append(ra)
-        for ra in remaining:
-            nummetalsneigh=0
-            indices, offsets = nl.get_neighbors(ra)
-            classified=False
-            if len(indices)==0: 
-                if atoms[ra].symbol in metalating_atoms:
-                    metalatings.append(ra)
-                    classified=True
-            else:
-                for inra in indices:
-                    if atoms[inra].symbol in possible_slab_atoms:
-                        nummetalsneigh+=1
-                if nummetalsneigh >0 and nummetalsneigh <4:
-                    adatoms.append(ra)
-                    classified=True
-                else:
-                    slabatoms.append(ra)
-                    classified=True
-            if not classified:
-                unclassified.append(ra) 
-
+        slabatoms=np.where(tipii==1)[0].tolist()
+        adatoms=np.where(tipii==2)[0].tolist()
+        
         ##slab layers
-        dz=1.0
-        ddz=0.01
+        nbins=np.max(atoms[slabatoms].positions[:,2]) - np.min(atoms[slabatoms].positions[:,2])
+        nbins=int(np.ceil(nbins/0.15))
+        hist, bin_edges = np.histogram(atoms[slabatoms].positions[:,2], density=True,bins=nbins)
 
-    #    zmin different from one already computed above
-        id_zmin=np.argmin(atoms[slabatoms].positions[:,2]) # wrt only slab atoms
-        id_zmin=slabatoms[id_zmin] # global index
-        zmin=atoms[id_zmin].position[2]
-        possible_next_z=[ia[0] for ia in np.argwhere(atoms[slabatoms].positions[:,2] > zmin +dz)]
-        next_z=np.min(atoms[slabatoms][possible_next_z].positions[:,2])
-        to_be_checked=list(slabatoms)
-        while len(to_be_checked)>0:
-            #within_dz=np.logical_and(atoms.positions[:,2] > zmin -ddz , atoms.positions[:,2] <next_z -ddz  )
-            within_dz=np.logical_and(atoms[slabatoms].positions[:,2] >= zmin , atoms[slabatoms].positions[:,2] <next_z   )
-            within_dz=[slabatoms[ia[0]] for ia in np.argwhere(within_dz)]
-            slab_layers.append(within_dz)
-            for ia in within_dz:
-                to_be_checked.remove(ia)
-            if len(to_be_checked)>0:
-                id_zmin=np.argmin(atoms[to_be_checked].positions[:,2])
-                id_zmin=to_be_checked[id_zmin]
-                zmin=atoms[id_zmin].position[2]           
-                possible_next_z=[ia[0] for ia in np.argwhere(atoms.positions[:,2] > zmin +dz)]
-                next_z=np.min(atoms[possible_next_z].positions[:,2])        
+        thr=np.max(hist)/4.0
+        layers=bin_edges[np.where(hist>thr)[0]]
+        slab_layers=[[]for i in range(len(layers))]
+        for ia in slabatoms:
+            idx = (np.abs(layers - atoms.positions[ia,2])).argmin()
+            slab_layers[idx].append(ia)
+        
         ##end slab layers
         summary='Slab contains: \n'
         
@@ -261,9 +243,9 @@ def analyze_slab(atoms):
         summary+='unclassified: ' + mol_ids_range(unclassified)
 
     return {'total_charge'  : total_charge,
+            'system_type'   : sys_type,
             'the_cell'      : atoms.cell,
             'slab_layers'   : slab_layers,
-            'system_type'   : sys_type,
             'bottom_H'      : sorted(bottom_H),
             'slabatoms'     : sorted(slabatoms),
             'adatoms'       : sorted(adatoms),

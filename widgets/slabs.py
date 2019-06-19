@@ -47,7 +47,19 @@ dz_cu_h    = 0.86502011 # Distance between Cu and H layer
 dz_cu_1_2  = 2.06853511 # Distance between Cu top layer and 2nd layer
 dz_cu_2_3  = 2.08397214 # Distance between Cu 2nd layer and 3rd layer (bulk)
 
-
+hBN_x=2.510999063
+hBN_y=4.349177955
+hBN_z=6.842897412
+hBN_unit=[
+    ['B',0.5,1./6.,0.],
+    ['N',0.,1./3.,0.],
+    ['B',0.,2./3.,0.],
+    ['N',0.5,5./6.,0.],    
+    ['N',0.5,1./6.,0.5],
+    ['B',0.,1./3.,0.5],
+    ['N',0.,2./3.,0.5],
+    ['B',0.5,5./6.,0.5],    
+]
 PdGa_Lx=6.94998812643203
 PdGa_Ly=12.0377325469807
 PdGa_Lz=8.511962399582
@@ -288,8 +300,25 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
         slab_z_max=np.max(the_slab.positions[:,2])
         
         cx,cy,cz=the_slab.cell.diagonal()
-    else:
-### NOBLE metals (111)        
+### hBN        
+    elif which_surf == "hBN":
+        hBN=Atoms()
+        for a in hBN_unit:
+            hBN.append(Atom(a[0],(float(a[1])*hBN_x, float(a[2])*hBN_y, float(a[3])*hBN_z )))
+        hBN.cell=(hBN_x,hBN_y ,hBN_z)
+        hBN.pbc=(True,True,True)
+        ### build nx x ny x nz bulk
+        hBN=hBN.repeat((nx,ny,nz))
+
+        ### add to cell  vacuum    
+        hBN.cell=(hBN_x*nx,hBN_y*ny ,hBN_z*nz +40.0 )
+        the_slab = sort(hBN, tags=hBN.get_positions()[:,2]*-1)
+        the_slab.positions+=np.array((0,0,10))
+        slab_z_max=np.max(the_slab.positions[:,2])
+        
+        cx,cy,cz=the_slab.cell.diagonal()
+### NOBLE metals (111)
+    else:        
         if which_surf == "Au(111)":
             Lx=Au_x
             Ly=Au_y

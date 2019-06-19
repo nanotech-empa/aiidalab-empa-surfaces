@@ -829,7 +829,7 @@ class Get_CP2K_Input():
                            'OT': {'PRECONDITIONER': 'FULL_SINGLE_INVERSE',
                                   'MINIMIZER'     : 'CG'
                            },
-                           'OUTER_SCF': {'MAX_SCF': '15',
+                           'OUTER_SCF': {'MAX_SCF': '50',
                                          'EPS_SCF': '1.0E-7',                                         
                            },
                            'PRINT'    : print_scf
