@@ -74,7 +74,9 @@ class MoleculeOptWorkChain(WorkChain):
         
         the_dict = self.inputs.parameters.get_dict()
         the_dict['parent_folder'] = self.ctx.molecule_opt.out.remote_folder
-        inputs_new = self.build_calc_inputs(input_dict=the_dict)        
+        inputs_new = self.build_calc_inputs(code       = self.inputs.code,
+                                        structure      = self.inputs.structure,
+                                        input_dict     = the_dict )        
 
         
 

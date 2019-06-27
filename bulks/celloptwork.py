@@ -1,5 +1,6 @@
 from aiida.orm.data.structure import StructureData
 from aiida.orm.data.parameter import ParameterData
+from aiida.orm.data.remote import RemoteData
 from aiida.orm.data.base import Int, Float, Str, Bool
 from aiida.orm.data.singlefile import SinglefileData
 from aiida.orm.code import Code
@@ -17,30 +18,20 @@ import numpy as np
 from ase.data import covalent_radii
 from ase.neighborlist import NeighborList
 from ase import Atoms
+from io import StringIO, BytesIO
 
-
-from apps.surfaces.widgets.get_cp2k_input import get_cp2k_input
+from apps.surfaces.widgets.get_cp2k_input_dev import Get_CP2K_Input
 
 class CellOptWorkChain(WorkChain):
 
     @classmethod
     def define(cls, spec):
         super(CellOptWorkChain, cls).define(spec)
-        spec.input("cp2k_code", valid_type=Code)
-        spec.input("structure", valid_type=StructureData)
-        spec.input("max_force", valid_type=Float, default=Float(0.001))
-        spec.input("calc_type", valid_type=Str, default=Str('Full DFT'))
-        spec.input("workchain", valid_type=Str, default=Str('CellOptWorkChain'))
-        spec.input("vdw_switch", valid_type=Bool, default=Bool(False))
-        spec.input("mgrid_cutoff", valid_type=Int, default=Int(600))
-        spec.input("fixed_atoms", valid_type=Str, default=Str(''))
-        spec.input("num_machines", valid_type=Int, default=Int(1))
-        spec.input("cell_free", valid_type=Str, default=Str('KEEP_SYMMETRY'))
-        spec.input("cell_sym", valid_type=Str, default=Str('ORTHORHOMBIC'))
-        spec.input("system_charge", valid_type=Int, default=Int(0))
-        spec.input("uks_switch", valid_type=Str, default=Str('RKS'))
-        spec.input("multiplicity", valid_type=Int, default=Int(0))
-        spec.input("calc_name", valid_type=Str)
+        
+        spec.input('parameters', valid_type    = ParameterData)
+        spec.input('code'      , valid_type    = Code)
+        spec.input('structure' , valid_type    = StructureData)
+        spec.input('parent_folder', valid_type = RemoteData, default=None, required=False)
 
         spec.outline(
             #cls.print_test,
@@ -72,21 +63,26 @@ class CellOptWorkChain(WorkChain):
     def run_cellopt(self):
         self.report("Running CP2K CELL optimization")
 
-        inputs = self.build_calc_inputs(structure          = self.inputs.structure,
-                                        cp2k_code          = self.inputs.cp2k_code,
-                                        max_force          = self.inputs.max_force,
-                                        calc_type          = self.inputs.calc_type,
-                                        workchain          = self.inputs.workchain,
-                                        mgrid_cutoff       = self.inputs.mgrid_cutoff,
-                                        vdw_switch         = self.inputs.vdw_switch,
-                                        fixed_atoms        = self.inputs.fixed_atoms,
-                                        num_machines       = self.inputs.num_machines,
-                                        cell_free          = self.inputs.cell_free,
-                                        cell_sym           = self.inputs.cell_sym,
-                                        system_charge      = self.inputs.system_charge,
-                                        uks_switch         = self.inputs.uks_switch,
-                                        multiplicity       = self.inputs.multiplicity,
-                                        remote_calc_folder = None)
+#        inputs = self.build_calc_inputs(structure          = self.inputs.structure,
+#                                        cp2k_code          = self.inputs.cp2k_code,
+#                                        max_force          = self.inputs.max_force,
+#                                        calc_type          = self.inputs.calc_type,
+#                                        workchain          = self.inputs.workchain,
+#                                        mgrid_cutoff       = self.inputs.mgrid_cutoff,
+#                                        vdw_switch         = self.inputs.vdw_switch,
+#                                        fixed_atoms        = self.inputs.fixed_atoms,
+#                                        num_machines       = self.inputs.num_machines,
+#                                        cell_free          = self.inputs.cell_free,
+#                                        cell_sym           = self.inputs.cell_sym,
+#                                        system_charge      = self.inputs.system_charge,
+#                                        uks_switch         = self.inputs.uks_switch,
+#                                        multiplicity       = self.inputs.multiplicity,
+#                                        remote_calc_folder = None)
+#        
+        the_dict = self.inputs.parameters.get_dict()
+        inputs = self.build_calc_inputs(code           = self.inputs.code,
+                                        structure      = self.inputs.structure,
+                                        input_dict     = the_dict )        
 
         self.report("inputs: "+str(inputs))
         self.report("parameters: "+str(inputs['parameters'].get_dict()))
@@ -97,23 +93,12 @@ class CellOptWorkChain(WorkChain):
 
     # ==========================================================================
     def run_cellopt_again(self):
-        # TODO: make this nicer.
-        inputs_new = self.build_calc_inputs(structure          = self.inputs.structure,
-                                            cp2k_code          = self.inputs.cp2k_code,
-                                            max_force          = self.inputs.max_force,
-                                            calc_type          = self.inputs.calc_type,
-                                            workchain          = self.inputs.workchain,
-                                            mgrid_cutoff       = self.inputs.mgrid_cutoff,
-                                            vdw_switch         = self.inputs.vdw_switch,
-                                            fixed_atoms        = self.inputs.fixed_atoms,
-                                            num_machines       = self.inputs.num_machines,
-                                            cell_free          = self.inputs.cell_free,
-                                            cell_sym           = self.inputs.cell_sym,
-                                            system_charge      = self.inputs.system_charge,
-                                            uks_switch         = self.inputs.uks_switch,
-                                            multiplicity       = self.inputs.multiplicity,
-                                            remote_calc_folder = self.ctx.cell_opt.out.remote_folder)
         
+        the_dict = self.inputs.parameters.get_dict()
+        the_dict['parent_folder'] = self.ctx.cell_opt.out.remote_folder
+        inputs_new = self.build_calc_inputs(code       = self.inputs.code,
+                                        structure      = self.inputs.structure,
+                                        input_dict     = the_dict )         
 
         self.report("inputs (restart): "+str(inputs_new))
         future_new = submit(Cp2kCalculation.process(), **inputs_new)
@@ -121,69 +106,65 @@ class CellOptWorkChain(WorkChain):
 
     # ==========================================================================
     @classmethod
-    def build_calc_inputs(cls, 
-                          structure          = None, 
-                          cp2k_code          = None, 
-                          max_force          = None, 
-                          calc_type          = None,
-                          workchain          = None,
-                          mgrid_cutoff       = None, 
-                          vdw_switch         = None, 
-                          fixed_atoms        = None,
-                          num_machines       = None,
-                          cell_free          = None,
-                          cell_sym           = None,
-                          system_charge      = None,
-                          uks_switch         = None,
-                          multiplicity       = None, 
-                          remote_calc_folder = None,
-                          **not_used
-                         ):
-
+#    def build_calc_inputs(cls, 
+#                          structure          = None, 
+#                          cp2k_code          = None, 
+#                          max_force          = None, 
+#                          calc_type          = None,
+#                          workchain          = None,
+#                          mgrid_cutoff       = None, 
+#                          vdw_switch         = None, 
+#                          fixed_atoms        = None,
+#                          num_machines       = None,
+#                          cell_free          = None,
+#                          cell_sym           = None,
+#                          system_charge      = None,
+#                          uks_switch         = None,
+#                          multiplicity       = None, 
+#                          remote_calc_folder = None,
+#                          **not_used
+#                         ):
+        
+    def build_calc_inputs(cls,
+                          code          = None,
+                          structure     = None,
+                          input_dict    = None):
+        
         inputs = {}
         inputs['_label'] = "cell_opt"
-        inputs['code'] = cp2k_code
+        inputs['code'] = code
         inputs['file'] = {}
 
  
         atoms = structure.get_ase()  # slow
     
-        molslab_f = cls.mk_aiida_file(atoms, "bulk.xyz")
+        spin_guess = cls.extract_spin_guess(structure)
+        molslab_f = cls.make_geom_file(atoms, "bulk.xyz", spin_guess)
+        
         inputs['file']['input_xyz'] = molslab_f
 
 
         # parameters
-        cell    =[atoms.cell[0, 0],atoms.cell[0, 1], atoms.cell[0, 2],
-                  atoms.cell[1, 0],atoms.cell[1, 1], atoms.cell[1, 2],
-                  atoms.cell[2, 0],atoms.cell[2, 1], atoms.cell[2, 2]]
+        cell_ase = atoms.cell.flatten().tolist()
+        if 'cell' in input_dict.keys():
+            if input_dict['cell'] == '' or input_dict['cell'] == None :
+                input_dict['cell'] = cell_ase   
+            else:
+                cell_abc=input_dict['cell'].split()
+                input_dict['cell']=np.diag(np.array(cell_abc, dtype=float)).flatten().tolist()
+        else:
+            input_dict['cell'] = cell_ase
 
 #        remote_computer = code.get_remote_computer()
  #       machine_cores = remote_computer.get_default_mpiprocs_per_machine()
      
-        walltime = 86000
-
-        inp =     get_cp2k_input(cell               = cell,
-                                 atoms              = atoms,
-                                 max_force          = max_force,
-                                 calc_type          = calc_type, 
-                                 mgrid_cutoff       = mgrid_cutoff,
-                                 vdw_switch         = vdw_switch,
-                                 fixed_atoms        = fixed_atoms,
-                                 cell_free          = cell_free,
-                                 cell_sym           = cell_sym,
-                                 system_charge      = system_charge,
-                                 uks_switch         = uks_switch, 
-                                 multiplicity       = multiplicity,
-                                 walltime           = walltime*0.97,
-                                 workchain          = workchain,
-                                 remote_calc_folder = remote_calc_folder
-                                )
-
-        if remote_calc_folder is not None:
+        inp = Get_CP2K_Input(input_dict = input_dict).inp
+        
+        if 'parent_folder' in input_dict.keys():
             inp['EXT_RESTART'] = {
                 'RESTART_FILE_NAME': './parent_calc/aiida-1.restart'
             }
-            inputs['parent_folder'] = remote_calc_folder
+            inputs['parent_folder'] = input_dict['remote_calc_folder']
 
         inputs['parameters'] = ParameterData(dict=inp)
 
@@ -193,21 +174,64 @@ class CellOptWorkChain(WorkChain):
 
         # resources
         inputs['_options'] = {
-            "resources": {"num_machines": num_machines},
-            "max_wallclock_seconds": walltime,
+            "resources": {"num_machines": input_dict['num_machines']},
+            "max_wallclock_seconds": input_dict['walltime'],
         }
 
         return inputs
 
     # ==========================================================================
     @classmethod
-    def mk_aiida_file(cls, atoms, name):
+    def make_geom_file(cls, atoms, filename, spin_guess=None):
+        # spin_guess = [[spin_up_indexes], [spin_down_indexes]]
+        
+        n_atoms = len(atoms)
+        
         tmpdir = tempfile.mkdtemp()
-        atoms_file_name = tmpdir + "/" + name
-        atoms.write(atoms_file_name)
-        atoms_aiida_f = SinglefileData(file=atoms_file_name)
+        file_path = tmpdir + "/" + filename
+
+        orig_file = BytesIO()
+        atoms.write(orig_file, format='xyz')
+        orig_file.seek(0)
+        all_lines = orig_file.readlines()
+        comment = all_lines[1].strip()
+        orig_lines = all_lines[2:]
+        
+        modif_lines = []
+        for i_line, line in enumerate(orig_lines):
+            new_line = line
+            lsp = line.split()
+            if spin_guess is not None:
+                if i_line in spin_guess[0]:
+                    new_line = lsp[0]+"1 " + " ".join(lsp[1:])+"\n"
+                if i_line in spin_guess[1]:
+                    new_line = lsp[0]+"2 " + " ".join(lsp[1:])+"\n"
+            modif_lines.append(new_line)
+        
+        
+        final_str = "%d\n%s\n" % (n_atoms, comment) + "".join(modif_lines)
+
+        with open(file_path, 'w') as f:
+            f.write(final_str)
+        aiida_f = SinglefileData(file=file_path)
         shutil.rmtree(tmpdir)
-        return atoms_aiida_f
+        return aiida_f
+    
+    # ==========================================================================
+    @classmethod
+    def extract_spin_guess(cls, struct_node):
+        sites_list = struct_node.get_attrs()['sites']
+        
+        spin_up_inds = []
+        spin_dw_inds = []
+        
+        for i_site, site in enumerate(sites_list):
+            if site['kind_name'][-1] == '1':
+                spin_up_inds.append(i_site)
+            elif site['kind_name'][-1] == '2':
+                spin_dw_inds.append(i_site)
+        
+        return [spin_up_inds, spin_dw_inds]
 
     # ==========================================================================
 

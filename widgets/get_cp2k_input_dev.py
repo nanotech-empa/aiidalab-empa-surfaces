@@ -543,7 +543,7 @@ class Get_CP2K_Input():
                     'EXTERNAL_PRESSURE' : '0',
                     'MAX_ITER': '500'
                      }
-            if cell_free !='FREE':
+            if self.inp_dict['cell_free'] !='FREE':
                 motion['CELL_OPT'][str(self.inp_dict['cell_free'])] = ''
         #### END CELL_OPT
 
