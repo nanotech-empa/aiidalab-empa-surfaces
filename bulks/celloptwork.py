@@ -164,7 +164,7 @@ class CellOptWorkChain(WorkChain):
             inp['EXT_RESTART'] = {
                 'RESTART_FILE_NAME': './parent_calc/aiida-1.restart'
             }
-            inputs['parent_folder'] = input_dict['remote_calc_folder']
+            inputs['parent_folder'] = input_dict['parent_folder']
 
         inputs['parameters'] = ParameterData(dict=inp)
 
