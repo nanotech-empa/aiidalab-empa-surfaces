@@ -57,6 +57,9 @@ class MoleculeOptWorkChain(WorkChain):
         self.report("Running CP2K molecule optimization")
 
         the_dict = self.inputs.parameters.get_dict()
+        #if 'parent_folder' in input_dict.keys() and input_dict['parent_folder'] is not None:
+        #    print("parent folder defined and should not! EXIT")
+        #    exit
         inputs = self.build_calc_inputs(code           = self.inputs.code,
                                         structure      = self.inputs.structure,
                                         input_dict     = the_dict )
@@ -65,6 +68,7 @@ class MoleculeOptWorkChain(WorkChain):
         self.report("parameters: "+str(inputs['parameters'].get_dict()))
         self.report("settings: "+str(inputs['settings'].get_dict()))        
         
+            
         future = submit(Cp2kCalculation.process(), **inputs)
         return ToContext(molecule_opt=Calc(future))
 
@@ -119,7 +123,7 @@ class MoleculeOptWorkChain(WorkChain):
      
         inp = Get_CP2K_Input(input_dict = input_dict).inp
         
-        if 'parent_folder' in input_dict.keys():
+        if 'parent_folder' in input_dict.keys() and input_dict['parent_folder'] is not None:
             inp['EXT_RESTART'] = {
                 'RESTART_FILE_NAME': './parent_calc/aiida-1.restart'
             }
