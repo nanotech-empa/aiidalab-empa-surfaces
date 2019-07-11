@@ -69,6 +69,15 @@ class ReplicaWorkchain(WorkChain):
 
     # ==========================================================================
     def not_converged(self):
+        self.ctx.structure = self.ctx.replica.out.output_structure
+        if self.ctx.replica.res.exceeded_walltime:
+            # Even if geometry did not converge, update remote_calc_folder and structure
+            # to continue from the stopped part
+            self.ctx.prev_converged = False
+            self.ctx.remote_calc_folder = self.ctx.replica.out.remote_folder
+            self.ctx.structure = self.ctx.replica.out.output_structure
+        else:
+            self.ctx.prev_converged = True
         return self.ctx.replica.res.exceeded_walltime
         #try:
         #    self.ctx.remote_calc_folder = self.ctx.replica.out.remote_folder
@@ -85,6 +94,7 @@ class ReplicaWorkchain(WorkChain):
         self.ctx.replica_list = str(self.inputs.colvar_targets).split()
         self.ctx.replicas_done = 0
         self.ctx.this_name = self.inputs.calc_name
+        self.ctx.prev_converged = True
 
         self.report('#{} replicas'.format(len(self.ctx.replica_list)))
 
@@ -111,7 +121,7 @@ class ReplicaWorkchain(WorkChain):
 
     # ==========================================================================
     def generate_replica(self):
-        self.report("Running CP2K geometry optimization - Target: "
+        self.report("Running CP2K geometry optimization - Target: {}"
                     .format(self.ctx.this_replica))
 
         inputs = self.build_calc_inputs(self.ctx.structure,
@@ -121,6 +131,7 @@ class ReplicaWorkchain(WorkChain):
                                         self.inputs.fixed_atoms,
                                         self.inputs.num_machines,
                                         self.ctx.remote_calc_folder,
+                                        self.ctx.prev_converged,
                                         self.ctx.this_name,
                                         self.inputs.spring,
                                         self.inputs.spring_unit,
@@ -136,7 +147,7 @@ class ReplicaWorkchain(WorkChain):
         self.report("future: "+str(future))
         self.report(" ")
         return ToContext(replica=Calc(future))
-
+    
     # ==========================================================================
     def store_replica(self):
         return self.out('replica_{}_{}'.format(self.ctx.this_replica,
@@ -146,9 +157,9 @@ class ReplicaWorkchain(WorkChain):
     # ==========================================================================
     @classmethod
     def build_calc_inputs(cls, structure, cell, code, colvar_target,
-                          fixed_atoms, num_machines, remote_calc_folder,
+                          fixed_atoms, num_machines, remote_calc_folder, prev_converged,
                           calc_name, spring, spring_unit, target_unit,
-                          subsys_colvar, calc_type,mgrid_cutoff):
+                          subsys_colvar, calc_type, mgrid_cutoff):
 
         inputs = {}
         inputs['_label'] = "replica_geo_opt"
@@ -208,7 +219,9 @@ class ReplicaWorkchain(WorkChain):
                                  mgrid_cutoff,
                                  machine_cores*num_machines,
                                  first_slab_atom,
-                                 len(atoms),atoms)
+                                 len(atoms),
+                                 atoms,
+                                 prev_converged)
 
         if remote_calc_folder is not None:
             inputs['parent_folder'] = remote_calc_folder
@@ -233,7 +246,9 @@ class ReplicaWorkchain(WorkChain):
                        colvar_target, fixed_atoms,
                        spring, spring_unit, target_unit, subsys_colvar,
                        calc_type,mgrid_cutoff, machine_cores, first_slab_atom,
-                       last_slab_atom,atoms):
+                       last_slab_atom,atoms,
+                       prev_converged
+                      ):
 
         inp = {
             'GLOBAL': {
@@ -246,6 +261,11 @@ class ReplicaWorkchain(WorkChain):
                                      spring_unit, target_unit),
             'FORCE_EVAL': [],
         }
+        
+        if not prev_converged:
+            inp['EXT_RESTART'] = {
+                'RESTART_FILE_NAME': './parent_calc/aiida-1.restart'
+            }
         
         if calc_type == 'Mixed DFTB':
             inp['FORCE_EVAL'] = [cls.force_eval_mixed(cell_abc,

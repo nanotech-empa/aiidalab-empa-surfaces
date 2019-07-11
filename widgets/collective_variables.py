@@ -540,7 +540,7 @@ class SearchReplicaWidget(ipw.VBox):
     
     def __init__(self, **kwargs):
         
-        self.preprocess_version = 0.18
+        self.preprocess_version = 0.20
         
         btn_style = {'description_width': '60px'}
         btn_layout = {'width': '20%'}
@@ -855,9 +855,9 @@ class SearchReplicaWidget(ipw.VBox):
             
             zipped = zip(cv_targets, structs, info)
             if replica_sets[key]['colvar_inc']:
-                zipped.sort(key=lambda x:(x[0] is not None, x))
+                zipped.sort(key=lambda x:(x[0] is not None, x[0], x[1].pk))
             else:
-                zipped.sort(reverse=True, key=lambda x:(x[0] is None, x))
+                zipped.sort(reverse=True, key=lambda x:(x[0] is None, x[0], -x[1].pk))
             
             cv_targets, structs, info = zip(*zipped)
             replica_sets[key]['structs'] = list(structs)
