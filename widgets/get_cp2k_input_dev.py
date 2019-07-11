@@ -1,6 +1,7 @@
 from apps.surfaces.widgets.find_mol import mol_ids_range
 import numpy as np
 import itertools
+import copy
 
 from aiida.orm.data.base import Int, Float, Str, Bool, List
 from aiida.orm.data.parameter import  ParameterData
@@ -19,7 +20,7 @@ ATOMIC_KINDS = {
     'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  },
     'Pd':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q18' , 'RI_HFX_BASIS_all': None  },
     'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  },
-    'Zn':{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-SR-GTH', 'pseudo' : 'GTH-PBE-q12' , 'RI_HFX_BASIS_all': None  },
+    'Zn':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q12' , 'RI_HFX_BASIS_all': None  },
 }
 
 for element in ATOMIC_KINDS.keys():
@@ -115,7 +116,7 @@ def to_py_type(aiida_obj):
 class Get_CP2K_Input():
     def __init__(self,input_dict = None):
     
-        self.inp_dict = DEFAULT_INPUT_DICT
+        self.inp_dict = copy.deepcopy(DEFAULT_INPUT_DICT)
         for inp_key in input_dict:
             self.inp_dict[inp_key] = to_py_type(input_dict[inp_key]) 
 
@@ -461,7 +462,7 @@ class Get_CP2K_Input():
         ### EXTERNAL RESTART from parent folder
         if self.inp_dict['parent_folder'] is not None:
             self.inp['EXT_RESTART'] = {
-                'RESTART_FILE_NAME': './parent_calc/aiida-1.restart'
+                'RESTART_FILE_NAME': '   ./parent_calc/aiida-1.restart'
             }    
         ### FORCEVAL case MIXED DFTB
         if self.inp_dict['calc_type'] == 'Mixed DFTB':

@@ -162,7 +162,7 @@ class CellOptWorkChain(WorkChain):
         
         if 'parent_folder' in input_dict.keys() and input_dict['parent_folder'] is not None:
             inp['EXT_RESTART'] = {
-                'RESTART_FILE_NAME': './parent_calc/aiida-1.restart'
+                'RESTART_FILE_NAME': ' ./parent_calc/aiida-1.restart'
             }
             inputs['parent_folder'] = input_dict['parent_folder']
 

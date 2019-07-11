@@ -57,6 +57,10 @@ class SubmitButton(ipw.VBox):
                     keys_defined=jd.keys()
 
                     ### CHECK VALIDITY OF INPUTS
+                    if 'parent_folder' in keys_defined:
+                        print("PARENT FOLDER ERRONEOUSLY PRESENT")
+                        print(jd['parent_folder'])
+                        return
                     if 'structure' not in keys_defined:
                         print("Please select a structure.")
                         return
