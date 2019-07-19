@@ -2,7 +2,7 @@ from apps.surfaces.widgets.find_mol import mol_ids_range
 import numpy as np
 import itertools
 
-from aiida.orm.data.base import Int, Float, Str, Bool
+from aiida.orm import Int, Float, Str, Bool
 
 ATOMIC_KINDS = {
     'H' :('TZV2P-MOLOPT-GTH','GTH-PBE-q1'),

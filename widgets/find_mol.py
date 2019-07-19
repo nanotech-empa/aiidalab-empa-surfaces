@@ -156,9 +156,9 @@ def analyze_slab(atoms):
     spins_up   = set(str(the_a.symbol)+str(the_a.tag) for the_a in atoms if the_a.tag == 1)
     spins_down = set(str(the_a.symbol)+str(the_a.tag) for the_a in atoms if the_a.tag == 2)
     #### check if there is vacuum otherwise classify as bulk and skip
-    vacuum_x=np.max(atoms.positions[:,0]) - np.min(atoms.positions[:,0]) +7 < atoms.cell[0][0]
-    vacuum_y=np.max(atoms.positions[:,1]) - np.min(atoms.positions[:,1]) +7 < atoms.cell[1][1]
-    vacuum_z=np.max(atoms.positions[:,2]) - np.min(atoms.positions[:,2]) +7 < atoms.cell[2][2]
+    vacuum_x=np.max(atoms.positions[:,0]) - np.min(atoms.positions[:,0]) +3 < atoms.cell[0][0]
+    vacuum_y=np.max(atoms.positions[:,1]) - np.min(atoms.positions[:,1]) +3 < atoms.cell[1][1]
+    vacuum_z=np.max(atoms.positions[:,2]) - np.min(atoms.positions[:,2]) +3 < atoms.cell[2][2]
     all_elements=list(set(atoms.get_chemical_symbols()))
     cov_radii = [covalent_radii[a.number] for a in atoms]
     
@@ -169,6 +169,7 @@ def analyze_slab(atoms):
     #possible_slab_atoms=['Au','Ag','Cu','Pd','Ga','Ni']
     
     summary=''
+    #sys_type='Strange'
     if (not vacuum_z) and (not vacuum_x) and (not vacuum_y):
         is_a_bulk=True
         sys_type='Bulk'

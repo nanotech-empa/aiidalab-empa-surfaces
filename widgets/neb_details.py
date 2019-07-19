@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import ipywidgets as ipw
 from IPython.display import display, clear_output
 from apps.surfaces.widgets.neb_utils import mk_coord_files, mk_wfn_cp_commands
-from aiida.orm.code import Code
+from aiida.orm import Code
 from aiida.orm import load_node
 from aiida.orm import Code, Computer
 

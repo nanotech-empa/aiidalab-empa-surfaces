@@ -1,10 +1,10 @@
-from aiida.orm.code import Code
+from aiida.orm import Code
 from aiida.orm import load_node
 from aiida.orm import Code, Computer
-from aiida.orm.data.base import Int, Float, Bool, Str, List
-from aiida.orm.data.structure import StructureData
-from aiida.orm.data.parameter import ParameterData
-from aiida.orm.data.folder import FolderData
+from aiida.orm import Int, Float, Bool, Str, List
+from aiida.orm import StructureData
+from aiida.orm import Dict
+from aiida.orm.nodes.data.folder import FolderData
 import numpy as np
 
 import tempfile

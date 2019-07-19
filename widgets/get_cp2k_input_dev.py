@@ -3,8 +3,9 @@ import numpy as np
 import itertools
 import copy
 
-from aiida.orm.data.base import Int, Float, Str, Bool, List
-from aiida.orm.data.parameter import  ParameterData
+from aiida.orm import Int, Float, Str, Bool, List
+from aiida.orm import  Dict
+import copy
 
 ATOMIC_KINDS = {
     'H' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q1'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
@@ -15,6 +16,7 @@ ATOMIC_KINDS = {
     'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'  , 'RI_HFX_BASIS_all': None  },
     'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q7'  , 'RI_HFX_BASIS_all': None  },
     'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q4'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
+    'Si':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-GTH'    , 'pseudo' : 'GTH-PBE-q4'  , 'RI_HFX_BASIS_all': None  },
     'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13' , 'RI_HFX_BASIS_all': None  },        
     'N' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q5'  , 'RI_HFX_BASIS_all': None  },
     'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  },
@@ -107,7 +109,7 @@ def to_py_type(aiida_obj):
     elif type(aiida_obj) == type(List()):                
         pylist=list(aiida_obj)
         return pylist
-    elif type(aiida_obj) == type(ParameterData()):                
+    elif type(aiida_obj) == type(Dict()):                
         pydict=aiida_obj.get_dict()
         return pydict
     else:
@@ -503,7 +505,7 @@ class Get_CP2K_Input():
             else:
                 full_dft_topology = 'bulk.xyz'
             self.inp_dict['topology'] = full_dft_topology    
-            self.inp['FORCE_EVAL'] = [self.get_force_eval_qs_dft()]
+            self.inp['FORCE_EVAL'] = self.get_force_eval_qs_dft()
 
         
 
@@ -542,7 +544,7 @@ class Get_CP2K_Input():
                     'TYPE': 'DIRECT_CELL_OPT',
                     'MAX_FORCE': '%f' % (self.inp_dict['max_force']),
                     'EXTERNAL_PRESSURE' : '0',
-                    'MAX_ITER': '500'
+                    'MAX_ITER': '5'
                      }
             if self.inp_dict['cell_free'] !='FREE':
                 motion['CELL_OPT'][str(self.inp_dict['cell_free'])] = ''
@@ -644,7 +646,7 @@ class Get_CP2K_Input():
                              },
                 'TOPOLOGY': {
                     'COORD_FILE_NAME': 'mol_on_slab.xyz',
-                    'COORDINATE': 'XYZ',
+                    'COORD_FILE_FORMAT': 'XYZ',
                     'CONNECTIVITY': 'OFF',
                 }
             }
@@ -727,7 +729,7 @@ class Get_CP2K_Input():
                          },
                 'TOPOLOGY': {
                     'COORD_FILE_NAME': 'mol_on_slab.xyz',
-                    'COORDINATE': 'XYZ',
+                    'COORD_FILE_FORMAT': 'XYZ',
                     'CONNECTIVITY': 'OFF',
                 },
             },
@@ -787,7 +789,7 @@ class Get_CP2K_Input():
                          },
                 'TOPOLOGY': {
                     'COORD_FILE_NAME': 'mol.xyz',
-                    'COORDINATE': 'xyz'
+                    'COORD_FILE_FORMAT': 'xyz'
                 }
             }
         }
@@ -888,7 +890,7 @@ class Get_CP2K_Input():
                          },
                 'TOPOLOGY': {
                     'COORD_FILE_NAME': str(self.inp_dict['topology']),
-                    'COORDINATE': 'xyz',
+                    'COORD_FILE_FORMAT': 'xyz',
                 },
                 'KIND': [],
             }

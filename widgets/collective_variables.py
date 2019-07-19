@@ -507,10 +507,10 @@ class CollectiveVariableWidget(ipw.VBox):
 from aiida.orm.querybuilder import QueryBuilder
 
 from replicawork import ReplicaWorkchain
-from aiida.work.process import WorkCalculation
+from aiida.engine.process import WorkCalculation
 from aiida_cp2k.calculations import Cp2kCalculation
-from aiida.orm.data.structure import StructureData
-from aiida.orm.data.parameter import ParameterData
+from aiida.orm import StructureData
+from aiida.orm import Dict
 
 from aiida.orm import load_node 
 

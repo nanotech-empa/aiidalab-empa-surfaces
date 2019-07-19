@@ -6,14 +6,14 @@ from IPython.display import display, clear_output
 from aiida.orm import load_node
 
 
-from aiida.orm.code import Code
+from aiida.orm import Code
 from aiida.orm import load_node
 from aiida.orm import Code, Computer
 from aiida.orm.querybuilder import QueryBuilder
-from aiida.orm.data.base import Int, Float, Str, Bool, List
-from aiida.orm.data.parameter import ParameterData
-from aiida.work.run import submit
-from aiida.orm.data.structure import StructureData
+from aiida.orm import Int, Float, Str, Bool, List
+from aiida.orm import Dict
+from aiida.engine import submit
+from aiida.orm import StructureData
 
 #from apps.surfaces.slab.slabwork import SlabGeoOptWorkChain
 #from apps.reactions.replicawork import ReplicaWorkchain
@@ -134,7 +134,7 @@ class SubmitButton(ipw.VBox):
                 aiidalist.extend(py_obj)
                 return aiidalist
             elif type(py_obj) == type({}):                
-                aiidadict=ParameterData()
+                aiidadict=Dict()
                 aiidadict.set_dict(py_obj)
                 return aiidadict
             else:

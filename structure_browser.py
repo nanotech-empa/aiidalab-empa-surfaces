@@ -1,8 +1,6 @@
 from aiida.orm.querybuilder import QueryBuilder
-from aiida.orm.data.structure import StructureData
-from aiida.orm.calculation.job import JobCalculation
-from aiida.orm.calculation.work import WorkCalculation
-from aiida.orm import Node
+from aiida.orm import StructureData
+from aiida.orm import Node, WorkChainNode, CalcFunctionNode, CalcJobNode
     
 from collections import OrderedDict
 import ipywidgets as ipw
@@ -13,13 +11,13 @@ class StructureBrowser(ipw.VBox):
     def __init__(self):
         # Find all process labels
         qb = QueryBuilder()
-        qb.append(WorkCalculation,
+        qb.append(WorkChainNode,
                   project="attributes._process_label",
                   filters={
                       'attributes': {'!has_key': 'source_code'}
                   }
         )
-        qb.order_by({WorkCalculation:{'ctime':'desc'}})
+        qb.order_by({WorkChainNode:{'ctime':'desc'}})
         process_labels = []
         for i in qb.iterall():
             if i[0] not in process_labels:
@@ -95,34 +93,34 @@ class StructureBrowser(ipw.VBox):
         filters = {}
         filters['ctime'] = {'and':[{'<=': self.end_date},{'>': self.start_date}]}        
         if self.drop_label.value != 'All':
-            qb.append(WorkCalculation,
+            qb.append(WorkChainNode,
                       filters={
                           'attributes._process_label': self.drop_label.value
                       })
             
-            qb.append(JobCalculation,
-                      output_of=WorkCalculation)
+            qb.append(CalcJobNode,
+                      output_of=WorkChainNode)
             
             qb.append(StructureData,
-                      output_of=JobCalculation,
+                      output_of=CalcJobNode,
                       filters=filters)
         else:        
             if self.mode.value == "uploaded":
                 qb2 = QueryBuilder()
                 qb2.append(StructureData, project=["id"])
-                qb2.append(Node, input_of=StructureData)
+                qb2.append(Node, with_outgoing=StructureData)
                 processed_nodes = [n[0] for n in qb2.all()]
                 if processed_nodes:
                     filters['id'] = {"!in":processed_nodes}
                 qb.append(StructureData, filters=filters)
 
             elif self.mode.value == "calculated":
-                qb.append(JobCalculation)
-                qb.append(StructureData, output_of=JobCalculation, filters=filters)
+                qb.append(CalcJobNode)
+                qb.append(StructureData, with_incoming=CalcJobNode, filters=filters)
 
             elif self.mode.value == "edited":
-                qb.append(WorkCalculation)
-                qb.append(StructureData, output_of=WorkCalculation, filters=filters)
+                qb.append(CalcFunctionNode)
+                qb.append(StructureData, with_incoming=CalcFunctionNode, filters=filters)
 
             else:
                 self.mode.value == "all"
