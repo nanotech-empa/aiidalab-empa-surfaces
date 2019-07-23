@@ -224,7 +224,7 @@ def analyze_slab(atoms):
         ##end slab layers
         summary='Slab contains: \n'
         
-    slab_elements=set(atoms[slabatoms].get_chemical_symbols())
+    slab_elements=list(set(atoms[slabatoms].get_chemical_symbols()))
 
     if len(bottom_H) >0:
         summary+='bottom H: ' + mol_ids_range(bottom_H)   + '\n'

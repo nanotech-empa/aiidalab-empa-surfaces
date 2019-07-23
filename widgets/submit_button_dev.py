@@ -10,13 +10,13 @@ layout = {'width': '70%'}
 
 
 class SubmitButton(ipw.VBox):
-    def __init__(self, workchain, param_function):
+    def __init__(self, workchain, widgets_values):
         """ Submit Button
         :workchain: work chain to run
         :param_funtion: the function that generates input parameters dictionary
         """
         self.workchain = workchain
-        self.param_function=param_function
+        self.widgets_values=widgets_values
         self.btn_submit = ipw.Button(description="Submit",disabled=False)
         self.btn_submit.on_click(self.on_btn_submit_press)
         self.submit_out = ipw.Output()
@@ -31,7 +31,7 @@ class SubmitButton(ipw.VBox):
         with self.submit_out:
             clear_output()
             self.btn_submit.disabled=True
-            input_dict = self.param_function()
+            input_dict = self.widgets_values()
             run(self.workchain, **input_dict)
             print("COMPLETED workchain ",self.workchain)
             print("")

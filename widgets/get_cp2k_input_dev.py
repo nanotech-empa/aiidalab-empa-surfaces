@@ -67,7 +67,7 @@ DEFAULT_INPUT_DICT ={'added_mos'             : False                 ,
                      'max_memory'            : 0                     ,
                      'memory_cut'            : 12                    ,
                      'mgrid_cutoff'          : 600                   , 
-                     'machine_cores'         : None                  , 
+                     'mpi_tasks'             : None                  , 
                      'multiplicity'          : 0                     , 
                      'nproc_rep'             : None                  , 
                      'nreplicas'             : None                  , 
@@ -617,13 +617,13 @@ class Get_CP2K_Input():
         last_mol_atom = self.inp_dict['first_slab_atom'] - 1
 
         mol_delim = (first_mol_atom, last_mol_atom)
-        slab_delim = (first_slab_atom, last_slab_atom)
+        slab_delim = (self.inp_dict['first_slab_atom'], self.inp_dict['last_slab_atom'])
 
         force_eval = {
             'METHOD': 'MIXED',
             'MIXED': {
                 'MIXING_TYPE': 'GENMIX',
-                'GROUP_PARTITION': '2 %d' % (int(self.inp_dict['machine_cores'])-2),
+                'GROUP_PARTITION': '2 %d' % (int(self.inp_dict['mpi_tasks'])-2),
                 'GENERIC': {
                     'ERROR_LIMIT': '1.0E-10',
                     'MIXING_FUNCTION': 'E1+E2',
@@ -632,8 +632,8 @@ class Get_CP2K_Input():
                 'MAPPING': {
                     'FORCE_EVAL_MIXED': {
                         'FRAGMENT':
-                            [{'_': '1', ' ': '%d  %d' % int(mol_delim)},
-                             {'_': '2', ' ': '%d  %d' % int(slab_delim)}],
+                            [{'_': '1', ' ': '%d  %d' % mol_delim},
+                             {'_': '2', ' ': '%d  %d' % slab_delim}],
                     },
                     'FORCE_EVAL': [{'_': '1', 'DEFINE_FRAGMENTS': '1 2'},
                                    {'_': '2', 'DEFINE_FRAGMENTS': '1'}],
@@ -747,7 +747,7 @@ class Get_CP2K_Input():
                     'EXTRAPOLATION_ORDER': '3',
                     'DFTB': {
                         'SELF_CONSISTENT': 'T',
-                        'DISPERSION': '%s' % (str(slef.inp_dict['vdw_switch'])),
+                        'DISPERSION': '%s' % (str(self.inp_dict['vdw_switch'])),
                         'ORTHOGONAL_BASIS': 'F',
                         'DO_EWALD': 'F',
                         'PARAMETER': {
