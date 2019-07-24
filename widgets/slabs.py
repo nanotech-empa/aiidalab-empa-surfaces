@@ -392,7 +392,7 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
         the_slab = sort(the_slab, tags=the_slab.get_positions()[:,2]*-1)
         
     print("Cell ABC: %f, %f, %f"%(cx, cy, cz))
-    print("#atoms %d"%(len(the_slab)))
+    print("#atoms: %d"%(len(the_slab)))
     
     #rotate molecule
     mol.rotate(phi,'z')
