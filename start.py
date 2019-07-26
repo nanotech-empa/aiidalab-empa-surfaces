@@ -15,7 +15,6 @@ def get_start_widget(appbase, jupbase):
         
     <tr>
     <td valign="top"><ul>
-        <li><a href="{appbase}/upload_structure.ipynb" target="_blank">Upload structures</a>
         <li><a href="{appbase}/edit_structure.ipynb" target="_blank">Assign spin, remove atoms</a>
     </ul></td>
     
