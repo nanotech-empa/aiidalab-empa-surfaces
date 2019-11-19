@@ -1,9 +1,14 @@
 from aiida.orm import StructureData , SinglefileData
+from aiida.engine import calcfunction
 from ase import Atoms
+
+@calcfunction
 def make_geom_file(structure, filename,selection=None):
     import tempfile
     import shutil
-    from io import BytesIO
+    from io import  StringIO
+    
+    filename = filename.value
 
     spin_guess = extract_spin_guess(structure)
     if selection is None:
@@ -13,7 +18,7 @@ def make_geom_file(structure, filename,selection=None):
     n_atoms = len(atoms)
     tmpdir = tempfile.mkdtemp()
     file_path = tmpdir + "/" + filename
-    orig_file = BytesIO()
+    orig_file = StringIO()
     atoms.write(orig_file, format='xyz')
     orig_file.seek(0)
     all_lines = orig_file.readlines()

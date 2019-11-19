@@ -1,4 +1,4 @@
-from apps.surfaces.widgets.find_mol import mol_ids_range
+from apps.surfaces.widgets.analyze_structure import mol_ids_range
 import numpy as np
 import itertools
 import copy

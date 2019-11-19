@@ -113,15 +113,31 @@ class ViewerDetails(ipw.VBox):
             self.viewer.remove_component(cid)
         
         if details is None:
-            self.mol_inds = list(np.arange(0, len(atoms)))
-            self.rest_inds = []
+            self.mol_inds = [] #list(np.arange(0, len(atoms)))
+            if atoms is None:
+                return
+            else:
+                self.rest_inds = list(np.arange(0, len(atoms))) # [] #deaulf all big spheres
         else:
-            self.mol_inds = [item for sublist in self.details['all_molecules'] for item in sublist]
-            self.rest_inds = self.details['slabatoms']+self.details['bottom_H']+self.details['adatoms'] +self.details['unclassified']
+            if details['system_type']=='Bulk':
+                self.mol_inds = [] 
+                self.rest_inds = list(np.arange(0, len(atoms))) 
+            elif details['system_type']=='Wire':
+                self.mol_inds = list(np.arange(0, len(atoms))) 
+                self.rest_inds = [] 
+            else:
+                self.mol_inds = [item for sublist in self.details['all_molecules'] for item in sublist]
+                self.rest_inds = self.details['slabatoms']+self.details['bottom_H']+self.details['adatoms'] +self.details['unclassified']
         self._gen_translation_indexes() 
         
-        self.molecules_ase = self.atoms[self.mol_inds]
-        self.rest_ase = self.atoms[self.rest_inds]
+        if len(self.mol_inds) > 0:
+            self.molecules_ase = self.atoms[self.mol_inds]
+        else:
+            self.molecules_ase=Atoms()
+        if len(self.rest_inds) > 0:
+            self.rest_ase = self.atoms[self.rest_inds]
+        else:
+            self.rest_ase=Atoms()
 
         # component 0: Molecule
         self.viewer.add_component(nglview.ASEStructure(self.molecules_ase), default_representation=False)
