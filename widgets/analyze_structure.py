@@ -34,11 +34,16 @@ def get_types(frame,thr): ## Piero Gasparotto
     area=(frame.cell[0][0]*frame.cell[1][1])
     minz=np.min(frame.positions[:,2])
     maxz=np.max(frame.positions[:,2])
+    
+    if maxz - minz < 1.0:
+        maxz += (1.0 - (maxz - minz))/2
+        minz -= (1.0 - (maxz - minz))/2
+    
     ##WHICH VALUES SHOULD WE USE BELOW??????
     sigma = 0.2 #thr
     peak_rel_height = 0.5
     layer_tol=1.0*sigma 
-    #quck estimate number atoms in a layer:
+    # quack estimate number atoms in a layer:
     nbins=int(np.ceil((maxz-minz)/0.15))
     hist, bin_edges = np.histogram(frame.positions[:,2], density=False,bins=nbins)
     max_atoms_in_a_layer=max(hist)
@@ -65,8 +70,6 @@ def get_types(frame,thr): ## Piero Gasparotto
     last_layer=layersg[-1]
 
     ##check top and bottom layers
-    
-
     
     found_top_surf = False
     while not found_top_surf:
@@ -246,9 +249,9 @@ def analyze(atoms):
     spins_down = set(str(the_a.symbol)+str(the_a.tag) for the_a in atoms if the_a.tag == 2)
     #### check if there is vacuum otherwise classify as bulk and skip
     
-    vacuum_x=np.max(atoms.positions[:,0]) - np.min(atoms.positions[:,0]) +7 < atoms.cell[0][0]
-    vacuum_y=np.max(atoms.positions[:,1]) - np.min(atoms.positions[:,1]) +7 < atoms.cell[1][1]
-    vacuum_z=np.max(atoms.positions[:,2]) - np.min(atoms.positions[:,2]) +7 < atoms.cell[2][2]
+    vacuum_x=np.max(atoms.positions[:,0]) - np.min(atoms.positions[:,0]) +4 < atoms.cell[0][0]
+    vacuum_y=np.max(atoms.positions[:,1]) - np.min(atoms.positions[:,1]) +4 < atoms.cell[1][1]
+    vacuum_z=np.max(atoms.positions[:,2]) - np.min(atoms.positions[:,2]) +4 < atoms.cell[2][2]
     all_elements=list(set(atoms.get_chemical_symbols()))
     cov_radii = [covalent_radii[a.number] for a in atoms]
     
