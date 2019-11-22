@@ -31,6 +31,10 @@ class ViewerDetails(ipw.VBox):
         self.selection = []
         
         self.viewer = nglview.NGLWidget()
+        ##avoid center-on-click
+        self.viewer.stage.set_parameters(mouse_preset='pymol')
+        #self.viewer.stage.set_parameters(mouse_preset='coot')
+       
         self.info_out = ipw.Output()
         
         children = [
@@ -130,6 +134,8 @@ class ViewerDetails(ipw.VBox):
                 self.rest_inds = self.details['slabatoms']+self.details['bottom_H']+self.details['adatoms'] +self.details['unclassified']
         self._gen_translation_indexes() 
         
+        #print('in view mol ',self.mol_inds)
+        #print('in view rest ',self.rest_inds)
         if len(self.mol_inds) > 0:
             self.molecules_ase = self.atoms[self.mol_inds]
         else:
@@ -229,8 +235,8 @@ class ViewerDetails(ipw.VBox):
         
         if len(vis_list) > 0:
 
-            vis_atoms  = [x for x in vis_list if isinstance(x, (int, long))]
-            vis_points = [x for x in vis_list if not isinstance(x, (int, long))]
+            vis_atoms  = [x for x in vis_list if isinstance(x, int)]
+            vis_points = [x for x in vis_list if not isinstance(x, int)]
             
             if len(vis_atoms) != 0:
                 

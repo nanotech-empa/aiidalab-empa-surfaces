@@ -428,21 +428,15 @@ class Get_CP2K_Input():
 
         self.sections_dict={
               'SlabGeoOptWorkChain'  :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True},
-              'ReplicaWorkchain'     :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True},
+              'ReplicaWorkChain'     :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True},
               'CellOptWorkChain'     :{'run_type' : 'CELL_OPT', 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True}, 
               'BulkOptWorkChain'     :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True}, 
               'MoleculeOptWorkChain' :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True},
               'GWWorkChain'          :{'run_type' : 'ENERGY'  , 'xc' : self.xc_gw      , 'qs' : self.qs_gw      , 'motion' : False},
               'MoleculeKSWorkChain'  :{'run_type' : 'ENERGY'  , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : False},
-              'NEBWorkchain'         :{'run_type' : 'BAND'    , 'xc' : self.xc_default , 'qs' : self.qs_neb     , 'motion' : True},
+              'NebWorkChain'         :{'run_type' : 'BAND'    , 'xc' : self.xc_default , 'qs' : self.qs_neb     , 'motion' : True},
 
         }    
-    
-    
-    
-    
-    
-    
     
 
         self.workchain=self.inp_dict['workchain']
@@ -494,7 +488,7 @@ class Get_CP2K_Input():
         elif self.inp_dict['calc_type'] == 'Full DFT':
             ## XYZ file name for DFT section    
 
-            if self.workchain == 'NEBWorkchain':
+            if self.workchain == 'NebWorkChain':
                 full_dft_topology = 'replica1.xyz'
             elif self.workchain == 'SlabGeoOptWorkChain':
                 full_dft_topology = 'mol_on_slab.xyz'
@@ -551,7 +545,7 @@ class Get_CP2K_Input():
         #### END CELL_OPT
 
         ### NEB
-        if self.workchain == 'NEBWorkchain':
+        if self.workchain == 'NebWorkChain':
 
             motion['BAND']= {
                     'NPROC_REP'           : self.inp_dict['nproc_rep'],
@@ -595,7 +589,7 @@ class Get_CP2K_Input():
         ### END NEB 
 
         ### REPLICA CHAIN
-        if self.workchain == 'ReplicaWorkchain':
+        if self.workchain == 'ReplicaWorkChain':
 
             motion['CONSTRAINT'].append({
                                'COLLECTIVE': {

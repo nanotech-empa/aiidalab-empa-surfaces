@@ -84,9 +84,10 @@ class SearchCompletedWidget(ipw.VBox):
         self.preprocess_newbies()
         try:
             import apps.scanning_probe.common
-            apps.scanning_probe.common.preprocess_spm_calcs(workchain_list = ['STMWorkChain', 'PdosWorkChain', 'AfmWorkChain'])
+            apps.scanning_probe.common.preprocess_spm_calcs(
+                workchain_list = ['STMWorkChain', 'PdosWorkChain', 'AfmWorkChain', 'HRSTMWorkChain', 'OrbitalWorkChain'])
             self.fields_disable['extras'] = False
-        except:
+        except Exception as e:
             print("Warning: scanning_probe app not found, skipping spm preprocess.")
             self.fields_disable['extras'] = True
 

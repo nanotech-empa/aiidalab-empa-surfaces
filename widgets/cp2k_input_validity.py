@@ -1,8 +1,8 @@
 def input_is_valid(job_details={}):
     odd_charge = job_details['slab_analyzed']['total_charge']
+    rks = True
     if 'charge' in job_details.keys():
-        odd_charge += job_details['charge'] 
-        rks = True
+        odd_charge += job_details['charge']         
         if 'uks_switch' in job_details.keys():
             if  job_details['uks_switch'] == 'UKS':
                 rks=False                       
