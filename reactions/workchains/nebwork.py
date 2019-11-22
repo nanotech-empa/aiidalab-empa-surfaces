@@ -7,29 +7,32 @@ from aiida.orm import Code
 from aiida.common import NotExistent
 # from aiida.orm.data.structure import StructureData
 
-from aiida.engine import WorkChain, ToContext, Calc, while_
+from aiida.engine import WorkChain, ToContext, while_
 from aiida.engine import submit
 
-import aiida_cp2k ##for debug print
-from aiida_cp2k.calculations import Cp2kCalculation
+from aiida.plugins import WorkflowFactory, CalculationFactory
+
+Cp2kCalculation = CalculationFactory('cp2k')
 
 import numpy as np
 
-import find_mol
+#import find_mol
 
-from apps.surfaces.widgets.get_cp2k_input import get_cp2k_input
+from apps.surfaces.widgets import analyze_structure
+
+from apps.surfaces.widgets.get_cp2k_input_dev import Get_CP2K_Input
 
 
-class NEBWorkchain(WorkChain):
+class NebWorkChain(WorkChain):
 
     @classmethod
     def define(cls, spec):
-        super(NEBWorkchain, cls).define(spec)        
+        super(NebWorkChain, cls).define(spec)        
         spec.input("cp2k_code"        , valid_type=Code)
         spec.input("structure"        , valid_type=StructureData)
         spec.input("max_force"        , valid_type=Float, default=Float(0.0005))
         spec.input("calc_type"        , valid_type=Str, default=Str('Full DFT'))
-        spec.input("workchain"        , valid_type=Str, default=Str('NEBWorkchain'))
+        spec.input("workchain"        , valid_type=Str, default=Str('NebWorkChain'))
         spec.input("vdw_switch"       , valid_type=Bool, default=Bool(False))
         spec.input("mgrid_cutoff"     , valid_type=Int, default=Int(600))
         spec.input("fixed_atoms"      , valid_type=Str, default=Str(''))        
@@ -48,14 +51,14 @@ class NEBWorkchain(WorkChain):
         
         
         spec.outline(
-            cls.init,
+            cls.initialize,
             cls.calc_neb,
             #while_(cls.not_converged)(
             #    cls.calc_neb
             #),
             # cls.store_neb
         )
-        spec.dynamic_output()
+        spec.outputs.dynamic = True
 
     # ==========================================================================
     def not_converged(self):
@@ -70,7 +73,7 @@ class NEBWorkchain(WorkChain):
             return False
 
     # ==========================================================================
-    def init(self):
+    def initialize(self):
         self.report('Init NEB')
         # Set the restart folder
         try:
@@ -94,13 +97,13 @@ class NEBWorkchain(WorkChain):
         
         inputs = self.build_calc_inputs(cp2k_code          = self.inputs.cp2k_code,      
                                         structure          = self.inputs.structure ,     
-                                        max_force          = self.inputs.max_force,      
-                                        calc_type          = self.inputs.calc_type,      
-                                        workchain          = self.inputs.workchain,      
-                                        vdw_switch         = self.inputs.vdw_switch,     
-                                        mgrid_cutoff       = self.inputs.mgrid_cutoff,   
-                                        fixed_atoms        = self.inputs.fixed_atoms,    
-                                        num_machines       = self.inputs.num_machines,   
+                                        max_force          = self.inputs.max_force.value,      
+                                        calc_type          = self.inputs.calc_type.value,      
+                                        workchain          = self.inputs.workchain.value,      
+                                        vdw_switch         = self.inputs.vdw_switch.value,     
+                                        mgrid_cutoff       = self.inputs.mgrid_cutoff.value,   
+                                        fixed_atoms        = self.inputs.fixed_atoms.value,    
+                                        num_machines       = self.inputs.num_machines.value,   
                                         struc_folder       = self.inputs.struc_folder,   
                                         wfn_cp_commands    = self.inputs.wfn_cp_commands,
                                         nproc_rep          = self.inputs.nproc_rep,      
@@ -123,10 +126,7 @@ class NEBWorkchain(WorkChain):
         self.report("future: "+str(future))
         self.report(" ")
         return ToContext(neb=Calc(future))
-    # ==========================================================================
-    #def store_replica(self):structure =
-    #    return self.out('replica_{}'.format(self.ctx.this_name),
-    #                    self.ctx.neb.out.output_structure)
+    
     # ==========================================================================
     @classmethod
     def build_calc_inputs(cls, 
@@ -155,7 +155,8 @@ class NEBWorkchain(WorkChain):
                          ): 
 
         inputs = {}
-        inputs['_label'] = "NEB"
+        inputs['metadata'] = {}
+        inputs['metadata']['label'] = "neb"
 
         inputs['code'] = cp2k_code
         inputs['file'] = {}
@@ -174,16 +175,25 @@ class NEBWorkchain(WorkChain):
 
         remote_computer = cp2k_code.get_remote_computer()
         machine_cores = remote_computer.get_default_mpiprocs_per_machine()
-        first_slab_atom = None
         
+        first_slab_atom = None
         if calc_type != 'Full DFT':
+                        
+            slab_analyzed = analyze_structure.analyze(atoms)
             
             # Au potential
             pot_f = SinglefileData(file='/project/apps/surfaces/slab/Au.pot')
             inputs['file']['au_pot'] = pot_f
-            mol_indexes = find_mol.extract_mol_indexes_from_slab(atoms)
             
-            first_slab_atom = len(mol_indexes) + 1
+            mol_indexes = list(itertools.chain(*slab_analyzed['all_molecules']))
+            
+            if len(mol_indexes) != np.max(mol_indexes) + 1:
+                raise Exception("For mixed calculation, the molecule indexes " +
+                                "need to be in the beginning of the file.")
+            first_slab_atom = len(mol_indexes) + 2
+            
+            #mol_f = cls.mk_aiida_file(atoms[mol_indexes], "mol.xyz")
+            #inputs['file']['mol_coords'] = mol_f
             
         if calc_type == 'Mixed DFTB':
             walltime = 18000
@@ -192,7 +202,7 @@ class NEBWorkchain(WorkChain):
 
         nreplica_files=replica_pks.value
         nreplica_files=len(nreplica_files.split())
-        inp = get_cp2k_input(atoms=atoms,
+        inp = Get_CP2K_Input(atoms=atoms,
                              cell=cell,
                              fixed_atoms=fixed_atoms,
                              max_force=max_force,
@@ -220,20 +230,18 @@ class NEBWorkchain(WorkChain):
         inputs['parameters'] = Dict(dict=inp)
 
         # settings
-        settings = Dict(dict={'additional_retrieve_list': ['*.xyz',
-                                                                    '*.out',
-                                                                    '*.ener']})
+        settings = Dict(dict={'additional_retrieve_list': ['*.xyz', '*.out', '*.ener']})
         inputs['settings'] = settings
 
         # resources
-        inputs['_options'] = {
+        inputs['metadata']['options'] = {
             "resources": {"num_machines": num_machines},
             "max_wallclock_seconds": walltime,
         }
         if len(wfn_cp_commands) > 0:
-            inputs['_options']["prepend_text"] = ""
+            inputs['metadata']['options']["prepend_text"] = ""
             for wfn_cp_command in wfn_cp_commands:
-                inputs['_options']["prepend_text"] += wfn_cp_command + "\n"
+                inputs['metadata']['options']["prepend_text"] += wfn_cp_command + "\n"
         return inputs
 
     # ==========================================================================

@@ -8,35 +8,27 @@ from aiida.orm import Code
 from aiida.orm import load_node
 from aiida.orm import Code, Computer
 
-###The widgets defined here assign value to the following input keywords
-###stored in jod_details:
-#'nreplicas'
-#'replica_pks'
-#'wfn_cp_commands' copied in aiida.inp to retrieve old .wfn files
-#'struc_folder' used to create replica files
-#'nproc_rep'
-#'spring'
-#'nstepsit'
-#'endpoints'
-#'rotate'
-#'align'
+from apps.surfaces.widgets import analyze_structure
+
+import subprocess
 
 
 style = {'description_width': '120px'}
 layout = {'width': '70%'}
 layout3 = {'width': '23%'}
 
-class NEBDetails(ipw.VBox):
-    def __init__(self,job_details={},  **kwargs):
+class NebDetails(ipw.VBox):
+    
+    def __init__(self, code_drop_down, dft_details_w, **kwargs):
         """ Dropdown for DFT details
         """
+        
+        self.code_drop_down = code_drop_down
+        self.dft_details_w = dft_details_w
+        
         ### ---------------------------------------------------------
         ### Define all child widgets contained in this composite widget
         
-        self.job_details=job_details
-        
-     
-
         self.proc_rep = ipw.IntText(value=324,
                            description='# Processors per replica',
                            style=style, layout=layout)  
@@ -73,47 +65,44 @@ class NEBDetails(ipw.VBox):
                             description='Replica pks',
                             style=style, layout={'width': '50%'})
         
-        self.btn_retrieve_wfn = ipw.Button(description='Retrieve WFN',
+        self.setup_btn = ipw.Button(description='Setup replicas',
                                     layout={'width': '20%'})        
 
+        self.replica_setup_out = ipw.Output()
+        
+        self.setup_success = False
+        
         ### ---------------------------------------------------------
         ### Logic
 
-        def on_retrieve_wfn_btn_press(b):
-            with self.neb_out:
-                clear_output()                                           
-                if 'cp2k_code' not in self.job_details.keys():
+        def on_setup_btn_press(b):
+            with self.replica_setup_out:
+                clear_output()
+                
+                if computer_code_dropdown.selected_code is None:
                     print("please select a computer")
+                    self.setup_success = False
                     return
+                
+                selected_computer = computer_code_dropdown.selected_code.computer
                 replica_pks = [int(a) for a in self.job_details['replica_pks'].split()]
-                nreplicas=self.job_details['nreplicas']
+                nreplicas = self.num_rep.value
+                
                 print('Find replica wavefunctions...')
-                selected_computer = self.job_details['cp2k_code']
-                aiida_wfn_cp_list = mk_wfn_cp_commands(nreplicas=nreplicas,
-                                                       selected_computer = selected_computer ,
-                                                       replica_pks = replica_pks)                           
-                self.job_details['wfn_cp_commands']=aiida_wfn_cp_list
+                self.aiida_wfn_cp_list = self.mk_wfn_cp_commands(nreplicas, replica_pks, selected_computer)
+                
                 print('Writing coordinate files...')
-                #float_progress = ipw.FloatProgress(value=0, min=0, max=1)
-                #display(float_progress)
-                the_mols=self.job_details['slab_analyzed']['all_molecules']
-                calc_type=self.job_details['calc_type']
 
-                fd = mk_coord_files(replica_pks=replica_pks, all_mols=the_mols,calc_type=calc_type)
-                self.job_details['struc_folder']=fd
-                print(fd)
+                self.struct_folder = generate_struct_folder(calc_type = dft_details_w.calc_type.value)
+                
+                print(self.struct_folder)
         
-        self.btn_retrieve_wfn.on_click(on_retrieve_wfn_btn_press)
+        self.setup_btn.on_click(on_setup_btn_press)
         
-        update_jd_widgets = [
-            self.proc_rep, self.num_rep, self.spring_constant,
-            self.nsteps_it,  self.optimize_endpoints,
-            self.rotate_frames, self.align_frames, self.text_replica_pks 
-        ]
-        for w in update_jd_widgets:
-            w.observe(lambda v: self.update_job_details(), 'value')
+        # output variables:
+        self.aiida_wfn_cp_list = None
+        self.struct_folder = None
         
-        self.neb_out = ipw.Output()
         ### ---------------------------------------------------------
         ### Define the ipw structure and create parent VBOX
 
@@ -123,23 +112,125 @@ class NEBDetails(ipw.VBox):
             self.spring_constant,
             self.nsteps_it, 
             ipw.HBox([self.optimize_endpoints,self.rotate_frames, self.align_frames]), 
-            ipw.HBox([self.text_replica_pks,self.btn_retrieve_wfn]),
-            self.neb_out
+            ipw.HBox([self.text_replica_pks,self.setup_btn]),
+            self.replica_setup_out
         ]
             
-        super(NEBDetails, self).__init__(children=children, **kwargs)
+        super(NebDetails, self).__init__(children=children, **kwargs)
+
+    
+    def generate_struct_folder(self, calc_type='Full DFT'):
         
-    ####TO DO decide how to deal with UPDATE VS WFN retrieve           
-    def update_job_details(self):
-             
-        self.job_details['nproc_rep']=self.proc_rep.value
-        self.job_details['nreplicas']=self.num_rep.value
-        self.job_details['spring']=self.spring_constant.value
-        self.job_details['nstepsit']=self.nsteps_it.value
-        self.job_details['endpoints']=self.optimize_endpoints.value
-        self.job_details['rotate']=self.rotate_frames.value
-        self.job_details['align']=self.align_frames.value
-        self.job_details['replica_pks']=self.text_replica_pks.value
+        replica_pks = [int(a) for a in self.text_replica_pks.value.split()]
+        structures = [load_node(x) for x in replica_pks]
+        
+        tmpdir = tempfile.mkdtemp()
+        
+        if calc_type != 'Full DFT':
+            # We need mol0.xyz for the initial mixed force_eval
+            mol_fn = tmpdir + '/mol.xyz'
+            atoms = structures[0].get_ase()
+            slab_analyzed = analyze_structure.analyze(atoms)
+            mol_ids = [item for sublist in slab_analyzed['all_molecules'] for item in sublist]
+            mol = atoms[mol_ids]
+            mol.write(mol_fn)
+        
+        # And we also write all the replicas up to the final geometry.
+        for i, s in enumerate(structures):
+            atoms = s.get_ase()
+            molslab_fn = tmpdir + '/replica{}.xyz'.format(i+1)
+            atoms.write(molslab_fn)
+        
+        fd = FolderData()
+        fd.replace_with_folder(folder=tmpdir)
+        shutil.rmtree(tmpdir)
+        return fd
+
+
+    def structure_available_wfn(self, struct_pk, current_hostname):
+        """
+        Checks availability of .wfn file corresponding to a structure and returns the remote path.
+        """
+
+        struct_node = load_node(struct_pk)
+
+        if struct_node.creator is None:
+            print("Struct %d .wfn not avail: no parent calc." % struct_pk)
+            return None
+
+        parent_calc = struct_node.creator
+
+        hostname = parent_calc.computer.hostname
+
+        if hostname != current_hostname:
+            print("Struct %d .wfn not avail: different hostname." % struct_pk)
+            return None
+
+        if parent_calc.label == 'neb':
+            print("NEB not configured")
+            ## parent is NEB
+            #imag_nr = int(key.split("_")[-1]) + 1
+            #parent_calc = val
+            #total_n_reps = parent_calc.get_inputs_dict()['CALL'].get_inputs_dict()['nreplicas']
+            #n_digits = len(str(total_n_reps))
+            #fmt = "%."+str(n_digits)+"d"
+            #wfn_name = "aiida-BAND"+str(fmt % imag_nr)+"-RESTART.wfn"
+        else:
+            # In all other cases, e.g. geo opt, replica, ...
+            # use the standard name
+            wfn_name = "aiida-RESTART.wfn"
+
+        wfn_search_path = parent_calc.get_remote_workdir() + "/" + wfn_name
+        ssh_cmd="ssh "+hostname+" if [ -f "+wfn_search_path+" ]; then echo 1 ; else echo 0 ; fi"
+        wfn_exists = subprocess.check_output(ssh_cmd.split())
+
+        if wfn_exists.decode()[0] != '1':
+            print("Struct %d .wfn not avail: file deleted from remote." % struct_pk)
+            return None
+
+        return wfn_search_path
+
+    def mk_wfn_cp_commands(self, nreplicas, replica_pks, selected_computer):
+
+        available_wfn_paths = []
+        list_wfn_available = []
+        list_of_cp_commands = []
+
+        for ir, node_pk in enumerate(replica_pks):
+
+            avail_wfn = self.structure_available_wfn(node_pk, the_selected_computer.hostname)
+
+            if avail_wfn:
+                list_wfn_available.append(ir) ## example:[0,4,8]
+                available_wfn_paths.append(avail_wfn)
+
+        if len(list_wfn_available) == 0:
+            return []
+
+        n_images_available = len(replica_pks)
+        n_images_needed = nreplicas
+        n_digits = len(str(n_images_needed))
+        fmt = "%."+str(n_digits)+"d"
+
+        # assign each initial replica to a block of created reps
+        block_size = n_images_needed/float(n_images_available)
+
+        for to_be_created in range(1,n_images_needed+1):
+            name = "aiida-BAND"+str(fmt % to_be_created)+"-RESTART.wfn"
+
+            lwa = np.array(list_wfn_available)
+
+            #index_wfn = np.abs(np.round(lwa*block_size + block_size/2) - to_be_created).argmin()
+            index_wfn = np.abs(lwa*block_size + block_size/2 - to_be_created).argmin()
+
+            closest_available = lwa[index_wfn]
+
+            print(name, closest_available)
+
+            list_of_cp_commands.append("cp %s ./%s" % (available_wfn_paths[index_wfn], name))
+
+        return list_of_cp_commands
+    
 
     def reset(self,proc_rep=324, num_rep=15, spring_constant=0.05,
             nsteps_it=5,  optimize_endpoints=False,

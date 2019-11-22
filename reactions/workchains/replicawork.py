@@ -1,21 +1,22 @@
-from aiida.orm import StructureData
-from aiida.orm import Dict
-from aiida.orm import Int, Str, Float
-from aiida.orm import SinglefileData
-from aiida.orm import RemoteData
-from aiida.orm import Code
+from aiida.orm import StructureData, Dict, Int, Str, Float
+from aiida.orm import SinglefileData, RemoteData, Code
 
-from aiida.engine import WorkChain, ToContext, Calc, while_
+from aiida.engine import WorkChain, ToContext, while_
 from aiida.engine import submit
 
-from aiida_cp2k.calculations import Cp2kCalculation
+from aiida.plugins import WorkflowFactory, CalculationFactory
+
+Cp2kBaseWorkChain = WorkflowFactory('cp2k.base')
+Cp2kCalculation = CalculationFactory('cp2k')
+
+#from aiida.orm import Workflow
 
 import tempfile
 import shutil
 
 import numpy as np
 
-import find_mol
+from apps.surfaces.widgets import analyze_structure
 
 ATOMIC_KINDS = {
     'H' :('TZV2P-MOLOPT-GTH','GTH-PBE-q1'),
@@ -36,11 +37,11 @@ ATOMIC_KINDS = {
 # possible metal atoms for empirical substrate
 METAL_ATOMS = ['Au', 'Ag', 'Cu']
 
-class ReplicaWorkchain(WorkChain):
+class ReplicaWorkChain(WorkChain):
 
     @classmethod
     def define(cls, spec):
-        super(ReplicaWorkchain, cls).define(spec)
+        super(ReplicaWorkChain, cls).define(spec)
         spec.input("cp2k_code", valid_type=Code)
         spec.input("structure", valid_type=StructureData)
         spec.input("num_machines", valid_type=Int, default=Int(54))
@@ -51,12 +52,12 @@ class ReplicaWorkchain(WorkChain):
         spec.input("target_unit", valid_type=Str)
         spec.input("spring", valid_type=Float, default=Float(75.0))
         spec.input("spring_unit", valid_type=Str)
-        spec.input("subsys_colvar", valid_type=ParameterData)
+        spec.input("subsys_colvar", valid_type=Dict)
         spec.input("calc_type", valid_type=Str)
         spec.input("mgrid_cutoff", valid_type=Int, default=Int(600))
 
         spec.outline(
-            cls.init,
+            cls.initialize,
             while_(cls.next_replica)(
                 cls.generate_replica,
                 while_(cls.not_converged)(
@@ -65,17 +66,18 @@ class ReplicaWorkchain(WorkChain):
                 cls.store_replica
             )
         )
-        spec.dynamic_output()
+        
+        spec.outputs.dynamic = True
 
     # ==========================================================================
     def not_converged(self):
-        self.ctx.structure = self.ctx.replica.out.output_structure
+        self.ctx.structure = self.ctx.replica.outputs.output_structure
         if self.ctx.replica.res.exceeded_walltime:
             # Even if geometry did not converge, update remote_calc_folder and structure
             # to continue from the stopped part
             self.ctx.prev_converged = False
-            self.ctx.remote_calc_folder = self.ctx.replica.out.remote_folder
-            self.ctx.structure = self.ctx.replica.out.output_structure
+            self.ctx.remote_calc_folder = self.ctx.replica.outputs.remote_folder
+            #self.ctx.structure = self.ctx.replica.outputs.output_structure
         else:
             self.ctx.prev_converged = True
         return self.ctx.replica.res.exceeded_walltime
@@ -88,10 +90,10 @@ class ReplicaWorkchain(WorkChain):
         #    return True
 
     # ==========================================================================
-    def init(self):
+    def initialize(self):
         self.report('Init generate replicas')
 
-        self.ctx.replica_list = str(self.inputs.colvar_targets).split()
+        self.ctx.replica_list = str(self.inputs.colvar_targets.value).split()
         self.ctx.replicas_done = 0
         self.ctx.this_name = self.inputs.calc_name
         self.ctx.prev_converged = True
@@ -112,8 +114,8 @@ class ReplicaWorkchain(WorkChain):
             self.ctx.remote_calc_folder = None
             self.ctx.structure = self.inputs.structure
         else:
-            self.ctx.remote_calc_folder = self.ctx.replica.out.remote_folder
-            self.ctx.structure = self.ctx.replica.out.output_structure
+            self.ctx.remote_calc_folder = self.ctx.replica.outputs.remote_folder
+            self.ctx.structure = self.ctx.replica.outputs.output_structure
 
         self.ctx.replicas_done += 1
 
@@ -125,34 +127,40 @@ class ReplicaWorkchain(WorkChain):
                     .format(self.ctx.this_replica))
 
         inputs = self.build_calc_inputs(self.ctx.structure,
-                                        self.inputs.cell,
+                                        self.inputs.cell.value,
                                         self.inputs.cp2k_code,
                                         self.ctx.this_replica,
-                                        self.inputs.fixed_atoms,
-                                        self.inputs.num_machines,
+                                        self.inputs.fixed_atoms.value,
+                                        self.inputs.num_machines.value,
                                         self.ctx.remote_calc_folder,
                                         self.ctx.prev_converged,
                                         self.ctx.this_name,
-                                        self.inputs.spring,
-                                        self.inputs.spring_unit,
-                                        self.inputs.target_unit,
-                                        self.inputs.subsys_colvar,
-                                        self.inputs.calc_type,
-                                        self.inputs.mgrid_cutoff)
+                                        self.inputs.spring.value,
+                                        self.inputs.spring_unit.value,
+                                        self.inputs.target_unit.value,
+                                        dict(self.inputs.subsys_colvar),
+                                        self.inputs.calc_type.value,
+                                        self.inputs.mgrid_cutoff.value)
 
         self.report(" ")
         self.report("inputs: "+str(inputs))
         self.report(" ")
-        future = submit(Cp2kCalculation.process(), **inputs)
+        future = self.submit(Cp2kCalculation, **inputs)
         self.report("future: "+str(future))
         self.report(" ")
-        return ToContext(replica=Calc(future))
+        return ToContext(replica=future)
     
     # ==========================================================================
+#    def store_replica(self):
+#        return self.out('replica_{}_{}'.format(self.ctx.this_replica,
+#                                               self.ctx.this_name),
+#                        self.ctx.replica.outputs.output_structure)
+#    def store_replica(self):
+#        return self.out('replica_{}'.format(self.ctx.this_replica),
+#                        self.ctx.replica.outputs.output_structure)
     def store_replica(self):
-        return self.out('replica_{}_{}'.format(self.ctx.this_replica,
-                                               self.ctx.this_name),
-                        self.ctx.replica.out.output_structure)
+        return self.out('replica_abc',
+                        self.ctx.replica.outputs.output_structure)
 
     # ==========================================================================
     @classmethod
@@ -162,8 +170,9 @@ class ReplicaWorkchain(WorkChain):
                           subsys_colvar, calc_type, mgrid_cutoff):
 
         inputs = {}
-        inputs['_label'] = "replica_geo_opt"
-        inputs['_description'] = "replica_{}_{}".format(calc_name,
+        inputs['metadata'] = {}
+        inputs['metadata']['label'] = "replica_geo_opt"
+        inputs['metadata']['description'] = "replica_{}_{}".format(calc_name,
                                                         colvar_target)
 
         inputs['code'] = code
@@ -180,11 +189,13 @@ class ReplicaWorkchain(WorkChain):
         first_slab_atom = None        
         if calc_type != 'Full DFT':
             
+            slab_analyzed = analyze_structure.analyze(atoms)
+            
             # Au potential
             pot_f = SinglefileData(file='/project/apps/surfaces/slab/Au.pot')
             inputs['file']['au_pot'] = pot_f
             
-            mol_indexes = find_mol.extract_mol_indexes_from_slab(atoms)
+            mol_indexes = list(itertools.chain(*slab_analyzed['all_molecules']))
             
             if len(mol_indexes) != np.max(mol_indexes) + 1:
                 raise Exception("For mixed calculation, the molecule indexes " +
@@ -206,7 +217,7 @@ class ReplicaWorkchain(WorkChain):
         else:
             cell_abc = cell
             
-        remote_computer = code.get_remote_computer()
+        remote_computer = code.computer
         machine_cores = remote_computer.get_default_mpiprocs_per_machine()
         
         inp = cls.get_cp2k_input(cell_abc,
@@ -224,7 +235,7 @@ class ReplicaWorkchain(WorkChain):
                                  prev_converged)
 
         if remote_calc_folder is not None:
-            inputs['parent_folder'] = remote_calc_folder
+            inputs['parent_calc_folder'] = remote_calc_folder
 
         inputs['parameters'] = Dict(dict=inp)
 
@@ -233,7 +244,7 @@ class ReplicaWorkchain(WorkChain):
         inputs['settings'] = settings
 
         # resources
-        inputs['_options'] = {
+        inputs['metadata']['options'] = {
             "resources": {"num_machines": num_machines},
             "max_wallclock_seconds": 86000,
         }
@@ -579,7 +590,7 @@ class ReplicaWorkchain(WorkChain):
             force_eval['SUBSYS']['TOPOLOGY']['COORD_FILE_NAME'] = 'mol.xyz'
 
         if subsys_colvar is not None:
-            force_eval['SUBSYS']['COLVAR'] = subsys_colvar.get_attrs()
+            force_eval['SUBSYS']['COLVAR'] = subsys_colvar
         
         
         kinds_used = np.unique(atoms.get_chemical_symbols())
@@ -623,36 +634,3 @@ class ReplicaWorkchain(WorkChain):
         shutil.rmtree(tmpdir)
         return atoms_aiida_f
     
-    # ==========================================================================
-#    @classmethod
-#    def extract_mol_indexes_from_slab(cls, atoms):
-#        exclude=['Au','Ag','Cu','Pd','Ga','Ni']
-#        the_mol=Atoms()
-#        cov_radii = [covalent_radii[a.number] for a in atoms]
-#        nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
-#        nl.update(atoms)
-#        vec = np.zeros(3)
-#        ismol=[]
-#        tofollow=[]
-#        followed=[]
-#        
-#        all_carbon_atoms = np.argwhere(atoms.numbers == 6)
-#        for c in all_carbon_atoms:
-#            tofollow.append(c[0])
-#            ismol.append(c[0])
-#        while len(tofollow) > 0:
-#            indices, offsets = nl.get_neighbors(tofollow[0])
-#            indices=list(indices)
-#            followed.append(tofollow[0])
-#            for inew in indices:
-#                tofollow.append(inew)
-#            for i in indices:
-#                if (i not in ismol) and (i not in exclude):
-#                    ismol.append(i)
-#            for i in followed:
-#                if i in tofollow:
-#                    tofollow.remove(i)
-#        
-#        return ismol
-#
-    # ==========================================================================

@@ -77,7 +77,7 @@ def get_types(frame,thr): ## Piero Gasparotto
         twoD_atoms = [frame.positions[i,0:2] for i in range(nat) if np.abs(frame.positions[i,2]-iz) <layer_tol ]
         coverage=0
         if len(twoD_atoms) > max_atoms_in_a_layer/4:
-            hull = ConvexHull(twoD_atoms) ## HOW TO PUT PBC?? otherwise 4 corner adatoms would give full area. Maybe also cov_radii
+            hull = ConvexHull(twoD_atoms) ##  
             coverage = hull.volume/area
         if coverage > 0.3:
             found_top_surf=True
@@ -90,7 +90,7 @@ def get_types(frame,thr): ## Piero Gasparotto
         twoD_atoms = [frame.positions[i,0:2] for i in range(nat) if np.abs(frame.positions[i,2]-iz) <layer_tol]
         coverage=0
         if len(twoD_atoms) > max_atoms_in_a_layer/4:        
-            hull = ConvexHull(twoD_atoms) ## HOW TO PUT PBC?? otherwise 4 corner adatoms would give full area. Maybe also cov_radii
+            hull = ConvexHull(twoD_atoms) ## 
             coverage = hull.volume/area
         if coverage > 0.3 and len(twoD_atoms) > max_atoms_in_a_layer/4 :
             found_bottom_surf=True
@@ -134,17 +134,18 @@ def get_types(frame,thr): ## Piero Gasparotto
     possible_mol_atoms=[i for i in range(nat) if atype[i]==2 and lbls[i] in moltypes]
     possible_mol_atoms+=[i for i in range(nat) if atype[i]==5]
     
-    cov_radii = [covalent_radii[a.number] for a in frame[possible_mol_atoms]]  ### adatoms that have a neighbor adatom belong to molecules
-    nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
-    nl.update(frame[possible_mol_atoms])
-    for ia in range(len(possible_mol_atoms)):
-        indices, offsets = nl.get_neighbors(ia)
-        
-        if len(indices) > 0:
-            if lbls[ia] in metalatingtypes:
-                atype[possible_mol_atoms[ia]]=6
-            else:
-                atype[possible_mol_atoms[ia]]=0
+    if len(possible_mol_atoms) > 0:
+        cov_radii = [covalent_radii[a.number] for a in frame[possible_mol_atoms]]  #adatoms that have a neigh adatom are in a mol
+        nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
+        nl.update(frame[possible_mol_atoms])
+        for ia in range(len(possible_mol_atoms)):
+            indices, offsets = nl.get_neighbors(ia)
+
+            if len(indices) > 0:
+                if lbls[possible_mol_atoms[ia]] in metalatingtypes:
+                    atype[possible_mol_atoms[ia]]=6
+                else:
+                    atype[possible_mol_atoms[ia]]=0
     return atype,layersg
 
 def all_connected_to(id_atom,atoms,exclude):
@@ -240,7 +241,7 @@ def analyze(atoms):
     unclassified=[]
     slabatoms=[]
     slab_layers=[]    
-    all_molecules=[[]]
+    all_molecules=None
     is_a_bulk=False
     is_a_molecule=False
     is_a_wire=False
@@ -342,10 +343,13 @@ def analyze(atoms):
         summary+='slab layer '+str(nlayer+1)+': '+mol_ids_range(slab_layers[nlayer])+'\n'    
     if len(adatoms)>0:
         
-        summary+='adatoms: '  + mol_ids_range(adatoms)    + '\n' 
-    summary+='#'+str(len(all_molecules))   + ' molecules: ' 
-    for nmols in range(len(all_molecules)):
-        summary+=str(nmols)+') '+mol_ids_range(all_molecules[nmols])
+        summary+='adatoms: '  + mol_ids_range(adatoms)    + '\n'  
+    if all_molecules:
+        
+        summary+='#'+str(len(all_molecules))   + ' molecules: '
+        for nmols in range(len(all_molecules)):
+            summary+=str(nmols)+') '+mol_ids_range(all_molecules[nmols])
+        
     summary+=' \n' 
     if len(mol_ids_range(metalatings))>0:
         summary+='metal atoms inside molecules (already counted): '+ mol_ids_range(metalatings) + '\n'
@@ -359,7 +363,7 @@ def analyze(atoms):
             'bottom_H'      : sorted(bottom_H),
             'slabatoms'     : sorted(slabatoms),
             'adatoms'       : sorted(adatoms),
-            'all_molecules' : sorted(all_molecules),
+            'all_molecules' : all_molecules,
             'metalatings'   : sorted(metalatings),
             'unclassified'  : sorted(unclassified),
             'numatoms'      : len(atoms),
