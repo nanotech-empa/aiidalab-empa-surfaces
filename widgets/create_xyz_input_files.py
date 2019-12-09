@@ -1,16 +1,24 @@
-from aiida.orm import StructureData , SinglefileData
+from apps.surfaces.widgets.analyze_structure import string_range_to_list
+from aiida.orm import StructureData , SinglefileData, Str
 from aiida.engine import calcfunction
 from ase import Atoms
 
 @calcfunction
-def make_geom_file(structure, filename,selection=None):
+def make_geom_file(structure, filename,selection=None,spin_u=Str(''),spin_d=Str('')):
     import tempfile
     import shutil
     from io import  StringIO
     
     filename = filename.value
 
+    
+    ### the two ways of defining spin seem not to be compatible
+    ###spin from ase struct
     spin_guess = extract_spin_guess(structure)
+    
+    ###spin_from widgets
+    spin_guess = [string_range_to_list(spin_u.value),string_range_to_list(spin_d.value)]
+    
     if selection is None:
         atoms = structure.get_ase()
     else:

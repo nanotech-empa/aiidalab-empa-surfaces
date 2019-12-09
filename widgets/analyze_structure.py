@@ -112,7 +112,7 @@ def get_types(frame,thr): ## Piero Gasparotto
                 break
     if found_layer_of_H:
         layersg=layersg[1:]
-        bottom_z
+        #bottom_z=layersg[0]
         
     layers_dist = []
     iprev = layersg[0]
@@ -123,10 +123,12 @@ def get_types(frame,thr): ## Piero Gasparotto
     for i in range(nat):
         iz = frame.positions[i,2]
         if iz > bottom_z - layer_tol and iz < top_z + layer_tol:
-            atype[i]=1
+            if not (atype[i]==3 and found_layer_of_H):
+                atype[i]=1
         else:
-            if np.min([np.abs(iz- top_z),np.abs(iz- bottom_z)]) < np.max(layers_dist):
-                atype[i]=2
+            if np.min([np.abs(iz- top_z),np.abs(iz- bottom_z)]) < np.max(layers_dist):   
+                if not (atype[i]==3 and found_layer_of_H): 
+                    atype[i]=2
     
     # assign the other types
     metalatingtypes=('Au','Ag','Cu','Ni','Co','Zn','Mg')
@@ -222,6 +224,15 @@ def mol_ids_range(ismol):
             range_string+=str(ranges[i][0])+' '
     return range_string
 
+def string_range_to_list(a):
+    singles=[int(s) -1 for s in a.split() if s.isdigit()]
+    ranges = [r for r in a.split() if '..' in r]
+    for r in ranges:
+        t=r.split('..')
+        to_add=[i-1 for i in range(int(t[0]),int(t[1])+1)]
+        singles+=to_add
+    return sorted(singles)
+
 def analyze(atoms):
     no_cell=atoms.cell[0][0] <0.1 or atoms.cell[1][1] <0.1 or atoms.cell[2][2] <0.1 
     if no_cell:
@@ -253,7 +264,7 @@ def analyze(atoms):
     vacuum_x=np.max(atoms.positions[:,0]) - np.min(atoms.positions[:,0]) +4 < atoms.cell[0][0]
     vacuum_y=np.max(atoms.positions[:,1]) - np.min(atoms.positions[:,1]) +4 < atoms.cell[1][1]
     vacuum_z=np.max(atoms.positions[:,2]) - np.min(atoms.positions[:,2]) +4 < atoms.cell[2][2]
-    all_elements=list(set(atoms.get_chemical_symbols()))
+    all_elements= atoms.get_chemical_symbols() # list(set(atoms.get_chemical_symbols()))
     cov_radii = [covalent_radii[a.number] for a in atoms]
     
     nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
@@ -358,7 +369,7 @@ def analyze(atoms):
 
     return {'total_charge'  : total_charge,
             'system_type'   : sys_type,
-            'the_cell'      : atoms.cell,
+            'cell'          : " ".join([str(i) for i in itertools.chain(*atoms.cell.tolist())]),
             'slab_layers'   : slab_layers,
             'bottom_H'      : sorted(bottom_H),
             'slabatoms'     : sorted(slabatoms),
