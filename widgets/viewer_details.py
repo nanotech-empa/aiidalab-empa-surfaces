@@ -103,7 +103,12 @@ class ViewerDetails(ipw.VBox):
             else:
                 rest_i.append(i_a)
         return mol_i, rest_i
-        
+    
+    def reset_selection(self):
+        self.selection = []
+        with self.info_out:
+            clear_output()
+            print("Selection: [" + " ".join([str(x+1) for x in self.selection]) + "]")
         
     def setup(self, atoms, details=None):
         
@@ -121,7 +126,7 @@ class ViewerDetails(ipw.VBox):
             if atoms is None:
                 return
             else:
-                self.rest_inds = list(np.arange(0, len(atoms))) # [] #deaulf all big spheres
+                self.rest_inds = list(np.arange(0, len(atoms))) # [] #default all big spheres
         else:
             if details['system_type']=='Bulk':
                 self.mol_inds = [] 
