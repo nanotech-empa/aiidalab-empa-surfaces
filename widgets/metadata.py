@@ -16,21 +16,18 @@ class MetadataWidget(ipw.VBox):
         self.walltime_d = ipw.IntText(value=0,
                                       description='d:',
                                       style={'description_width': 'initial'},
-                                      layout={'width': '30%'})
+                                      layout={'width': 'initial'})
+
         self.walltime_h = ipw.IntText(value=24,
                                       description='h:',
                                       style={'description_width': 'initial'},
-                                      layout={'width': '30%'})
+                                      layout={'width': 'initial'})
+
         self.walltime_m = ipw.IntText(value=0,
                                       description='m:',
                                       style={'description_width': 'initial'},
-                                      layout={'width': '30%'})
-
-        self.process_description = ipw.Text(description='Process description: ',
-                                            placeholder='Type the name here.',
-                                            style=STYLE,
-                                            layout=LAYOUT)
-
+                                      layout={'width': 'initial'})
+        
         self.num_machines = ipw.IntText(value=1, description='# Nodes', style=STYLE, layout=LAYOUT)
 
         self.num_mpiprocs_per_machine = ipw.IntText(value=12, description='# Tasks', style=STYLE, layout=LAYOUT)
@@ -38,7 +35,7 @@ class MetadataWidget(ipw.VBox):
         self.num_cores_per_mpiproc = ipw.IntText(value=1, description='# Threads', style=STYLE, layout=LAYOUT)
 
         children = [
-            self.process_description, self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
+            self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
             ipw.HBox([ipw.HTML("walltime:"), self.walltime_d, self.walltime_h, self.walltime_m])
         ]
 
@@ -48,7 +45,6 @@ class MetadataWidget(ipw.VBox):
     @property
     def dict(self):
         return {
-            "description": self.process_description.value,
             "options": {
                 "resources": {
                     "num_machines": self.num_machines.value,

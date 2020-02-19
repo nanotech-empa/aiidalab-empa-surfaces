@@ -38,7 +38,7 @@ layout2 = {'width': '35%'}
 FUNCTION_TYPE = type(lambda c: c)
  
 WIDGETS_ENABLED = {
-    'SlabGeoOptWorkChain'  : ['fixed_atoms','calc_type','uks','convergence','cell'],
+    'SlabGeoOptWorkChain'  : ['fixed_atoms','calc_type','vdw_switch','uks','convergence','cell'],
     'MoleculeOptWorkChain' : ['uks','convergence','cell'],    
     'GWWorkChain'          : ['cell','gw','convergence']
 }

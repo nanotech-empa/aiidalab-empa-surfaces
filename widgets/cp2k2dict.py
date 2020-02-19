@@ -40,4 +40,4 @@ def CP2K2DICT(input_lines=''):
     else:
         msg=''
        
-    return input_dict
+    return msg,input_dict

@@ -231,10 +231,19 @@ class SearchCompletedWidget(ipw.VBox):
             calc = qb.all()[0][0]
             return calc
 
-        # formula
-        structure = workcalc.inputs.cp2k__file__input_xyz.get_incoming().all_nodes()[0].get_incoming().all_nodes()[1]
-        ase_struct = structure.get_ase()
 
+        
+        # optimized structure
+        calc = get_calc_by_label(workcalc, self.clabel) # TODO deal with restarts, check final state
+        opt_structure = calc.outputs.output_structure
+        
+        # initial structure:
+        maybe = workcalc.inputs.cp2k__file__input_xyz.get_incoming().all_nodes()[0].get_incoming().all_nodes()
+        for i in range(len(maybe)):
+            if isinstance(maybe[i],type(opt_structure)):
+                structure=maybe[i]
+        ase_struct = structure.get_ase()        
+        
         res = analyze_structure.analyze(ase_struct)
         mol_formula=''
         for imol in res['all_molecules']:
@@ -253,9 +262,7 @@ class SearchCompletedWidget(ipw.VBox):
         workcalc.set_extra('structure_description', structure.description)    
 
 
-        # optimized structure
-        calc = get_calc_by_label(workcalc, self.clabel) # TODO deal with restarts, check final state
-        opt_structure = calc.outputs.output_structure
+
         workcalc.set_extra('opt_structure_uuid', calc.outputs.output_structure.uuid)
         workcalc.set_extra('energy', calc.res.energy)
         workcalc.set_extra('cell', calc.outputs.output_structure.get_ase().get_cell_lengths_and_angles())
@@ -264,5 +271,5 @@ class SearchCompletedWidget(ipw.VBox):
         
 
         # thumbnail
-        thumbnail = viewer(structure).thumbnail
+        thumbnail = viewer(opt_structure).thumbnail
         workcalc.set_extra('thumbnail', thumbnail)
