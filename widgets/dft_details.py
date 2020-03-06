@@ -39,7 +39,7 @@ FUNCTION_TYPE = type(lambda c: c)
  
 WIDGETS_ENABLED = {
     'SlabGeoOptWorkChain'  : ['fixed_atoms','calc_type','vdw_switch','uks','convergence','cell'],
-    'MoleculeOptWorkChain' : ['uks','convergence','cell'],    
+    'MoleculeOptWorkChain' : ['vdw_switch','uks','convergence','cell'],    
     'GWWorkChain'          : ['cell','gw','convergence']
 }
 class DFTDetails(ipw.VBox):        

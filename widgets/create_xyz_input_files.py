@@ -14,7 +14,7 @@ def make_geom_file(structure, filename,selection=None,spin_u=Str(''),spin_d=Str(
     
     ### the two ways of defining spin seem not to be compatible
     ###spin from ase struct
-    spin_guess = extract_spin_guess(structure)
+    #spin_guess = extract_spin_guess(structure)
     
     ###spin_from widgets
     spin_guess = [string_range_to_list(spin_u.value),string_range_to_list(spin_d.value)]
