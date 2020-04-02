@@ -42,18 +42,18 @@ def get_start_widget(appbase, jupbase):
 
     <table>
     <tr>
-        <th style="text-align:center">Replicas</th>
+        <th style="text-align:center">Constr. opt. chains</th>
         <th style="width:60px" rowspan=2></th>
-        <th style="text-align:center">CI-NEB</th>
+        <th style="text-align:center">Nudged elastic band</th>
     </tr>
     <tr>
     <td valign="top"><ul>
-        <li><a href="{appbase}/reactions/replicas.ipynb" target="_blank">Generate replicas</a>
-        <li><a href="{appbase}/reactions/SearchReplica.ipynb" target="_blank">Search Replicas</a>
+        <li><a href="{appbase}/reactions/submit_replicas.ipynb" target="_blank">Generate replicas</a>
+        <li><a href="{appbase}/reactions/search_replicas.ipynb" target="_blank">Search replica chains</a>
     </ul></td>
     <td><ul>
-        <li><a href="{appbase}/reactions/NEB.ipynb" target="_blank">NEB</a>
-        <li><a href="{appbase}/reactions/SearchNEB.ipynb" target="_blank">Search NEBs</a>
+        <li><a href="{appbase}/reactions/submit_neb.ipynb" target="_blank">Submit NEB</a>
+        <li><a href="{appbase}/reactions/search_neb.ipynb" target="_blank">Search NEBs</a>
     </ul></td>
     </tr></table>
 """
