@@ -243,7 +243,7 @@ class AnglePlanePlaneCV():
         cp2k_subsys = { 'ANGLE_PLANE_PLANE': {
             'PLANE': {
                 'DEF_TYPE': 'ATOMS',
-                'ATOMS': " ".join(self.p1_def)
+                'ATOMS': " ".join([str(x) for x in self.p1_def])
             },
             'PLANE  ': {
                 'DEF_TYPE': self.p2_def_type,
