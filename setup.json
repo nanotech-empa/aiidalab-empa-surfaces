@@ -21,6 +21,9 @@
         "aiida.workflows": [
             "replica = reactions.workchains:ReplicaWorkChain",
             "neb = reactions.workchains:NebWorkChain"
+        ],
+        "aiida.parsers": [
+            "cp2k_neb_parser = reactions.parsers:Cp2kNebParser"
         ]
     },
     "setup_requires": ["reentry"],

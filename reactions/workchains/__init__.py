@@ -4,4 +4,4 @@
 from __future__ import absolute_import
 
 from .replicawork import ReplicaWorkChain
-from .nebwork import NebWorkChain
+from .nebwork import NEBWorkChain

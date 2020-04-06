@@ -3,10 +3,13 @@ from __future__ import absolute_import
 
 import ipywidgets as ipw
 from IPython.display import display, clear_output
-from apps.surfaces.widgets.neb_utils import mk_coord_files, mk_wfn_cp_commands
-from aiida.orm import Code
+from .neb_utils import mk_coord_files, mk_wfn_cp_commands
 from aiida.orm import load_node
 from aiida.orm import Code, Computer
+from aiida.orm import FolderData
+
+import tempfile
+import shutil
 
 from apps.surfaces.widgets import analyze_structure
 
@@ -79,13 +82,13 @@ class NebDetails(ipw.VBox):
             with self.replica_setup_out:
                 clear_output()
                 
-                if computer_code_dropdown.selected_code is None:
+                if self.code_drop_down.selected_code is None:
                     print("please select a computer")
                     self.setup_success = False
                     return
                 
-                selected_computer = computer_code_dropdown.selected_code.computer
-                replica_pks = [int(a) for a in self.job_details['replica_pks'].split()]
+                selected_computer = self.code_drop_down.selected_code.computer
+                replica_pks = [int(a) for a in self.text_replica_pks.value.split()]
                 nreplicas = self.num_rep.value
                 
                 print('Find replica wavefunctions...')
@@ -93,7 +96,7 @@ class NebDetails(ipw.VBox):
                 
                 print('Writing coordinate files...')
 
-                self.struct_folder = generate_struct_folder(calc_type = dft_details_w.calc_type.value)
+                self.struct_folder = self.generate_struct_folder(calc_type = dft_details_w.calc_type.value)
                 
                 print(self.struct_folder)
         
@@ -141,8 +144,7 @@ class NebDetails(ipw.VBox):
             molslab_fn = tmpdir + '/replica{}.xyz'.format(i+1)
             atoms.write(molslab_fn)
         
-        fd = FolderData()
-        fd.replace_with_folder(folder=tmpdir)
+        fd = FolderData(tree=tmpdir)
         shutil.rmtree(tmpdir)
         return fd
 
@@ -198,7 +200,7 @@ class NebDetails(ipw.VBox):
 
         for ir, node_pk in enumerate(replica_pks):
 
-            avail_wfn = self.structure_available_wfn(node_pk, the_selected_computer.hostname)
+            avail_wfn = self.structure_available_wfn(node_pk, selected_computer.hostname)
 
             if avail_wfn:
                 list_wfn_available.append(ir) ## example:[0,4,8]
@@ -245,7 +247,7 @@ class NebDetails(ipw.VBox):
         self.align_frames.value = align_frames
         self.text_replica_pks.value = text_replica_pks
         #self.job_details={}
-        self.update_job_details()
+        #self.update_job_details()
         
 
 

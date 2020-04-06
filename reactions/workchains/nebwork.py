@@ -12,31 +12,35 @@ from aiida.engine import submit
 
 from aiida.plugins import WorkflowFactory, CalculationFactory
 
+import aiida_cp2k
+
 Cp2kCalculation = CalculationFactory('cp2k')
 
 import numpy as np
+
+import os
 
 #import find_mol
 
 from apps.surfaces.widgets import analyze_structure
 
-from apps.surfaces.widgets.get_cp2k_input_dev import Get_CP2K_Input
+from apps.surfaces.widgets.get_cp2k_input import Get_CP2K_Input
 
 
-class NebWorkChain(WorkChain):
+class NEBWorkChain(WorkChain):
 
     @classmethod
     def define(cls, spec):
-        super(NebWorkChain, cls).define(spec)        
+        super(NEBWorkChain, cls).define(spec)        
         spec.input("cp2k_code"        , valid_type=Code)
         spec.input("structure"        , valid_type=StructureData)
-        spec.input("max_force"        , valid_type=Float, default=Float(0.0005))
-        spec.input("calc_type"        , valid_type=Str, default=Str('Full DFT'))
-        spec.input("workchain"        , valid_type=Str, default=Str('NebWorkChain'))
-        spec.input("vdw_switch"       , valid_type=Bool, default=Bool(False))
-        spec.input("mgrid_cutoff"     , valid_type=Int, default=Int(600))
-        spec.input("fixed_atoms"      , valid_type=Str, default=Str(''))        
-        spec.input("num_machines"     , valid_type=Int, default=Int(1))                
+        spec.input("max_force"        , valid_type=Float, default=lambda: Float(0.0005))
+        spec.input("calc_type"        , valid_type=Str, default=lambda: Str('Full DFT'))
+        spec.input("workchain"        , valid_type=Str, default=lambda: Str('NEBWorkChain'))
+        spec.input("vdw_switch"       , valid_type=Bool, default=lambda: Bool(False))
+        spec.input("mgrid_cutoff"     , valid_type=Int, default=lambda: Int(600))
+        spec.input("fixed_atoms"      , valid_type=Str, default=lambda: Str(''))        
+        spec.input("num_machines"     , valid_type=Int, default=lambda: Int(1))                
         spec.input("struc_folder"     , valid_type=FolderData)
         spec.input("wfn_cp_commands"  , valid_type=List)        
         spec.input("calc_name"        , valid_type=Str)
@@ -56,7 +60,7 @@ class NebWorkChain(WorkChain):
             #while_(cls.not_converged)(
             #    cls.calc_neb
             #),
-            # cls.store_neb
+            cls.store_outputs
         )
         spec.outputs.dynamic = True
 
@@ -76,14 +80,14 @@ class NebWorkChain(WorkChain):
     def initialize(self):
         self.report('Init NEB')
         # Set the restart folder
-        try:
-            self.ctx.remote_calc_folder = self.ctx.neb.remote_calc_folder
-        except AttributeError:
-            self.ctx.remote_calc_folder = None
+        #try:
+        #    self.ctx.remote_calc_folder = self.ctx.neb.remote_calc_folder
+        #except AttributeError:
+        #    self.ctx.remote_calc_folder = None
 
         # Here we need to create the xyz files of all the replicas
         #self.ctx.this_name = self.inputs.calc_name
-        self.ctx.file_list = self.inputs.struc_folder.get_folder_list()
+        self.ctx.file_list = self.inputs.struc_folder.list_object_names()
         self.ctx.n_files = len(self.ctx.file_list) #-2
 
         # Report some things
@@ -106,26 +110,42 @@ class NebWorkChain(WorkChain):
                                         num_machines       = self.inputs.num_machines.value,   
                                         struc_folder       = self.inputs.struc_folder,   
                                         wfn_cp_commands    = self.inputs.wfn_cp_commands,
-                                        nproc_rep          = self.inputs.nproc_rep,      
-                                        nreplicas          = self.inputs.nreplicas, 
-                                        replica_pks        = self.inputs.replica_pks,
-                                        spring             = self.inputs.spring,         
-                                        rotate             = self.inputs.rotate,         
-                                        align              = self.inputs.align,          
-                                        nstepsit           = self.inputs.nstepsit,       
-                                        endpoints          = self.inputs.endpoints, 
-                                        file_list          = self.ctx.file_list,
-                                        remote_calc_folder = self.ctx.remote_calc_folder
+                                        nproc_rep          = self.inputs.nproc_rep.value,      
+                                        nreplicas          = self.inputs.nreplicas.value, 
+                                        replica_pks        = self.inputs.replica_pks.value,
+                                        spring             = self.inputs.spring.value,         
+                                        rotate             = self.inputs.rotate.value,         
+                                        align              = self.inputs.align.value,          
+                                        nstepsit           = self.inputs.nstepsit.value,       
+                                        endpoints          = self.inputs.endpoints.value, 
+                                        #file_list          = self.ctx.file_list,
+                                        #remote_calc_folder = self.ctx.remote_calc_folder
                                        )
+        
+        # Use the neb parser
+        inputs['metadata']['options']['parser_name'] = 'cp2k_neb_parser'
+        
         self.report(" ")
         self.report("inputs: "+str(inputs))
         self.report(" ")
-        self.report("Using aiida-cp2k: "+str(aiida_cp2k.__file__))
-        self.report(" ")
-        future = submit(Cp2kCalculation.process(), **inputs)
+        future = self.submit(Cp2kCalculation, **inputs)
         self.report("future: "+str(future))
         self.report(" ")
-        return ToContext(neb=Calc(future))
+        return ToContext(neb=future)
+    
+    # ==========================================================================
+    def store_outputs(self):
+        self.report("Storing the output")
+        
+        for i_rep in range(self.inputs.nreplicas.value):
+            label = "opt_replica_%d" % i_rep
+            self.out(label, self.ctx.neb.outputs[label])
+        
+        self.out("replica_energies", self.ctx.neb.outputs["replica_energies"])
+        self.out("replica_distances", self.ctx.neb.outputs["replica_distances"])
+        
+        self.report("Finish!")
+        
     
     # ==========================================================================
     @classmethod
@@ -149,8 +169,7 @@ class NebWorkChain(WorkChain):
                           align              = None,
                           nstepsit           = None,
                           endpoints          = None,
-                          file_list          = None,
-                          remote_calc_folder = None,
+                          #file_list          = None,
                           **not_used
                          ): 
 
@@ -162,24 +181,22 @@ class NebWorkChain(WorkChain):
         inputs['file'] = {}
         atoms = structure.get_ase()  # slow
         
-        cell=[atoms.cell[0, 0],atoms.cell[0, 1], atoms.cell[0, 2],
-              atoms.cell[1, 0],atoms.cell[1, 1], atoms.cell[1, 2],
-              atoms.cell[2, 0],atoms.cell[2, 1], atoms.cell[2, 2]]
         
         # The files passed by the notebook
 
-        for f in struc_folder.get_folder_list():
-            path = struc_folder.get_abs_path()+'/path/'+f
-            inputs['file'][f] = SinglefileData(file=path)
+        for f in struc_folder.list_object_names():            
+            with struc_folder.open(f) as handle:
+                f_no_dot = f.replace(".", "_")
+                inputs['file'][f_no_dot] = SinglefileData(file=handle.name)
 
 
         remote_computer = cp2k_code.get_remote_computer()
         machine_cores = remote_computer.get_default_mpiprocs_per_machine()
         
+        slab_analyzed = analyze_structure.analyze(atoms)
+        
         first_slab_atom = None
         if calc_type != 'Full DFT':
-                        
-            slab_analyzed = analyze_structure.analyze(atoms)
             
             # Au potential
             pot_f = SinglefileData(file='/project/apps/surfaces/slab/Au.pot')
@@ -200,32 +217,35 @@ class NebWorkChain(WorkChain):
         else:
             walltime = 86000
 
-        nreplica_files=replica_pks.value
-        nreplica_files=len(nreplica_files.split())
-        inp = Get_CP2K_Input(atoms=atoms,
-                             cell=cell,
-                             fixed_atoms=fixed_atoms,
-                             max_force=max_force,
-                             machine_cores=machine_cores*num_machines,
-                             align=align,
-                             endpoints=endpoints,
-                             nproc_rep=nproc_rep,
-                             nreplicas=nreplicas,
-                             nstepsit=nstepsit,
-                             rotate=rotate,
-                             spring=spring,
-                             calc_type=calc_type,
-                             mgrid_cutoff=mgrid_cutoff,
-                             nreplica_files=nreplica_files,
-                             first_slab_atom=first_slab_atom,
-                             last_slab_atom=len(atoms),
-                             walltime=walltime*0.97,
-                             workchain=workchain,
-                             remote_calc_folder=remote_calc_folder
-                            )
-
-        if remote_calc_folder is not None:
-            inputs['parent_folder'] = remote_calc_folder
+        nreplica_files=len(replica_pks.split())
+        
+        cell_str = " ".join(["%.4f" % a for a in np.array(atoms.cell).flatten()])
+        
+        cp2k_dict = {
+            'atoms': atoms,
+            'cell': cell_str,
+            'fixed_atoms': fixed_atoms,
+            'max_force': max_force,
+            'vdw_switch': vdw_switch,
+            'mpi_tasks': machine_cores*num_machines,
+            'align': align,
+            'endpoints': endpoints,
+            'nproc_rep': nproc_rep,
+            'nreplicas': nreplicas,
+            'nreplica_files': nreplica_files,
+            'nstepsit': nstepsit,
+            'rotate': rotate,
+            'spring': spring,
+            'calc_type': calc_type,
+            'mgrid_cutoff': mgrid_cutoff,
+            'first_slab_atom': first_slab_atom,
+            'last_slab_atom': len(atoms),
+            'walltime': walltime*0.97,
+            'workchain': workchain,
+            'elements': slab_analyzed['all_elements'],
+        }
+        
+        inp = Get_CP2K_Input(cp2k_dict).inp
 
         inputs['parameters'] = Dict(dict=inp)
 

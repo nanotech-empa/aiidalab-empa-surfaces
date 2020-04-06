@@ -1,4 +1,4 @@
-from aiida.orm import StructureData, Dict, Int, Str, Float
+from aiida.orm import StructureData, Dict, Int, Str, Float, Bool
 from aiida.orm import SinglefileData, RemoteData, Code
 
 from aiida.engine import WorkChain, ToContext, while_
@@ -55,6 +55,8 @@ class ReplicaWorkChain(WorkChain):
         spec.input("subsys_colvar", valid_type=Dict)
         spec.input("calc_type", valid_type=Str)
         spec.input("mgrid_cutoff", valid_type=Int, default=Int(600))
+        spec.input("max_force", valid_type=Float, default=Float(0.0001))
+        spec.input("dftd3_switch", valid_type=Bool, default=Bool(True))
 
         spec.outline(
             cls.initialize,
@@ -95,7 +97,7 @@ class ReplicaWorkChain(WorkChain):
 
         self.ctx.replica_list = str(self.inputs.colvar_targets.value).split()
         self.ctx.replicas_done = 0
-        self.ctx.this_name = self.inputs.calc_name
+        self.ctx.this_name = self.inputs.calc_name.value
         self.ctx.prev_converged = True
 
         self.report('#{} replicas'.format(len(self.ctx.replica_list)))
@@ -140,7 +142,9 @@ class ReplicaWorkChain(WorkChain):
                                         self.inputs.target_unit.value,
                                         dict(self.inputs.subsys_colvar),
                                         self.inputs.calc_type.value,
-                                        self.inputs.mgrid_cutoff.value)
+                                        self.inputs.mgrid_cutoff.value,
+                                        self.inputs.max_force.value,
+                                        self.inputs.dftd3_switch.value)
 
         self.report(" ")
         self.report("inputs: "+str(inputs))
@@ -151,23 +155,23 @@ class ReplicaWorkChain(WorkChain):
         return ToContext(replica=future)
     
     # ==========================================================================
-#    def store_replica(self):
-#        return self.out('replica_{}_{}'.format(self.ctx.this_replica,
-#                                               self.ctx.this_name),
-#                        self.ctx.replica.outputs.output_structure)
+    def store_replica(self):
+        return self.out('replica-{}-{}'.format(self.ctx.this_replica,
+                                               self.ctx.this_name),
+                        self.ctx.replica.outputs.output_structure)
 #    def store_replica(self):
 #        return self.out('replica_{}'.format(self.ctx.this_replica),
 #                        self.ctx.replica.outputs.output_structure)
-    def store_replica(self):
-        return self.out('replica_abc',
-                        self.ctx.replica.outputs.output_structure)
+#    def store_replica(self):
+#        return self.out('replica_abc',
+#                        self.ctx.replica.outputs.output_structure)
 
     # ==========================================================================
     @classmethod
     def build_calc_inputs(cls, structure, cell, code, colvar_target,
                           fixed_atoms, num_machines, remote_calc_folder, prev_converged,
                           calc_name, spring, spring_unit, target_unit,
-                          subsys_colvar, calc_type, mgrid_cutoff):
+                          subsys_colvar, calc_type, mgrid_cutoff, max_force, dftd3_switch):
 
         inputs = {}
         inputs['metadata'] = {}
@@ -232,7 +236,9 @@ class ReplicaWorkChain(WorkChain):
                                  first_slab_atom,
                                  len(atoms),
                                  atoms,
-                                 prev_converged)
+                                 prev_converged,
+                                 max_force,
+                                 dftd3_switch)
 
         if remote_calc_folder is not None:
             inputs['parent_calc_folder'] = remote_calc_folder
@@ -258,7 +264,9 @@ class ReplicaWorkChain(WorkChain):
                        spring, spring_unit, target_unit, subsys_colvar,
                        calc_type,mgrid_cutoff, machine_cores, first_slab_atom,
                        last_slab_atom,atoms,
-                       prev_converged
+                       prev_converged,
+                       max_force,
+                       dftd3_switch
                       ):
 
         inp = {
@@ -269,7 +277,7 @@ class ReplicaWorkChain(WorkChain):
                 'EXTENDED_FFT_LENGTHS': ''
             },
             'MOTION': cls.get_motion(colvar_target, fixed_atoms, spring,
-                                     spring_unit, target_unit),
+                                     spring_unit, target_unit, max_force),
             'FORCE_EVAL': [],
         }
         
@@ -298,14 +306,14 @@ class ReplicaWorkChain(WorkChain):
                                                       machine_cores,
                                                       subsys_colvar),
                                  cls.force_eval_fist(cell_abc,atoms),
-                                 cls.get_force_eval_qs_dft(cell_abc,mgrid_cutoff,atoms, only_molecule=True)]
+                                 cls.get_force_eval_qs_dft(cell_abc,mgrid_cutoff,atoms, dftd3_switch, only_molecule=True)]
             inp['MULTIPLE_FORCE_EVALS'] = {
                 'FORCE_EVAL_ORDER': '2 3',
                 'MULTIPLE_SUBSYS': 'T'
             }
 
         elif calc_type == 'Full DFT':
-            inp['FORCE_EVAL'] = [cls.get_force_eval_qs_dft(cell_abc,mgrid_cutoff,atoms, only_molecule=False,
+            inp['FORCE_EVAL'] = [cls.get_force_eval_qs_dft(cell_abc,mgrid_cutoff,atoms, dftd3_switch, only_molecule=False,
                                                            subsys_colvar=subsys_colvar)]
         return inp
 
@@ -492,7 +500,7 @@ class ReplicaWorkChain(WorkChain):
     # ==========================================================================
     @classmethod
     def get_motion(cls, colvar_target, fixed_atoms, spring, spring_unit,
-                   target_unit):
+                   target_unit, max_force):
         motion = {
             'CONSTRAINT': {
                 'COLLECTIVE': {
@@ -508,7 +516,7 @@ class ReplicaWorkChain(WorkChain):
                 }
             },
             'GEO_OPT': {
-                'MAX_FORCE': '0.0001',
+                'MAX_FORCE': str(max_force),
                 'MAX_ITER': '5000',
                 'OPTIMIZER': 'BFGS',
                      'BFGS' : {
@@ -521,7 +529,7 @@ class ReplicaWorkChain(WorkChain):
 
     # ==========================================================================
     @classmethod
-    def get_force_eval_qs_dft(cls, cell_abc,mgrid_cutoff,atoms, only_molecule,
+    def get_force_eval_qs_dft(cls, cell_abc,mgrid_cutoff,atoms, dftd3_switch, only_molecule,
                               subsys_colvar=None):
         force_eval = {
             'METHOD': 'Quickstep',
@@ -565,16 +573,6 @@ class ReplicaWorkChain(WorkChain):
                 },
                 'XC': {
                     'XC_FUNCTIONAL': {'_': 'PBE'},
-                    'VDW_POTENTIAL': {
-                        'DISPERSION_FUNCTIONAL': 'PAIR_POTENTIAL',
-                        'PAIR_POTENTIAL': {
-                            'TYPE': 'DFTD3',
-                            'CALCULATE_C9_TERM': '.TRUE.',
-                            'PARAMETER_FILE_NAME': 'dftd3.dat',
-                            'REFERENCE_FUNCTIONAL': 'PBE',
-                            'R_CUTOFF': '[angstrom] 15',
-                        }
-                    }
                 },
             },
             'SUBSYS': {
@@ -591,6 +589,18 @@ class ReplicaWorkChain(WorkChain):
 
         if subsys_colvar is not None:
             force_eval['SUBSYS']['COLVAR'] = subsys_colvar
+            
+        if dftd3_switch:
+            force_eval['DFT']['XC']['VDW_POTENTIAL'] = {
+                'DISPERSION_FUNCTIONAL': 'PAIR_POTENTIAL',
+                'PAIR_POTENTIAL': {
+                    'TYPE': 'DFTD3',
+                    'CALCULATE_C9_TERM': '.TRUE.',
+                    'PARAMETER_FILE_NAME': 'dftd3.dat',
+                    'REFERENCE_FUNCTIONAL': 'PBE',
+                    'R_CUTOFF': '[angstrom] 15',
+                }
+            }
         
         
         kinds_used = np.unique(atoms.get_chemical_symbols())

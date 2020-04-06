@@ -47,7 +47,7 @@ DEFAULT_INPUT_DICT ={'added_mos'             : False                 ,
                      'corr_virt'             : 10                    , 
                      'endpoints'             : True                  ,
                      'first_slab_atom'       : None                  , 
-                     'fixed_atoms'           : ''                    , 
+                     'fixed_atoms'           : ''                    ,
                      'functional'            : 'PBE'                 , 
                      'gw_type'               : None                  , 
                      'last_slab_atom'        : None                  , 
@@ -983,7 +983,7 @@ class Get_CP2K_Input():
              force_eval['STRESS_TENSOR']= 'ANALYTICAL'
                 
         ### RESTART from .wfn IF NOT NEB        
-        if self.workchain != 'NEBWorkchain':
+        if self.workchain != 'NEBWorkChain':
             force_eval['DFT']['RESTART_FILE_NAME']='./parent_calc/aiida-RESTART.wfn'
 
         return force_eval
