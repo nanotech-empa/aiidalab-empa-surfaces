@@ -1,13 +1,3 @@
-from aiida.orm.querybuilder import QueryBuilder
-
-from replicawork import ReplicaWorkchain
-from aiida.engine.process import WorkCalculation
-from aiida_cp2k.calculations import Cp2kCalculation
-from aiida.orm import StructureData
-from aiida.orm import Dict
-
-from aiida.orm import load_node 
-
 import ipywidgets as ipw
 from IPython.display import display, clear_output, HTML
 import nglview
@@ -15,7 +5,7 @@ import time
 import ase.io
 import ase.units as aseu
 from ase.data.colors import jmol_colors
-import urlparse
+import urllib.parse
 import numpy as np
 import copy
 
@@ -28,6 +18,16 @@ from pprint import pprint
 from tempfile import NamedTemporaryFile
 from base64 import b64encode
 
+
+from aiida.orm.querybuilder import QueryBuilder
+from aiida.orm import StructureData, Dict
+from aiida.orm import load_node
+
+from aiida.plugins import WorkflowFactory, CalculationFactory
+
+
+ReplicaWorkchain = WorkflowFactory('replica')
+Cp2kCalculation = CalculationFactory('cp2k')
 
 
 class SearchReplicaWidget(ipw.VBox):
@@ -276,13 +276,58 @@ class SearchReplicaWidget(ipw.VBox):
         
         rep_set_template = {
             'structs'     : [],
-            'info'        : [],
+            'energies'    : [],
             'wcs'         : [],
             'colvar_def'  : None,
             'colvar_inc'  : None, # colvar increasing or decreasing ?
         }
         
-        for wc in wc_list:
+        for wc_qb in wc_list:
+            wc = wc_qb[0]
+            
+            wc_out_names = list(wc.outputs)
+            
+            if 'replica_0' not in wc_out_names:
+                continue
+            
+            name = wc.description
+            cv_def = wc.inputs['subsys_colvar']
+            cv_targets = [float(cvt) for cvt in wc.inputs['colvar_targets'].split()]
+            cv_inc = cv_targets[1] > cv_targets[0]
+            
+            if name not in replica_sets:
+                if name in existing_rep_sets:
+                    # Already had a preprocessed part, add it
+                    replica_sets[name] = copy.deepcopy(existing_rep_sets[name])
+                else:
+                    # New replica set
+                    replica_sets[name] = copy.deepcopy(rep_set_template)
+                    replica_sets[name]['colvar_def'] = cv_def
+                    replica_sets[name]['colvar_inc'] = cv_inc
+                    
+            # Does the current wc match with the replica set?
+            if replica_sets[name]['colvar_def'] != cv_def or replica_sets[name]['colvar_def'] != cv_inc:
+                print("Warning! Replica calc CV definition doesn't match with previous ones.")
+                print("Existing: " + str(existing_rep_sets[name]['wcs']))
+                print("Skipping: " + str(wc))
+                continue
+            
+            # add it to the set
+            replica_sets[name]['wcs'].append(wc)
+            
+            # add the initial structure to the set if it doesn't exist there already
+            inp_struct = wc.inputs['structure']
+            if inp_struct.pk not in [s.pk for s in replica_sets[name]['structs']]:
+                replica_sets[name]['structs'].append(inp_struct)
+                
+                #replica_sets[name]['info'].append(self._get_cp2k_struct_info(inp_struct, initial=True))
+            
+            
+            
+                    
+            
+            ########
+            
             
             wc_out = wc[0].get_outputs_dict()
             if 'CALL' not in wc_out:
@@ -291,7 +336,6 @@ class SearchReplicaWidget(ipw.VBox):
             cp2k_pk_keys = [(int(x.split('_')[1]), x) for x in wc_out.keys() if "CALL_" in x]
             
             name = wc[0].description
-            
             
             if name not in replica_sets:
                 if name in existing_rep_sets:

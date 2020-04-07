@@ -34,51 +34,53 @@ ATOMIC_KINDS['C']['RI_AUX_BASIS_SET'] = 'RI_aug_DZ'
 # possible metal atoms for empirical substrate
 METAL_ATOMS = ['Au', 'Ag', 'Cu']
 
-DEFAULT_INPUT_DICT ={'added_mos'             : False                 ,
-                     'align'                 : False                 ,
-                     'atoms'                 : None                  ,
-                     'calc_type'             : 'Full DFT'            ,
-                     'cell_free'             : None                  ,
-                     'cell_sym'              : 'ORTHORHOMBIC'        , 
-                     'center_coordinates'    : False                 ,
-                     'charge'                : 0                     ,
-                     'colvar_target'         : None                  ,    
-                     'corr_occ'              : 10                    , 
-                     'corr_virt'             : 10                    , 
-                     'endpoints'             : True                  ,
-                     'first_slab_atom'       : None                  , 
-                     'fixed_atoms'           : ''                    ,
-                     'functional'            : 'PBE'                 , 
-                     'gw_type'               : None                  , 
-                     'last_slab_atom'        : None                  , 
-                     'max_force'             : 0.0001                ,
-                     'max_memory'            : 0                     ,
-                     'mgrid_cutoff'          : 600                   , 
-                     'mpi_tasks'             : None                  , 
-                     'multiplicity'          : 0                     , 
-                     'nproc_rep'             : None                  , 
-                     'nreplicas'             : None                  , 
-                     'nreplica_files'        : None                  , 
-                     'nstepsit'              : 5                     ,
-                     'ot_switch'             : 'OT'                  ,
-                     'parent_folder'         : None                  ,
-                     'periodic'              : None                  ,
-                     'poisson_solver'        : None                  ,
-                     #'remote_calc_folder'    : None                  , 
-                     'replica_name'          : None                  , 
-                     'rotate'                : False                 , 
-                     'smear'                 : False                 ,
-                     'spin_d'                : ''                    ,
-                     'spin_u'                : ''                    , 
-                     'spring'                : 0.05                  , 
-                     'spring_unit'           : None                  , 
-                     #'struc_folder'          : None                  , 
-                     'subsys_colvar'         : None                  , 
-                     'target_unit'           : None                  , 
-                     'vdw_switch'            : None                  , 
-                     'walltime'              : 86000                 , 
-                     'workchain'             : 'SlabGeoOptWorkChain' , 
-                     #'wfn_cp_commands'       : None
+DEFAULT_INPUT_DICT ={
+# GENERAL
+        'added_mos'             : False                 ,
+        'atoms'                 : None                  ,
+        'calc_type'             : 'Full DFT'            ,
+        'cell'                  : None                  ,
+        'cell_free'             : None                  ,
+        'cell_sym'              : 'ORTHORHOMBIC'        , 
+        'center_coordinates'    : False                 ,
+        'charge'                : 0                     , 
+        'corr_occ'              : 10                    , 
+        'corr_virt'             : 10                    , 
+        'first_slab_atom'       : None                  , 
+        'fixed_atoms'           : ''                    ,
+        'functional'            : 'PBE'                 , 
+        'gw_type'               : None                  , 
+        'last_slab_atom'        : None                  , 
+        'max_force'             : 0.0001                ,
+        'max_memory'            : 0                     ,
+        'mgrid_cutoff'          : 600                   , 
+        'mpi_tasks'             : None                  , 
+        'multiplicity'          : 0                     , 
+        'ot_switch'             : 'OT'                  ,
+        'parent_folder'         : None                  , # why is ext_restart named this?
+        'periodic'              : None                  ,
+        'poisson_solver'        : None                  ,
+        #'remote_calc_folder'    : None                  , 
+        'smear'                 : False                 ,
+        'spin_d'                : ''                    ,
+        'spin_u'                : ''                    , 
+        #'struc_folder'          : None                  , 
+        'vdw_switch'            : None                  , 
+        'walltime'              : 86000                 , 
+        'workchain'             : 'SlabGeoOptWorkChain' , 
+# NEB & Replica chain
+        'align'                 : False                 ,
+        'colvar_target'         : None                  ,   
+        'endpoints'             : True                  ,
+        'nproc_rep'             : None                  , 
+        'nreplicas'             : None                  , 
+        'nreplica_files'        : None                  , 
+        'nstepsit'              : 5                     ,
+        'rotate'                : False                 , 
+        'spring'                : 0.05                  , 
+        'spring_unit'           : None                  , 
+        'subsys_colvar'         : None                  , 
+        'target_unit'           : None                  , 
 }
     
 
@@ -421,7 +423,7 @@ class Get_CP2K_Input():
            'BulkOptWorkChain'     :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True}, 
            'MoleculeOptWorkChain' :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True},
            'GWWorkChain'          :{'run_type' : 'ENERGY'  , 'xc' : self.xc_gw      , 'qs' : self.qs_gw      , 'motion' : False},
-           'MoleculeKSWorkChain'  :{'run_type' : 'ENERGY'  , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : False},
+           'MoleculeKSWorkChain'  :{'run_type' : 'ENERGY'  , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : False}, # name to just SCF ?
            'NEBWorkChain'         :{'run_type' : 'BAND'    , 'xc' : self.xc_default , 'qs' : self.qs_neb     , 'motion' : True},
 
         }    
@@ -487,14 +489,22 @@ class Get_CP2K_Input():
             elif self.workchain == 'MoleculeOptWorkChain':
                 full_dft_topology = 'mol.xyz'  
             elif self.workchain == 'GWWorkChain':
-                full_dft_topology = 'mol.xyz'            
+                full_dft_topology = 'mol.xyz'
             else:
                 full_dft_topology = 'bulk.xyz'
             self.inp_dict['topology'] = full_dft_topology    
             self.inp['FORCE_EVAL'] = self.get_force_eval_qs_dft()
-
-        
-
+            
+        # ----
+        # add the colvar subsystem for Replica calcs
+        subsys_cv = self.inp_dict['subsys_colvar']
+        if subsys_cv is not None:
+            if isinstance(self.inp['FORCE_EVAL'],list):
+                # mixed environment, add only to first force_eval
+                self.inp['FORCE_EVAL'][0]['SUBSYS']['COLVAR'] = subsys_cv
+            else:
+                self.inp['FORCE_EVAL']['SUBSYS']['COLVAR'] = subsys_cv
+        # ----
 
     ### MOTION SECTION
     def get_motion(self):
@@ -593,17 +603,22 @@ class Get_CP2K_Input():
 
         ### REPLICA CHAIN
         if self.workchain == 'ReplicaWorkChain':
-
-            motion['CONSTRAINT'].append({
-                               'COLLECTIVE': {
-                                   'COLVAR': 1,
-                                   'RESTRAINT': {
-                                       'K': '[{}] {}'.format(self.inp_dict['spring_unit'], self.inp_dict['spring'])
-                                   },
-                                   'TARGET': '[{}] {}'.format(self.inp_dict['target_unit'], self.inp_dict['colvar_target']),
-                                   'INTERMOLECULAR': ''
-                               }                                              
-            })
+            
+            cv_section = {
+                'COLLECTIVE': {
+                    'COLVAR': 1,
+                    'RESTRAINT': {
+                        'K': '[{}] {}'.format(self.inp_dict['spring_unit'], self.inp_dict['spring'])
+                    },
+                    'TARGET': '[{}] {}'.format(self.inp_dict['target_unit'], self.inp_dict['colvar_target']),
+                    'INTERMOLECULAR': ''
+                }
+            }
+            if 'CONSTRAINT' in motion:
+                motion['CONSTRAINT'] = [motion['CONSTRAINT'], cv_section]
+            else:
+                motion['CONSTRAINT'] = cv_section
+            
         ### END REPLICA CHAIN
 
         return motion 
