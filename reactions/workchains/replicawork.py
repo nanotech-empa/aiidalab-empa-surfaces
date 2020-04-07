@@ -76,8 +76,8 @@ class ReplicaWorkChain(WorkChain):
     # ==========================================================================
     def initialize(self):
         self.report('Init generate replicas')
-
-        self.ctx.replica_list = str(self.inputs.colvar_targets.value).split()
+        self.ctx.total_num_replica = len(self.inputs.colvar_targets.value.split())
+        self.ctx.replica_list = self.inputs.colvar_targets.value.split()
         self.ctx.replicas_done = 0
         self.ctx.this_name = self.inputs.calc_name.value
         self.ctx.prev_converged = True
@@ -172,7 +172,8 @@ class ReplicaWorkChain(WorkChain):
     # ==========================================================================
     def store_replica(self):
         
-        label = "replica_{}".format(self.ctx.replicas_done + 1)
+        n_dig = len(str(self.ctx.total_num_replica))
+        label = "replica_{:0{}}".format(self.ctx.replicas_done + 1, n_dig)
         self.ctx.replicas_done += 1
         
         self.report("Storing %s" % label)
@@ -184,7 +185,8 @@ class ReplicaWorkChain(WorkChain):
     # ==========================================================================
     def finalize(self):
         # Store initial geometry as replica_0
-        self.out("replica_0", self.ctx.structure)
+        n_dig = len(str(self.ctx.total_num_replica))
+        self.out("replica_{:0{}}".format(0, n_dig), self.inputs.structure)
         initial_energy = self.ctx.initial_scf.outputs['output_parameters']['energy']
         
         en_arr = ArrayData()

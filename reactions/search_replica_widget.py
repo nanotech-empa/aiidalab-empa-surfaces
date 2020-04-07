@@ -20,21 +20,26 @@ from base64 import b64encode
 
 
 from aiida.orm.querybuilder import QueryBuilder
-from aiida.orm import StructureData, Dict
+from aiida.orm import StructureData, Dict, WorkChainNode
 from aiida.orm import load_node
 
 from aiida.plugins import WorkflowFactory, CalculationFactory
+
+from .collective_variables import COLVARS
 
 
 ReplicaWorkchain = WorkflowFactory('replica')
 Cp2kCalculation = CalculationFactory('cp2k')
 
 
+style = {'description_width': '120px'}
+layout = {'width': '70%'}
+
 class SearchReplicaWidget(ipw.VBox):
     
     def __init__(self, **kwargs):
         
-        self.preprocess_version = 0.20
+        self.preprocess_version = 0.05
         
         btn_style = {'description_width': '60px'}
         btn_layout = {'width': '20%'}
@@ -115,7 +120,7 @@ class SearchReplicaWidget(ipw.VBox):
         self.print_checked_pk_list(selected_replica_calc, check_list)
         
     def print_checked_pk_list(self, replica_calc, check_list):
-        list_of_pks = [struct.pk for struct in replica_calc['structs']]
+        list_of_pks = [rep[2].pk for rep in replica_calc['replicas']]
         with self.output_checked_pks:
             clear_output()
             print("List of all replica PKs:")
@@ -131,11 +136,11 @@ class SearchReplicaWidget(ipw.VBox):
         plot_colvar = []
         wc_pk_str = str(replica_calc['wcs'][0].pk)
         
-        for i, struct_node in enumerate(replica_calc['structs']):
+        for i, rep in enumerate(replica_calc['replicas']):
+            cv_target, energy, struct_node = rep
             colvar_actual = struct_node.get_extra('replica_calcs')[wc_pk_str]['colvar_actual']
-            if replica_calc['info'][i]['energy'] is not None:
-                plot_energy.append(replica_calc['info'][i]['energy'])
-                plot_colvar.append(colvar_actual)
+            plot_energy.append(energy)
+            plot_colvar.append(colvar_actual)
             
         plot_energy = np.array(plot_energy)*27.2114
         plot_energy -= plot_energy[0]
@@ -144,9 +149,12 @@ class SearchReplicaWidget(ipw.VBox):
         plt.ylabel('Energy/eV')
         plt.xlabel('Collective variable')
         plt.plot(plot_colvar, plot_energy, 'o-')
-        
-        if replica_calc['info'][0]['colvar_target'] == None and replica_calc['info'][0]['energy'] is not None:
-            plt.plot(plot_colvar[0], plot_energy[0], 'ro-')
+       
+        for i, rep in enumerate(replica_calc['replicas']):
+            # if the replica has no cv_target and has energy, it's an initial one, paint as red
+            cv_target, energy, struct_node = rep
+            if cv_target == None and energy is not None:
+                plt.plot(plot_colvar[0], plot_energy[0], 'ro-')            
         
         plt.grid()
         plt.show()
@@ -157,25 +165,26 @@ class SearchReplicaWidget(ipw.VBox):
         html_list = []        
         check_list = [] # check boxes to show in final pk list
         
-        colvar_type = replica_calc['colvar_def'].keys()[0] # 'DISTANCE', ...
+        colvar_type = list(replica_calc['colvar_def'].keys())[0] # 'DISTANCE', ...
         
         wc_pk_str = str(replica_calc['wcs'][0].pk)
         
-        for i, struct_node in enumerate(replica_calc['structs']):
+        for i, rep in enumerate(replica_calc['replicas']):
+            
+            cv_target, energy, struct_node = rep
             
             html = '<table>'
             
             struct_rep_info = struct_node.get_extra('replica_calcs')[wc_pk_str]
             d2prev = struct_rep_info['dist_previous']
-            colvar_actual = struct_rep_info['colvar_actual']
+            colvar_actual = float(struct_rep_info['colvar_actual'])
             thumbnail = struct_rep_info['thumbnail']
             
-            if replica_calc['info'][i]['colvar_target'] is not None:
-                colvar_target = replica_calc['info'][i]['colvar_target']['TARGET'].split()[1]
-            else:
-                colvar_target = "-"
-            energy = replica_calc['info'][i]['energy']
-
+            cv_target_str = "-" if cv_target is None else "%.2f" % cv_target
+            energy_str = "%.6f" % energy
+            colvar_actual_str = "%.4f" % colvar_actual
+            d2prev_str = "-" if d2prev == '-' else "%.4f" % float(d2prev)
+            
             check_me = ipw.Checkbox(
                 value=True,
                 description='Check me',
@@ -188,12 +197,12 @@ class SearchReplicaWidget(ipw.VBox):
             html += '<td><img width="400px" src="data:image/png;base64,{}" title="">'.format(thumbnail)
 
             # Output some information about the replica...
-            html += '<p><b>Target: {}</b> ({})<br> <b>Energy:</b> {}<br> <b>d2prev:</b> {}</p>'\
-                    .format(colvar_target, colvar_actual, energy, d2prev)
+            html += '<p><b>Target: {}</b><br> <b>CV actual:</b> {}<br> <b>Energy:</b> {}<br> <b>d2prev:</b> {}</p>'\
+                    .format(cv_target_str, colvar_actual_str, energy_str, d2prev_str)
             html += '<p>pk: {}</p>'.format(struct_node.pk)
 
             # ... and the download link.
-            html += '<p><a target="_blank" href="./export_structure.ipynb?uuid={}">Export Structure</a></p><td>'\
+            html += '<p><a target="_blank" href="../export_structure.ipynb?uuid={}">View & export</a></p><td>'\
                     .format(struct_node.uuid)
 
             html += '</table>'
@@ -208,16 +217,16 @@ class SearchReplicaWidget(ipw.VBox):
         qb = QueryBuilder()
         
         if preprocessed:
-            qb.append(WorkCalculation, tag='wc', filters={
-                'attributes._process_label': 'ReplicaWorkchain',
+            qb.append(WorkChainNode, tag='wc', filters={
+                'attributes.process_label': 'ReplicaWorkChain',
                 'and':[
                     {'extras': {'has_key': 'preproc_v'}},
                     {'extras.preproc_v': {'==': self.preprocess_version}},
                 ]
             })
         else:
-            qb.append(WorkCalculation, tag='wc', filters={
-                'attributes._process_label': 'ReplicaWorkchain',
+            qb.append(WorkChainNode, tag='wc', filters={
+                'attributes.process_label': 'ReplicaWorkChain',
                 'or':[
                     {'extras': {'!has_key': 'preproc_v'}},
                     {'extras.preproc_v': {'<': self.preprocess_version}},
@@ -225,58 +234,16 @@ class SearchReplicaWidget(ipw.VBox):
             })
         
         qb.order_by({'wc': {'ctime': 'asc'}})
-        
-        #return [[load_node(116530)]]
 
         return qb.all()
-    
-    def _get_cp2k_struct_info(self, struct, initial=False):
-        
-        info = {
-            'energy'        : None,
-            'description'   : None,
-            'colvar_def'    : None,
-            'colvar_target' : None,
-        }
-        
-        def find_colvar(force_eval):
-            if isinstance(force_eval, list):
-                # in case of multiple force evals,
-                # find the one, which has the cv defined
-                for f in force_eval:
-                    if f['SUBSYS'].has_key('COLVAR'):
-                        return f['SUBSYS']['COLVAR']
-            else:
-                return force_eval['SUBSYS']['COLVAR']
-        
-        if 'output_structure' not in struct.get_inputs_dict():
-            return info
-        
-        parent_cp2k = struct.get_inputs_dict()['output_structure']
-        
-        if 'output_parameters' not in parent_cp2k.get_outputs_dict():
-            return info
-        
-        cp2k_out_params = parent_cp2k.get_outputs_dict()['output_parameters'].get_attrs()
-        
-        info['energy'] = cp2k_out_params['energy']
-        
-        cp2k_inp_params = parent_cp2k.get_inputs_dict()['parameters'].get_attrs()
-        
-        if not initial and 'COLLECTIVE' in cp2k_inp_params['MOTION']['CONSTRAINT']:
-            info['description'] = parent_cp2k.description
-            info['colvar_def'] = find_colvar(cp2k_inp_params['FORCE_EVAL'])
-            info['colvar_target'] = cp2k_inp_params['MOTION']['CONSTRAINT']['COLLECTIVE']
-        
-        return info
+
     
     def parse_rep_wcs(self, wc_list, existing_rep_sets=OrderedDict()):
         
         replica_sets = OrderedDict()
         
         rep_set_template = {
-            'structs'     : [],
-            'energies'    : [],
+            'replicas'    : [], # (cv_target, energy, StructureData)
             'wcs'         : [],
             'colvar_def'  : None,
             'colvar_inc'  : None, # colvar increasing or decreasing ?
@@ -289,16 +256,24 @@ class SearchReplicaWidget(ipw.VBox):
             
             if 'replica_0' not in wc_out_names:
                 continue
+            if 'energies' not in wc_out_names:
+                continue
             
             name = wc.description
-            cv_def = wc.inputs['subsys_colvar']
-            cv_targets = [float(cvt) for cvt in wc.inputs['colvar_targets'].split()]
-            cv_inc = cv_targets[1] > cv_targets[0]
+            cv_def = dict(wc.inputs['subsys_colvar'])
+            cv_targets = [float(cvt) for cvt in wc.inputs['colvar_targets'].value.split()]
+            # NB: there is no colvar target for replica_0 as that is the initial geometry
+            cv_targets = [None] + cv_targets
+            cv_inc = cv_targets[2] > cv_targets[1]
+            energies = wc.outputs['energies'].get_array('energies')
+            
+            if len([n for n in wc_out_names if n.startswith('replica')]) != len(cv_targets):
+                continue
             
             if name not in replica_sets:
                 if name in existing_rep_sets:
                     # Already had a preprocessed part, add it
-                    replica_sets[name] = copy.deepcopy(existing_rep_sets[name])
+                    replica_sets[name] = copy.copy(existing_rep_sets[name])
                 else:
                     # New replica set
                     replica_sets[name] = copy.deepcopy(rep_set_template)
@@ -306,102 +281,48 @@ class SearchReplicaWidget(ipw.VBox):
                     replica_sets[name]['colvar_inc'] = cv_inc
                     
             # Does the current wc match with the replica set?
-            if replica_sets[name]['colvar_def'] != cv_def or replica_sets[name]['colvar_def'] != cv_inc:
+            if replica_sets[name]['colvar_def'] != cv_def or replica_sets[name]['colvar_inc'] != cv_inc:
+                print("----")
                 print("Warning! Replica calc CV definition doesn't match with previous ones.")
-                print("Existing: " + str(existing_rep_sets[name]['wcs']))
-                print("Skipping: " + str(wc))
+                print("Existing: %s %s" % (str([w.pk for w in replica_sets[name]['wcs']]),
+                                           "cv_def: %s, cv_inc: %s" %(str(replica_sets[name]['colvar_def']),
+                                                                      str(replica_sets[name]['colvar_inc']))))
+                print("Skipping: %s %s " % (str(wc.pk), "cv_def: %s, cv_inc: %s" %(str(cv_def),
+                                                                                   str(cv_inc))))
+                print("----")
                 continue
             
             # add it to the set
             replica_sets[name]['wcs'].append(wc)
             
-            # add the initial structure to the set if it doesn't exist there already
-            inp_struct = wc.inputs['structure']
-            if inp_struct.pk not in [s.pk for s in replica_sets[name]['structs']]:
-                replica_sets[name]['structs'].append(inp_struct)
-                
-                #replica_sets[name]['info'].append(self._get_cp2k_struct_info(inp_struct, initial=True))
-            
-            
-            
+            wc_replica_list = []
+            for wc_o in sorted(list(wc.outputs)):
+                if wc_o.startswith("replica_"):
+                    struct = wc.outputs[wc_o]
+                    # add description, if it doesn't exist already
+                    if struct.description == "":
+                        if struct.creator is None:
+                            struct.description = "-"
+                        else:
+                            struct.description = struct.creator.description
+                    wc_replica_list.append(wc.outputs[wc_o])
                     
             
-            ########
+            # Add the replicas of this wc to the set if it doesn't exist there already
+            # (e.g. in case of continuation from another wc)
+            for i_rep in range(len(wc_replica_list)):
+                if wc_replica_list[i_rep].pk not in [s[2].pk for s in replica_sets[name]['replicas']]:
+                    replica = (cv_targets[i_rep], energies[i_rep], wc_replica_list[i_rep])
+                    replica_sets[name]['replicas'].append(replica)
             
-            
-            wc_out = wc[0].get_outputs_dict()
-            if 'CALL' not in wc_out:
-                continue
-            
-            cp2k_pk_keys = [(int(x.split('_')[1]), x) for x in wc_out.keys() if "CALL_" in x]
-            
-            name = wc[0].description
-            
-            if name not in replica_sets:
-                if name in existing_rep_sets:
-                    # Already had a preprocessed part, add it
-                    replica_sets[name] = copy.deepcopy(existing_rep_sets[name])
-                else:
-                    # New replica set
-                    replica_sets[name] = copy.deepcopy(rep_set_template)
-                
-            replica_sets[name]['wcs'].append(wc[0])
-            
-            # add the initial structure as a "replica"
-            inp_structure = wc[0].get_inputs_dict()['structure']
-            if inp_structure.pk not in [s.pk for s in replica_sets[name]['structs']]:
-                replica_sets[name]['structs'].append(inp_structure)
-                replica_sets[name]['info'].append(self._get_cp2k_struct_info(inp_structure, initial=True))
-                
-            last_cv_target = None
-            
-            for pk, k in sorted(cp2k_pk_keys):
-                cp2k_calc = wc_out[k]
-                if 'output_structure' not in cp2k_calc.get_outputs_dict():
-                    continue
-                if 'output_parameters' not in cp2k_calc.get_outputs_dict():
-                    continue
-                if cp2k_calc.get_outputs_dict()['output_parameters'].get_attrs()['exceeded_walltime']:
-                    continue
-                    
-                cp2k_out_struct = cp2k_calc.get_outputs_dict()['output_structure']
-                if cp2k_out_struct.pk not in [s.pk for s in replica_sets[name]['structs']]:
-                    replica_sets[name]['structs'].append(cp2k_out_struct)
-                    replica_sets[name]['info'].append(self._get_cp2k_struct_info(cp2k_out_struct))
-                    
-                    if replica_sets[name]['colvar_def'] is None:
-                        replica_sets[name]['colvar_def'] = replica_sets[name]['info'][-1]['colvar_def']
-                    
-                    cv_target = replica_sets[name]['info'][-1]['colvar_target']
-                    if last_cv_target is not None:
-                        replica_sets[name]['colvar_inc'] = cv_target > last_cv_target
-                    last_cv_target = cv_target
-                
-        # filter and sort the entries by colvar_target
-        for key in replica_sets:
-            
-            if replica_sets[key]['colvar_def'] is None:
-                del replica_sets[key]
-                continue
-            
-            structs = replica_sets[key]['structs']
-            info = replica_sets[key]['info']
-            cv_targets = [ i['colvar_target'] for i in info ]
-            for i in range(len(cv_targets)):
-                if cv_targets[i] is not None:
-                    cv_targets[i] = float(cv_targets[i]['TARGET'].split()[1])
-            
-            zipped = zip(cv_targets, structs, info)
-            if replica_sets[key]['colvar_inc']:
-                zipped.sort(key=lambda x:(x[0] is not None, x[0], x[1].pk))
+            # Sort entries by cv target (e.g. one could be adding replicas in-between prev calculated ones)
+            if cv_inc:
+                replica_sets[name]['replicas'].sort(key=lambda x:(x[0] is not None, x[0], x[2].pk))
             else:
-                zipped.sort(reverse=True, key=lambda x:(x[0] is None, x[0], -x[1].pk))
-            
-            cv_targets, structs, info = zip(*zipped)
-            replica_sets[key]['structs'] = list(structs)
-            replica_sets[key]['info'] = list(info)
+                replica_sets[name]['replicas'].sort(reverse=True, key=lambda x:(x[0] is not None, x[0], x[2].pk))
             
         return replica_sets
+            
 
     def get_replica_distance(self, s1, s2):
         a1 = s1.get_positions()
@@ -418,9 +339,9 @@ class SearchReplicaWidget(ipw.VBox):
                 colors[i_at][0] = 1.0
         tmp = NamedTemporaryFile()
         ase.io.write(tmp.name, atoms, format='png', colors=colors) # does not accept StringIO
-        raw = open(tmp.name).read()
+        raw = open(tmp.name, 'rb').read()
         tmp.close()
-        return b64encode(raw)
+        return b64encode(raw).decode()
     
     def preprocess(self, replica_calc, overwrite_thumbnails=False):
         
@@ -433,31 +354,34 @@ class SearchReplicaWidget(ipw.VBox):
             
         wc_preproc_failed = False
         
-        n_rep = len(replica_calc['structs'])
+        n_rep = len(replica_calc['replicas'])
         
         # Set up the collective variable instance for evaluation
-        colvar_type = replica_calc['colvar_def'].keys()[0]
+        colvar_type = list(replica_calc['colvar_def'].keys())[0]
         cv_instance = COLVARS[colvar_type].from_cp2k_subsys(replica_calc['colvar_def'])
         
         last_ase = None
-
-        for i, (struct, info) in enumerate(zip(replica_calc['structs'], replica_calc['info'])):
+        
+        for i, rep in enumerate(replica_calc['replicas']):
+            
+            cv_target, energy, struct = rep
+            
             progress.value = (i+1.)/n_rep
             prepoc_failed = False
-
+            
             wc_pk_str = str(replica_calc['wcs'][0].pk)
             
-            if 'replica_calcs' not in struct.get_extras():
+            if 'replica_calcs' not in list(struct.extras):
                 struct.set_extra('replica_calcs', {})
-                
-            rep_calcs = struct.get_extra('replica_calcs')
+            
+            rep_calcs = struct.extras['replica_calcs']
             
             if wc_pk_str not in rep_calcs:
                 rep_calcs[wc_pk_str] = {}
             elif rep_calcs[wc_pk_str]['preproc_v'] == self.preprocess_version:
                 last_ase = struct.get_ase()
                 continue
-                
+            
             struct_ase = struct.get_ase()
             colvar_actual = cv_instance.eval_cv(struct_ase)
             
@@ -466,7 +390,7 @@ class SearchReplicaWidget(ipw.VBox):
             else:
                 dist_previous = '-'
             last_ase = struct_ase
-                
+            
             rep_calcs[wc_pk_str]['preproc_v']     = self.preprocess_version
             rep_calcs[wc_pk_str]['dist_previous'] = dist_previous
             rep_calcs[wc_pk_str]['colvar_actual'] = colvar_actual
@@ -479,18 +403,14 @@ class SearchReplicaWidget(ipw.VBox):
             
             struct.set_extra('replica_calcs', rep_calcs)
             
-            if info['description'] is not None and struct.description == "":
-                struct.description = info['description']
-            
             if prepoc_failed:
                 wc_preproc_failed = True
                 break
-        
+                
         for wc in replica_calc['wcs']:
-            wc.set_extras({
-                'preproc_v': self.preprocess_version,
-                'preproc_failed': wc_preproc_failed,
-            })
+            wc.set_extra('preproc_v', self.preprocess_version)
+            wc.set_extra('preproc_failed', wc_preproc_failed)
+            
     
     def preprocess_replicas(self):
         
