@@ -9,7 +9,9 @@ from aiida.orm import Code
 from aiida.engine import WorkChain, ToContext, Calc, while_
 from aiida.engine import submit
 
-from aiida_cp2k.calculations import Cp2kCalculation
+from aiida.plugins import CalculationFactory
+Cp2kCalculation = CalculationFactory('cp2k')
+
 
 import tempfile
 import shutil
@@ -35,11 +37,9 @@ class GWWorkChain(WorkChain):
         spec.input('parent_folder', valid_type = RemoteData, default=None, required=False)
         
         spec.outline(
-            #cls.print_test,
+
             cls.run_gw #,
-#            while_(cls.not_converged)(
-#                cls.run_gw_again
-#            ),
+
         )
         spec.dynamic_output()
 
@@ -65,22 +65,10 @@ class GWWorkChain(WorkChain):
         self.report("parameters: "+str(inputs['parameters'].get_dict()))
         self.report("settings: "+str(inputs['settings'].get_dict()))
         
-        future = submit(Cp2kCalculation.process(), **inputs)
-        return ToContext(gw_opt=Calc(future))
+        running = self.submit(Cp2kCalculation, **inputs)
+        return ToContext(gw_opt=running)
 
-    # ==========================================================================
-#    def run_gw_again(self):
-#        # TODO: make this nicer.
-#        the_dict = self.inputs.input_dict.get_dict()
-#        the_dict['parent_folder'] = self.ctx.gw_opt.out.remote_folder
-#        inputs_new = self.build_calc_inputs(input_dict=the_dict)
-#        
-#
-#        self.report("inputs (restart): "+str(inputs_new))
-#        future_new = submit(Cp2kCalculation.process(), **inputs_new)
-#        return ToContext(gw_opt=Calc(future_new))
 
-    # ==========================================================================
     @classmethod
     def build_calc_inputs(cls,
                           code          = None,
