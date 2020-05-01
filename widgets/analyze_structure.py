@@ -13,7 +13,7 @@ import ipywidgets as ipw
 from collections import Counter
 from scipy.signal import find_peaks
 from scipy.spatial import ConvexHull
-
+    
 def gaussian(x, sig):
     return 1.0/(sig*np.sqrt(2.0*np.pi))*np.exp(-np.power(x, 2.) / (2 * np.power(sig, 2.)))
 
@@ -305,11 +305,11 @@ def analyze(atoms):
     if not (is_a_bulk or is_a_molecule or is_a_wire):
         tipii,layersg=get_types(atoms,0.1)
         if vacuum_x:
-            slabtype='yz'
+            slabtype='YZ'
         elif vacuum_y:
-            slabtype='xz'
+            slabtype='XZ'
         else:
-            slabtype='xy'
+            slabtype='XY'
 
         sys_type='Slab' + slabtype
         mol_atoms=np.where(tipii==0)[0].tolist()

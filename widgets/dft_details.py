@@ -38,9 +38,20 @@ layout2 = {'width': '35%'}
 FUNCTION_TYPE = type(lambda c: c)
  
 WIDGETS_ENABLED = {
-    'SlabGeoOptWorkChain'  : ['fixed_atoms','calc_type','vdw_switch','uks','convergence','cell'],
+    'None'                 : [],
+    'SlabGeoOptWorkChain'  : ['fixed_atoms','calc_type','vdw_switch','convergence','cell'],
+    'CellOptWorkChain'     : ['vdw_switch','convergence','cell'],
+    'BulkOptWorkChain'     : ['vdw_switch','convergence','cell'],
     'MoleculeOptWorkChain' : ['vdw_switch','uks','convergence','cell'],    
     'GWWorkChain'          : ['gw','uks','convergence','cell']
+}
+CENTER_COORD = {
+    'None'                 : 'False',
+    'SlabGeoOptWorkChain'  : 'False',
+    'CellOptWorkChain'     : 'False',
+    'BulkOptWorkChain'     : 'False',
+    'MoleculeOptWorkChain' : 'True',    
+    'GWWorkChain'          : 'True'
 }
 class DFTDetails(ipw.VBox):        
     def __init__(self,
@@ -76,10 +87,10 @@ class DFTDetails(ipw.VBox):
         
         #### CONVERGENCE PARAM.
         self.max_force = ipw.BoundedFloatText(descritpion='MAX FORCE',value=1e-4, min=1e-4, 
-                                   max=1e-3, step=1e-4,style=style, layout=layout)
+                                   max=1e-3, step=1e-4,style=style, layout=layout2)
         self.mgrid_cutoff = ipw.IntSlider(descritpion='MGRID CUTOFF',value=600, step=100,
                               min=200, max=1200,
-                              style=style, layout=layout)
+                              style=style, layout=layout2)
 
         self.convergence_dict={
             'max_force'    : self.max_force,
@@ -111,9 +122,9 @@ class DFTDetails(ipw.VBox):
 
         self.cell = ipw.Text(description='cell size',
                             style=style, layout={'width': '60%'})
-
+        
         self.center_coordinates = ipw.RadioButtons(description='center coordinates',
-            options=['False', 'True'], value='False',disabled=False
+            options=['False', 'True'], value=CENTER_COORD[workchain],disabled=False
         )
 
         self.cell_spec_dict={
