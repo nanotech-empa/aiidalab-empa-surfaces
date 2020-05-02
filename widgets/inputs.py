@@ -1,6 +1,9 @@
 from apps.surfaces.widgets.analyze_structure import mol_ids_range
 from apps.surfaces.widgets import analyze_structure
 
+
+from datetime import datetime
+
 from ase import Atom, Atoms
 
 from apps.surfaces.widgets.metadata import MetadataWidget
@@ -191,14 +194,14 @@ class UksSectionWidget(ipw.VBox):
             return
         else:
             link((self.manager, 'details'), (self, 'details'))
-
+    
 class MixedDftWidget(ipw.ToggleButtons):
-    manager = Instance(InputDetails, allow_none=True)
     details = Dict()
     to_fix = List()
-    def __init__(self):
-               
-            
+    manager = Instance(InputDetails, allow_none=True)
+
+    def __init__(self,):
+        
         super().__init__(options = ['Mixed DFTB', 'Mixed DFT', 'Full DFT'],
                          description = 'Calculation Type', 
                          value = 'Full DFT',
@@ -223,9 +226,10 @@ class MixedDftWidget(ipw.ToggleButtons):
     
 
     
-    @observe('details')
-    def _observe_details(self, _=None): 
-        self.update_list_fixed()
+#    @observe('details')
+#    def _observe_details(self, _=None):
+#        self.update_list_fixed()
+#        print('mdft ob det',self.value,mol_ids_range(self.to_fix),datetime.now().strftime("%H:%M:%S"))
     
     @observe('manager')
     def _observe_manager(self, _=None):
@@ -234,25 +238,28 @@ class MixedDftWidget(ipw.ToggleButtons):
         else:
             link((self.manager, 'details'), (self, 'details'))
             link((self.manager, 'to_fix'), (self, 'to_fix'))
+            self.update_list_fixed()
+        #print('m obmanager',self.value,mol_ids_range(self.to_fix),datetime.now().strftime("%H:%M:%S"))
                 
 class FixedAtomsWidget(ipw.Text):
-    manager = Instance(InputDetails, allow_none=True)
     details = Dict()
     to_fix = List()
+    manager = Instance(InputDetails, allow_none=True)
     
-    def __init__(self):
-        self.something = 1
+    def __init__(self,):
+        #self.value = mol_ids_range(self.to_fix)
         super().__init__(placeholder='1..10',
+                         value = mol_ids_range(self.to_fix),
                                 description='Fixed Atoms',
                                 style=style, layout={'width': '60%'})
-            
+        
     def return_dict(self):
         return {'fixed_atoms': self.value}
     
     @observe('to_fix')
     def _observe_to_fix(self, _=None):
-        self.value = '203123'
-    
+        self.value = mol_ids_range(self.to_fix)
+            
     @observe('manager')
     def _observe_manager(self, _=None):
         if self.manager is None:
@@ -260,10 +267,78 @@ class FixedAtomsWidget(ipw.Text):
         else:
             link((self.manager, 'details'), (self, 'details'))
             link((self.manager, 'to_fix'), (self, 'to_fix'))
+            self.value = mol_ids_range(self.to_fix)
 
+            
+            
+class CellSectionWidget(ipw.VBox):
+    details = Dict()
+    to_fix = List()
+    manager = Instance(InputDetails, allow_none=True)
+    
+    def __init__(self):
+    
+        self.periodic = ipw.Dropdown(description='PBC',options=['XYZ','NONE', 'X','XY',
+                                              'XZ','Y','YZ',
+                                              'Z'],
+                                       value='XYZ',
+                                       style=style, layout=layout2) 
+
+
+        self.poisson_solver = ipw.Dropdown(description='Poisson solver',
+                                           options=['MT','PERIODIC', 'ANALYTIC','IMPLICIT',
+                                           'MULTIPOLE','WAVELET'],
+                                           value='PERIODIC',
+                                           style=style, layout=layout2)
+        self.cell_sym  = ipw.Dropdown(description='symmetry',
+                                      options=['CUBIC','HEXAGONL', 'MONOCLINIC','NONE',
+                                               'ORTHORHOMBIC','RHOMBOHEDRAL','TETRAGONAL_AB',
+                                               'TETRAGONAL_AC','TETRAGONAL_BC','TRICLINIC'],
+                                      value='ORTHORHOMBIC',
+                                      style=style, layout=layout)
+
+        self.cell = ipw.Text(description='cell size',
+                            style=style, layout={'width': '60%'})
+        
+        self.center_coordinates = ipw.RadioButtons(description='center coordinates',
+                                                   options=['False', 'True'],
+                                                   value='False',
+                                                   disabled=False)
+
+
+        self.cell_spec = ipw.Accordion(selected_index=None)
+        self.cell_spec.children = [ipw.VBox([self.periodic, self.poisson_solver, self.cell_sym,
+                                            self.cell, self.center_coordinates ])]
+        self.cell_spec.set_title(0,'CELL/PBC details')  
+        
+        super().__init__(children = [self.cell_spec])
+        
+    def return_dict(self):
+        return {
+            'periodic'           : self.periodic.value,
+            'poisson_solver'     : self.poisson_solver.value,
+            'cell_sym'           : self.cell_sym.value,
+            'cell'               : self.cell.value,
+            'center_coordinates' : self.center_coordinates.value
+        }
+    
+    @observe('details')
+    def _observe_details(self, _=None):
+        if self.details :
+            self.center_coordinates.value = CENTER_COORD[self.details['system_type']]
+        
+    
+    @observe('manager')
+    def _observe_manager(self, _=None):
+        if self.manager is None:
+            return
+        else:
+            link((self.manager, 'details'), (self, 'details'))        
+            
 SECTIONS_TO_DISPLAY = {
         'None'     : [],
-        'Bulk'     : [PlainInputDetails],
-        'SlabXY'   : [VdwSelectorWidget, UksSectionWidget, MixedDftWidget, FixedAtomsWidget],
-        'Molecule' : [PlainInputDetails]
+        'Bulk'     : [VdwSelectorWidget],
+        'SlabXY'   : [VdwSelectorWidget, UksSectionWidget, 
+                      MixedDftWidget, FixedAtomsWidget,CellSectionWidget],
+        'Molecule' : [MixedDftWidget]
     }
