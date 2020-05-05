@@ -40,13 +40,15 @@ def validate_input(structure_details,details_dict):
         
     if 'calc_type' in details_dict.keys():
         if details_dict['calc_type'] in ['Mixed DFTB', 'Mixed DFT']:
+            
+            ## ADD CHECK CONTINUITY MOL INDEXES
 
             for el in structure_details['slab_elements']:
                 if el not in ['Ag','Au','Cu','H']:
                     return (False, "Wrong slab composition")
 
             if len(structure_details['adatoms'])>0:
-                return (False, "Found Adatoms")
+                return (False, "Found Adatoms cannot do Mixed DFT")
 
             if len(structure_details['unclassified'])>0:
                 return (False, "Found unclassified atoms")
