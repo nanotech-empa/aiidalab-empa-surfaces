@@ -36,13 +36,13 @@ class LigandsAtoms():
 
         super().__init__()
         
-    def rotate_and_dr(mol=None,align_to=(0,0,1),dr=0.0):
+    def rotate_and_dr(mol=None, align_to=(0,0,1), dr=0.0, remove_anchoring=False):
         v = np.array(align_to)
         n = np.linalg.norm(v)
         
         ## BAD CASES
         if n == 0.0:
-            v = np.array((1,1,1))/np.sqrt(3)
+            v = np.array((1,1,1)) / np.sqrt(3)
         else:
             v = v / n
             
@@ -50,7 +50,7 @@ class LigandsAtoms():
             if dr == 0.0:
                 mol.rotate((1,1,1), v)
                 ## REMOVE ANCHOR atom
-                del mol[[atom.index for atom in mol if np.linalg.norm(atom.position)<0.001]]
+                del mol[[atom.index for atom in mol if np.linalg.norm(atom.position) < 0.001]]
                 return mol
             else:
                 mol.rotate((1,1,1), v)
@@ -58,9 +58,8 @@ class LigandsAtoms():
                 return mol
         
         
-    def ligand(self,formula='CH3',align_to=(0,0,1),dr=0.0):
+    def ligand(self, formula='CH3', align_to=(0,0,1), dr=0.0):
         mol = Atoms(formula, positions=LIGANDS[formula])
-        
         return self.rotate_and_dr(mol=mol,align_to=align_to,dr=dr)
      
     

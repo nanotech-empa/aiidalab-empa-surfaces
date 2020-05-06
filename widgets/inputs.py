@@ -22,32 +22,34 @@ from IPython.display import display, clear_output
 
 from collections import OrderedDict
 
-from traitlets import Instance, Int, List, Set, Dict, Unicode, Union, link, default, observe, validate
+from traitlets import Instance, Bool, Int, List, Set, Dict, Unicode, Union, link, default, observe, validate
 
 
 STYLE = {'description_width': '120px'}
 LAYOUT = {'width': '70%'}
 LAYOUT2 = {'width': '35%'}
-#FUNCTION_TYPE = type(lambda c: c)
+
  
-WIDGETS_ENABLED = {
-    'None'     : [],
-    'SlabXY'   : ['fixed_atoms','calc_type','vdw_switch','convergence','cell'],
-    'Bulk'     : ['vdw_switch','convergence','cell'],
-    'Molecule' : ['vdw_switch','convergence','cell']
-}
-CENTER_COORD = {
-    'None'                 : 'False',
-    'Bulk'                 : 'False',
-    'SlabXY'               : 'False',
-    'Molecule'             : 'True'
-}
+#WIDGETS_ENABLED = {
+#    'None'     : [],
+#    'SlabXY'   : ['fixed_atoms','calc_type','vdw_switch','convergence','cell'],
+#    'Bulk'     : ['vdw_switch','convergence','cell'],
+#    'Molecule' : ['vdw_switch','convergence','cell']
+#}
+#CENTER_COORD = {
+#    'None'                 : 'False',
+#    'Bulk'                 : 'False',
+#    'SlabXY'               : 'False',
+#    'Molecule'             : 'True'
+#}
 
 
 class InputDetails(ipw.VBox):
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
     details = Dict()
+    final_dictionary = Dict()
     to_fix = List()
+    do_cell_opt = Bool()
     calc_type = Unicode()
 
     def __init__(self,):
@@ -89,60 +91,75 @@ class InputDetails(ipw.VBox):
 
     def create_plain_input(self):
         inp_dict = Get_CP2K_Input(input_dict = self.final_dictionary).inp
+        #self.plain_input.value = str(inp_dict) #test
         inp_plain = Cp2kInput(inp_dict)
-        self.plain_input.value = inp_plain.render()
-        #return CP2K2DICT(input_lines = self.plain_input.value)         
+        self.plain_input.value = inp_plain.render()         
         
     def return_final_dictionary(self):
-        self.final_dictionary = {}
+        tmp_dict = {}
         
         ## PUT LIST OF ELEMENTS IN DICTIONARY
-        self.final_dictionary['elements']=self.details['all_elements']
+        tmp_dict['elements']=self.details['all_elements']
         
         ## RETRIEVE ALL WIDGET VALUES
         for section in self.displayed_sections:
             to_add = section.return_dict()
-            if to_add : self.final_dictionary.update(to_add)  
+            if to_add : tmp_dict.update(to_add)  
         
         ## DECIDE WHICH KIND OF WORKCHAIN
         
         ## SLAB
         if self.details['system_type'] == 'SlabXY':
-            self.final_dictionary.update({'workchain' : 'SlabGeoOptWorkChain'})
+            tmp_dict.update({'workchain' : 'SlabGeoOptWorkChain'})
             ## IN CASE MIXED DFT FOR SLAB IDENTIFY MOLECULE
-            if self.final_dictionary['calc_type'] != 'Full DFT':
-                self.final_dictionary['first_slab_atom'] = min(self.details['bottom_H'] +
+            if tmp_dict['calc_type'] != 'Full DFT':
+                tmp_dict['first_slab_atom'] = min(self.details['bottom_H'] +
                                                                self.details['slabatoms']) + 1
-                self.final_dictionary['last_slab_atom']  = max(self.details['bottom_H'] +
+                tmp_dict['last_slab_atom']  = max(self.details['bottom_H'] +
                                                                self.details['slabatoms']) + 1
         ## MOLECULE   
         elif self.details['system_type'] == 'Molecule' :
-            self.final_dictionary.update({'workchain' : 'MoleculeOptWorkChain'})
+            tmp_dict.update({'workchain' : 'MoleculeOptWorkChain'})
             
         ## BULK
         elif self.details['system_type'] == 'Bulk' :
-            if self.final_dictionary['opt_cell']:
-                self.final_dictionary.update({'workchain' : 'CellOptWorkChain'})
+            if tmp_dict['opt_cell']:
+                tmp_dict.update({'workchain' : 'CellOptWorkChain'})
             else:
-                self.final_dictionary.update({'workchain' : 'BulkOptWorkChain'})
+                tmp_dict.update({'workchain' : 'BulkOptWorkChain'})
                 
         ## CHECK input validity
-        can_submit,error_msg=validate_input(self.details,self.final_dictionary)
+        can_submit,error_msg=validate_input(self.details,tmp_dict)
                 
         ## CREATE PLAIN INPUT  
         if can_submit :
+            self.final_dictionary = tmp_dict
             self.create_plain_input()        
         
+        #print(self.final_dictionary)
         ## RETURN DICT of widgets details
         return  can_submit,error_msg, self.final_dictionary
 
 
+class DescriptionWidget(ipw.Text):    
+    
+## DESCRIPTION OF CALCULATION
+    def __init__(self):
+        
+        super().__init__(description='Process description: ', value='',
+                               placeholder='Type the name here.',
+                               style={'description_width': '120px'},
+                               layout={'width': '70%'})    
+        
+    def return_dict(self):
+        return {'description' : self.value }        
+    
 class ConvergenceDetailsWidget(ipw.Accordion):
     details = Dict()
     calc_type = Unicode()
     manager = Instance(InputDetails, allow_none=True)
     def __init__(self):    
-        #### GW
+        
         self.max_force = ipw.FloatText(descritpion='MAX FORCE',value=1e-4,
                                        style=STYLE, layout=LAYOUT2)
         self.mgrid_cutoff = ipw.IntText(descritpion='MGRID CUTOFF',value=600,
@@ -199,6 +216,7 @@ class VdwSelectorWidget(ipw.ToggleButton):
 
 class UksSectionWidget(ipw.VBox):
     details = Dict()
+    calc_type = Unicode()
     manager = Instance(InputDetails, allow_none=True)
     def __init__(self):
                 #### UKS
@@ -222,19 +240,36 @@ class UksSectionWidget(ipw.VBox):
         super().__init__(children = [self.uks])
         
     def return_dict(self):
-        return {
-            'multiplicity' : self.multiplicity.value,
-            'spin_u'       : self.spin_u.value,
-            'spin_d'       : self.spin_d.value,
-            'charge'       : self.charge.value,
-        }
+        if self.calc_type == 'Mixed DFTB':
+            return {
+                'multiplicity' : 0,
+                'spin_u'       : '',
+                'spin_d'       : '',
+                'charge'       : 0
+            }
+        else:
+            return {
+                'multiplicity' : self.multiplicity.value,
+                'spin_u'       : self.spin_u.value,
+                'spin_d'       : self.spin_d.value,
+                'charge'       : self.charge.value,
+            }
     
+    @observe('calc_type')
+    def _observe_calc_type(self, _=None):
+            if self.calc_type == 'Mixed DFTB':
+                self.uks.children = []
+            else:
+                self.uks.children = [ipw.VBox([self.multiplicity, self.spin_u, self.spin_d, self.charge])]
+                
+            
     @observe('manager')
     def _observe_manager(self, _=None):
         if self.manager is None:
             return
         else:
             link((self.manager, 'details'), (self, 'details'))
+            link((self.manager, 'calc_type'), (self, 'calc_type'))
     
 class MixedDftWidget(ipw.ToggleButtons):
     details = Dict()
@@ -315,8 +350,9 @@ class FixedAtomsWidget(ipw.Text):
 
             
             
-class CellSectionWidget(ipw.VBox):
+class CellSectionWidget(ipw.Accordion):
     details = Dict()
+    do_cell_opt = Bool()
     manager = Instance(InputDetails, allow_none=True)
     
     def __init__(self):
@@ -350,10 +386,25 @@ class CellSectionWidget(ipw.VBox):
                                                    disabled=False)
         self.opt_cell = ipw.ToggleButton(value=False, description='Optimize cell',
                                          style={'description_width': '120px'})
-
+        
+        def on_cell_opt(c=None):
+            self.do_cell_opt = self.opt_cell.value
+        self.opt_cell.observe(on_cell_opt, 'value')
+        
+        self.cell_free = ipw.ToggleButtons(options=['FREE','KEEP_ANGLES', 'KEEP_SYMMETRY'],
+                                       description='Cell freedom',
+                                       value='KEEP_SYMMETRY',
+                                       style=STYLE, layout=LAYOUT)
+        
+#'cell_free'
         self.cell_cases = {
-            'Bulk'                 : [
+            'Cell_true'            : [
+                ('cell', self.cell),
                 ('cell_sym', self.cell_sym),
+                ('cell_free', self.cell_free),
+                ('opt_cell', self.opt_cell)
+            ],
+            'Bulk'                 : [
                 ('cell', self.cell),
                 ('opt_cell', self.opt_cell)
             ],
@@ -370,16 +421,36 @@ class CellSectionWidget(ipw.VBox):
             ]
         }        
 
-        self.cell_spec = ipw.Accordion(selected_index=None) 
         
-        super().__init__(children = [self.cell_spec])
+        
+        super().__init__(selected_index=None)
         
     def return_dict(self):
             to_return = {}
-            for i in self.cell_cases[self.details['system_type']]:
+            if self.opt_cell.value:
+                cases = self.cell_cases['Cell_true']
+            else:
+                cases = self.cell_cases[self.details['system_type']]
+                
+            for i in cases:
                 to_return.update({i[0] : i[1].value})
             return to_return
+     
+    def widgets_to_show(self):
+        if self.opt_cell.value:
+            self.set_title(0,'CELL/PBC details')
+            self.children = [ipw.VBox([i[1] for i in self.cell_cases['Cell_true']])]
+        else:
+            self.set_title(0,'CELL/PBC details')
+            self.children = [ipw.VBox([i[1] for i in self.cell_cases[self.details['system_type']]])]
+            
         
+    @observe('do_cell_opt')    
+    def _observe_do_cell_opt(self,_=None):
+        self.widgets_to_show()
+
+        
+    
         
     
     @observe('manager')
@@ -388,9 +459,10 @@ class CellSectionWidget(ipw.VBox):
             return
         else:
             link((self.manager, 'details'), (self, 'details'))
+            link((self.manager, 'do_cell_opt'), (self, 'do_cell_opt'))
             self.cell.value = self.details['cell']
-            self.cell_spec.children = [ipw.VBox([i[1] for i in self.cell_cases[self.details['system_type']]])]
-            self.cell_spec.set_title(0,'CELL/PBC details')
+            self.widgets_to_show()
+
             
                 
             
@@ -472,10 +544,26 @@ class MetadataWidget(ipw.VBox):
             
 SECTIONS_TO_DISPLAY = {
         'None'     : [],
-        'Bulk'     : [VdwSelectorWidget, MetadataWidget],
-        'SlabXY'   : [VdwSelectorWidget, UksSectionWidget, 
-                      MixedDftWidget, FixedAtomsWidget,
-                      ConvergenceDetailsWidget,CellSectionWidget, 
+        'Bulk'     : [DescriptionWidget,
+                      VdwSelectorWidget, 
+                      UksSectionWidget, 
+                      FixedAtomsWidget,
+                      ConvergenceDetailsWidget,
+                      CellSectionWidget, 
                       MetadataWidget],
-        'Molecule' : [MixedDftWidget, MetadataWidget]
+        'SlabXY'   : [DescriptionWidget,
+                      VdwSelectorWidget, 
+                      UksSectionWidget, 
+                      MixedDftWidget, 
+                      FixedAtomsWidget,
+                      ConvergenceDetailsWidget,
+                      CellSectionWidget, 
+                      MetadataWidget],
+        'Molecule' : [DescriptionWidget,
+                      VdwSelectorWidget, 
+                      UksSectionWidget, 
+                      FixedAtomsWidget,
+                      ConvergenceDetailsWidget,
+                      CellSectionWidget, 
+                      MetadataWidget]
     }

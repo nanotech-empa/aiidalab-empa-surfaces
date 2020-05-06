@@ -6,8 +6,8 @@ from ase import Atoms
 @calcfunction
 def make_geom_file(structure, filename,
                    selection=None,
-                   spin_u=lambda: orm.Str(''),
-                   spin_d=lambda: orm.Str(''),
+                   spin_u=lambda: Str(''),
+                   spin_d=lambda: Str(''),
                    ic_plane_z=None):
     
     import tempfile
@@ -23,7 +23,6 @@ def make_geom_file(structure, filename,
     
     ###spin_from widgets
     spin_guess = [string_range_to_list(spin_u.value),string_range_to_list(spin_d.value)]
-    
     if selection is None:
         atoms = structure.get_ase()
     else:

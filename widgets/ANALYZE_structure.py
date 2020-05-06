@@ -285,7 +285,7 @@ class StructureAnalyzer(HasTraits):
         vacuum_x=np.max(atoms.positions[:,0]) - np.min(atoms.positions[:,0]) +4 < atoms.cell[0][0]
         vacuum_y=np.max(atoms.positions[:,1]) - np.min(atoms.positions[:,1]) +4 < atoms.cell[1][1]
         vacuum_z=np.max(atoms.positions[:,2]) - np.min(atoms.positions[:,2]) +4 < atoms.cell[2][2]
-        all_elements = list(set(atoms.get_chemical_symbols())) # atoms.get_chemical_symbols()  
+        all_elements = atoms.get_chemical_symbols() # list(set(atoms.get_chemical_symbols())) need ALL for spin guess   
         cov_radii = [covalent_radii[a.number] for a in atoms]
 
         nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
