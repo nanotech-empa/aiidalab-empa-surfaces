@@ -1,6 +1,7 @@
 from apps.surfaces.widgets.analyze_structure import mol_ids_range
 from apps.surfaces.widgets import analyze_structure
 from apps.surfaces.widgets.cp2k_input_validity import validate_input
+from aiidalab_widgets_base.utils import string_range_to_set, set_to_string_range
 
 from datetime import datetime
 
@@ -50,6 +51,7 @@ class InputDetails(ipw.VBox):
     final_dictionary = Dict()
     to_fix = List()
     do_cell_opt = Bool()
+    uks = Bool()
     calc_type = Unicode()
 
     def __init__(self,):
@@ -214,30 +216,61 @@ class VdwSelectorWidget(ipw.ToggleButton):
             link((self.manager, 'details'), (self, 'details'))
     
 
-class UksSectionWidget(ipw.VBox):
+class UksSectionWidget(ipw.Accordion):
     details = Dict()
+    uks = Bool()
     calc_type = Unicode()
     manager = Instance(InputDetails, allow_none=True)
     def __init__(self):
                 #### UKS
-        self.multiplicity = ipw.IntText(value=0,placeholder='leave 0 for RKS',
+            
+        self.uks_toggle          = ipw.ToggleButton(value=False, description='UKS',
+                                                    tooltip='Activate UKS', style={'description_width': '80px'}) 
+        
+        
+        def on_uks(c=None):
+            self.uks = self.uks_toggle.value
+        self.uks_toggle.observe(on_uks, 'value')        
+        
+        self.multiplicity = ipw.IntText(value=0,
                                            description='MULTIPLICITY',
                                            style=STYLE, layout=LAYOUT)
         self.spin_u = ipw.Text(placeholder='1..10 15',
-                                            description='IDs atoms spin UP',
+                                            description='IDs atoms spin U',
                                             style=STYLE, layout={'width': '60%'})
 
         self.spin_d = ipw.Text(placeholder='1..10 15',
-                                            description='IDs atoms spin DOWN',
+                                            description='IDs atoms spin D',
                                             style=STYLE, layout={'width': '60%'})
+        
+        
         self.charge = ipw.IntText(value=0,
                                  description='net charge',
                                  style=STYLE, layout=LAYOUT)
-
-        self.uks = ipw.Accordion(selected_index=None)
-        self.uks.children = [ipw.VBox([self.multiplicity, self.spin_u, self.spin_d, self.charge])]
-        self.uks.set_title(0,'RKS/UKS')
-        super().__init__(children = [self.uks])
+        
+        ## guess multiplicity
+        def multiplicity_guess(c=None):
+            system_charge=self.details['total_charge'] + self.charge.value 
+            setu=string_range_to_set(self.spin_u.value)[0]
+            setd=string_range_to_set(self.spin_d.value)[0]
+            ## check if same atom entered in two different spins
+            if bool(setu & setd):
+                self.multiplicity.value = 1
+                self.spin_u.value = ''
+                self.spin_d.value = '' 
+                
+            nu = len(string_range_to_set(self.spin_u.value)[0])
+            nd = len(string_range_to_set(self.spin_d.value)[0])
+            if not system_charge % 2:
+                self.multiplicity.value = min(abs(nu - nd) * 2 + 1,3)
+            else:
+                self.multiplicity.value = 2 
+            
+        self.spin_u.observe(multiplicity_guess, 'value')
+        self.spin_d.observe(multiplicity_guess, 'value')
+        self.charge.observe(multiplicity_guess, 'value')
+        
+        super().__init__(selected_index=None)
         
     def return_dict(self):
         if self.calc_type == 'Mixed DFTB':
@@ -247,20 +280,40 @@ class UksSectionWidget(ipw.VBox):
                 'spin_d'       : '',
                 'charge'       : 0
             }
-        else:
+        elif self.uks:
             return {
                 'multiplicity' : self.multiplicity.value,
                 'spin_u'       : self.spin_u.value,
                 'spin_d'       : self.spin_d.value,
                 'charge'       : self.charge.value,
             }
-    
+        else:
+            return {
+                'multiplicity' : 0,
+                'spin_u'       : '',
+                'spin_d'       : '',
+                'charge'       : self.charge.value,
+            }
+            
+
+    def widgets_to_show(self):
+        self.set_title(0,'RKS/UKS')
+        if self.calc_type == 'Mixed DFTB':
+            self.uks_toggle.value=False
+            self.children = []
+        elif self.uks:
+            self.children = [ipw.VBox([self.uks_toggle, self.multiplicity, self.spin_u, self.spin_d, self.charge])]
+        else:
+            self.children = [ipw.VBox([self.uks_toggle, self.charge])]
+            
+        
+    @observe('uks')    
+    def _observe_uks(self,_=None):
+        self.widgets_to_show()
+        
     @observe('calc_type')
     def _observe_calc_type(self, _=None):
-            if self.calc_type == 'Mixed DFTB':
-                self.uks.children = []
-            else:
-                self.uks.children = [ipw.VBox([self.multiplicity, self.spin_u, self.spin_d, self.charge])]
+        self.widgets_to_show()
                 
             
     @observe('manager')
@@ -270,6 +323,8 @@ class UksSectionWidget(ipw.VBox):
         else:
             link((self.manager, 'details'), (self, 'details'))
             link((self.manager, 'calc_type'), (self, 'calc_type'))
+            link((self.manager, 'uks'), (self, 'uks'))
+            self.widgets_to_show()
     
 class MixedDftWidget(ipw.ToggleButtons):
     details = Dict()
