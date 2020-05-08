@@ -75,14 +75,16 @@ class InputDetails(ipw.VBox):
             
 #            if self.sections is None:
             if  self.details:
-                sys_type =  self.details['system_type']    
+                sys_type =  self.details['system_type'] 
             else:
                 sys_type = 'None'
-                
+            
+            
             self.plain_input=ipw.Textarea(value='', disabled=False, layout={'width': '60%'})
             self.plain_input_accordion = ipw.Accordion(selected_index=None)
             self.plain_input_accordion.children=[self.plain_input]
             self.plain_input_accordion.set_title(0,'plain input')
+           
               
             self.displayed_sections = []
             for sec in SECTIONS_TO_DISPLAY[sys_type]:
@@ -154,7 +156,37 @@ class DescriptionWidget(ipw.Text):
                                layout={'width': '70%'})    
         
     def return_dict(self):
-        return {'description' : self.value }        
+        return {'description' : self.value }     
+    
+class StructureInfoWidget(ipw.Accordion): 
+    details = Dict()  
+    manager = Instance(InputDetails, allow_none=True)
+    def __init__(self):
+        
+        self.info=ipw.Output()
+        
+        self.set_title(0,'Structure details')
+        super().__init__(selected_index=None)
+        
+    @observe('details')
+    def _observe_details(self, _=None):
+        if self.details is None:
+            return
+        else:
+            self.children=[ipw.VBox([self.info])]
+            with self.info:
+                clear_output()
+                print(self.details['summary'])        
+        
+    @observe('manager')
+    def _observe_manager(self, _=None):
+        if self.manager is None:
+            return
+        else:            
+            link((self.manager, 'details'), (self, 'details')) 
+                
+    def return_dict(self):
+        return {}        
     
 class ConvergenceDetailsWidget(ipw.Accordion):
     details = Dict()
@@ -601,7 +633,8 @@ SECTIONS_TO_DISPLAY = {
         'None'     : [],
         'Bulk'     : [DescriptionWidget,
                       VdwSelectorWidget, 
-                      UksSectionWidget, 
+                      UksSectionWidget,
+                      StructureInfoWidget,
                       FixedAtomsWidget,
                       ConvergenceDetailsWidget,
                       CellSectionWidget, 
@@ -609,14 +642,16 @@ SECTIONS_TO_DISPLAY = {
         'SlabXY'   : [DescriptionWidget,
                       VdwSelectorWidget, 
                       UksSectionWidget, 
-                      MixedDftWidget, 
+                      MixedDftWidget,
+                      StructureInfoWidget,
                       FixedAtomsWidget,
                       ConvergenceDetailsWidget,
                       CellSectionWidget, 
                       MetadataWidget],
         'Molecule' : [DescriptionWidget,
                       VdwSelectorWidget, 
-                      UksSectionWidget, 
+                      UksSectionWidget,
+                      StructureInfoWidget,
                       FixedAtomsWidget,
                       ConvergenceDetailsWidget,
                       CellSectionWidget, 

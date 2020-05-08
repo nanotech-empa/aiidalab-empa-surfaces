@@ -226,6 +226,7 @@ class StructureAnalyzer(HasTraits):
             group = list(group)
             yield group[0][1], group[-1][1]
 
+    ## shifts the list by +1
     def mol_ids_range(self,ismol):
         range_string=''
         shifted_list=[i+1 for i in ismol]
@@ -388,6 +389,8 @@ class StructureAnalyzer(HasTraits):
         if len(self.mol_ids_range(unclassified))>0:
             summary+='unclassified: ' + self.mol_ids_range(unclassified)
 
+        ## INDEXES FROM 0 if mol_ids_range is not called    
+            
         return {'total_charge'  : total_charge,
                 'system_type'   : sys_type,
                 'cell'          : " ".join([str(i) for i in itertools.chain(*atoms.cell.tolist())]),
@@ -395,7 +398,7 @@ class StructureAnalyzer(HasTraits):
                 'bottom_H'      : sorted(bottom_H),
                 'slabatoms'     : sorted(slabatoms),
                 'adatoms'       : sorted(adatoms),
-                'all_molecules' : all_molecules,
+                'all_molecules' : all_molecules,   
                 'metalatings'   : sorted(metalatings),
                 'unclassified'  : sorted(unclassified),
                 'numatoms'      : len(atoms),
