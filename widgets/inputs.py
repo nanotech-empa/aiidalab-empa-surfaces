@@ -1,7 +1,7 @@
 from apps.surfaces.widgets.analyze_structure import mol_ids_range
 from apps.surfaces.widgets import analyze_structure
 from apps.surfaces.widgets.cp2k_input_validity import validate_input
-from aiidalab_widgets_base.utils import string_range_to_set, set_to_string_range
+from aiidalab_widgets_base.utils import string_range_to_list, list_to_string_range
 
 from datetime import datetime
 
@@ -283,16 +283,16 @@ class UksSectionWidget(ipw.Accordion):
         ## guess multiplicity
         def multiplicity_guess(c=None):
             system_charge=self.details['total_charge'] + self.charge.value 
-            setu=string_range_to_set(self.spin_u.value)[0]
-            setd=string_range_to_set(self.spin_d.value)[0]
+            setu=set(string_range_to_list(self.spin_u.value)[0])
+            setd=set(string_range_to_list(self.spin_d.value)[0])
             ## check if same atom entered in two different spins
             if bool(setu & setd):
                 self.multiplicity.value = 1
                 self.spin_u.value = ''
                 self.spin_d.value = '' 
                 
-            nu = len(string_range_to_set(self.spin_u.value)[0])
-            nd = len(string_range_to_set(self.spin_d.value)[0])
+            nu = len(string_range_to_list(self.spin_u.value)[0])
+            nd = len(string_range_to_list(self.spin_d.value)[0])
             if not system_charge % 2:
                 self.multiplicity.value = min(abs(nu - nd) * 2 + 1,3)
             else:
