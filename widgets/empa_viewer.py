@@ -1,17 +1,74 @@
 import numpy as np
 import nglview
 from aiidalab_widgets_base.structures import StructureDataViewer
+from apps.surfaces.widgets.ANALYZE_structure import StructureAnalyzer
 from aiidalab_widgets_base.utils import string_range_to_list, list_to_string_range
 from traitlets import  Dict, observe
 
-
+## custom set for visualization
+def default_vis_func(structure):
+    if structure is None:
+        return {}
+    an=StructureAnalyzer()
+    an.set_trait('structure',structure)
+    details=an.details
+    if details['system_type']=='SlabXY':
+        all_mol = [item for sublist in details['all_molecules'] for item in sublist]
+        the_rest = list(set(range(len(structure)))-set(all_mol))
+        vis_dict={
+            0 : {
+                'ids' : list_to_string_range(all_mol,shift=0),
+                'aspectRatio' : 2.5 , 
+                'highlight_aspectRatio' : 2.6 , 
+                'highlight_color' : 'red',
+                'highlight_opacity' : 0.6,
+                'name' : 'molecule',
+                'type' : 'ball+stick'
+            }, 
+            1 : {
+                'ids' : list_to_string_range(the_rest,shift=0),
+                'aspectRatio' : 10 , 
+                'highlight_aspectRatio' : 10.1 , 
+                'highlight_color' : 'green',
+                'highlight_opacity' :0.6,
+                'name' : 'substrate',
+                'type' : 'ball+stick'
+            },            
+        }
+    elif details['system_type']=='Molecule':
+        the_rest = list(range(len(structure)))
+        vis_dict={
+            0 : {
+                'ids' : list_to_string_range(the_rest,shift=0),
+                'aspectRatio' : 2.5 , 
+                'highlight_aspectRatio' : 2.6 , 
+                'highlight_color' : 'red',
+                'highlight_opacity' : 0.6,
+                'name' : 'molecule',
+                'type' : 'ball+stick'
+            }
+        }
+    else :
+        the_rest = list(range(len(structure)))
+        vis_dict={
+            0 : {
+                'ids' : list_to_string_range(the_rest,shift=0),
+                'aspectRatio' : 3 , 
+                'highlight_aspectRatio' : 3.1 , 
+                'highlight_color' : 'red',
+                'highlight_opacity' : 0.6,
+                'name' : 'molecule',
+                'type' : 'ball+stick'
+            }
+        }
+    return vis_dict 
 class EmpaStructureViewer(StructureDataViewer):
     DEFAULT_SELECTION_OPACITY = 0.2
     DEFAULT_SELECTION_RADIUS = 6
     DEFAULT_SELECTION_COLOR = 'green'
     vis_dict = Dict()
 
-    def __init__(self, vis_func=None, **kwargs):
+    def __init__(self, vis_func=default_vis_func, **kwargs):
         """
         vis_func : function to assign visualization. Gets self.displayed_structure as input
         and must return a dictionary where keys are integers 0,1,2,.. for the components of the
@@ -42,6 +99,8 @@ class EmpaStructureViewer(StructureDataViewer):
         self.selection_info = ''  ## needed to display info about selected atoms e.g. distance, angle..
         self.vis_func = vis_func
         super().__init__(**kwargs)
+        
+       
 
     def _gen_translation_indexes(self):
         """Transfromation of indexes in case of multiple representations

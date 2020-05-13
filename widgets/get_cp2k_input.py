@@ -8,28 +8,31 @@ import copy
 import copy
 
 ATOMIC_KINDS = {
-    'H' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q1'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
-    'Au':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
-    'Ag':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
-    'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11' , 'RI_HFX_BASIS_all': None  },
-    'Al':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'  , 'RI_HFX_BASIS_all': None  },
-    'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'  , 'RI_HFX_BASIS_all': None  },
-    'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q7'  , 'RI_HFX_BASIS_all': None  },
-    'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q4'  , 'RI_HFX_BASIS_all': 'aug-DZVP-GTH-up-up-up-up'  },
-    'Si':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-GTH'    , 'pseudo' : 'GTH-PBE-q4'  , 'RI_HFX_BASIS_all': None  },
-    'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13' , 'RI_HFX_BASIS_all': None  },        
-    'N' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q5'  , 'RI_HFX_BASIS_all': None  },
-    'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  },
-    'Pd':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q18' , 'RI_HFX_BASIS_all': None  },
-    'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'  , 'RI_HFX_BASIS_all': None  },
-    'Zn':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q12' , 'RI_HFX_BASIS_all': None  },
+    'H' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q1'   },
+    'Au':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
+    'Ag':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
+    'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
+    'Al':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'   },
+    'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'   },
+    'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q7'   },
+    'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q4'   },
+    'Si':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-GTH'    , 'pseudo' : 'GTH-PBE-q4'   },
+    'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13'  },        
+    'N' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q5'   },
+    'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   },
+    'Pd':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q18'  },
+    'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   },
+    'Zn':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q12'  },
 }
 
 for element in ATOMIC_KINDS.keys():
-    ATOMIC_KINDS[element]['RI_AUX_BASIS_SET'] = None
+    ATOMIC_KINDS[element]['RI_AUX'] = None
+    ATOMIC_KINDS[element]['RI_HFX_BASIS_all'] = None
     
-ATOMIC_KINDS['H']['RI_AUX_BASIS_SET'] = 'RI_aug_DZ'
-ATOMIC_KINDS['C']['RI_AUX_BASIS_SET'] = 'RI_aug_DZ'
+ATOMIC_KINDS['H']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['C']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['H']['GW_BASIS_SET'] = 'aug-cc-pVDZ-GTH'
+ATOMIC_KINDS['C']['GW_BASIS_SET'] = 'aug-cc-pVDZ-GTH'
 
 # possible metal atoms for empirical substrate
 METAL_ATOMS = ['Au', 'Ag', 'Cu']
@@ -56,7 +59,7 @@ DEFAULT_INPUT_DICT ={
         'mgrid_cutoff'          : 600                   , 
         'mpi_tasks'             : None                  , 
         'multiplicity'          : 0                     , 
-        'ot_switch'             : 'OT'                  ,
+        'diag_method'             : 'OT'                  ,
         'parent_folder'         : None                  , # why is ext_restart named this?
         'periodic'              : None                  ,
         'poisson_solver'        : None                  ,
@@ -117,9 +120,9 @@ class Get_CP2K_Input():
                     'EPS_DEFAULT': '1.0E-14',
                     } 
         self.qs_gw={
-                    'METHOD'       : 'GPW',
-                    'EPS_DEFAULT'  : '1.0E-15',
-                    'EPS_PGF_ORB'  : '1.0E-290'
+                    'METHOD'             : 'GPW',
+                    'EPS_PGF_ORB'        : '1.0E-80',
+                    'EPS_FILTER_MATRIX'  : '1.0E-80'
                     }
         self.qs_neb={
                                   'METHOD': 'GPW',
@@ -133,193 +136,44 @@ class Get_CP2K_Input():
 
         ### XC FOR GW
         self.xc_gw = {}
-        if self.inp_dict['gw_type'] is not None:
-                    self.qs_gw['EPS_DEFAULT']=self.inp_dict['eps_default']
-        if self.inp_dict['gw_type']=='GW':
-#      &XC
-#         &WF_CORRELATION
-#            GROUP_SIZE  12     ! this is the group size for computing matrix elements. small number: 
-#                               !fast computation, but can run out of memory, big number: computation can be slow. 
-#                               12 seems fine. Normally, computing integrals is not the dominating part in the GW calculation.
-#            METHOD  RI_RPA_GPW
-#            &RI_RPA
-#               GW
-#               &HF
-#                  FRACTION  1.0000000      ! for exchange self-energy, we need 100 % Fock exchange
-#                  &MEMORY
-#                     MAX_MEMORY  0         ! memory reserved for storing 4-center matrix elements. 
-#                                           !Can be set to zero because 4c-integrals are only used once here 
-#                                           !(in contrast to HF-SCF where one needs them every SCF step).
-#                  &END MEMORY
-#                  &SCREENING
-#                     EPS_SCHWARZ  1.0E-13   ! screening parameter for 4c-integrals. 
-#                                            !Determines accuracy and speed of the Hartree-Fock calculation 
-#                                            !for the exchange self-energy. 
-#                                            !1.0E-13 should give accurate results at reasonable computational cost. 
-#                                            !But normally, HFX is not the dominating part in a GW calculation.
-#                     SCREEN_ON_INITIAL_P  FALSE
-#                  &END SCREENING
-#               &END HF
-#               &RI_G0W0
-#                  ANALYTIC_CONTINUATION  PADE   ! the self-energy Sigma(iw) is computed for imaginary frequency iw, 
-#                                                ! then a fit is done on Sigma(iw). The fitting function is a Pade approximant. 
-#                                                ! We evaluate this fit afterwards at a real frequency/energy w 
-#                                                ! to solve the quasiparticle equation 
-#                                                !eps_n^GW = eps_n^DFT + fit(epsilon_n^GW) + Sigma_x - v_xc. 
-#                                                !The Pade approximant should be the most reliable fitting function.
-#                  CHECK_FIT
-#                  CORR_OCC  10                  ! how many quasiparticle energies of occupied molecular orbitals are computed. 
-#                                                ! Bigger numbers shouldn't affect the performance too much. 
-#                                                ! However, for huge number (>100), computation time can increase linearly.
-#                  CORR_VIRT  10                 ! see CORR_OCC, only for unoccupied molecular orbitals
-#                  CROSSING_SEARCH  NEWTON       ! Method to solve the quasiparticle equation 
-#                                                ! eps_n^GW = eps_n^DFT + fit(epsilon_n^GW) + Sigma_x - v_xc. 
-#                                                ! Newton should be the most reliable scheme.
-#                  EV_SC_ITER  10                ! We do eigenvalue-selfconsistent GW. At most 10 iterations in the eigenvalues are done.
-#                  FIT_ERROR                     ! print some more information
-#                  OMEGA_MAX_FIT  1.0            ! the fitting of Sigma(iw) with the Pade approximant is done in an interval 
-#                                                ! iw \in i*[-1 Hartree, +1 Hartree]. 
-#                                                ! Points outside this interval can be inaccurate because 
-#                                                ! of numerical integration scheme...
-#                  PRINT_GW_DETAILS              ! print some more information
-#               &END RI_G0W0
-#               RPA_NUM_QUAD_POINTS  200         ! number of imaginary frequency points iw. 
-#                                                ! Main parameter (besides basis set) for determinining accuracy and speed of calculation.
-#               SIZE_FREQ_INTEG_GROUP  1200      ! frequency calculation runs in parallel, this number says how many processors 
-#                                                ! are used for each frequency group. Could be set to -1 because then 
-#                                                ! it is decided automatically. 
-#                                                ! A small number can speedup the calculation but may lead to out of memory. 
-#                                                ! A big number can slow down the calculation. Maybe set the parameter to -1...
-#            &END RI_RPA
-#            &WFC_GPW
-#               EPS_FILTER  1.0E-12              ! some parameter for computing integrals. 1.0E-12 should be safe. 
-#                                                ! Computation time hardly affected by theses parameters.
-#               EPS_GRID  1.0E-12
-#            &END WFC_GPW
-#         &END WF_CORRELATION
-#         &XC_FUNCTIONAL PBE
-#         &END XC_FUNCTIONAL
-#      &END XC            
-            
+        
+        #maybe we will reintroduce EPS_DEFAULT
+        #if self.inp_dict['gw_type'] is not None:
+        #            self.qs_gw['EPS_DEFAULT']=self.inp_dict['eps_default']
+        if self.inp_dict['gw_type']=='GW':                   
             self.xc_gw={
-                    'XC_FUNCTIONAL': {'_': 'PBE'},
-                    'WF_CORRELATION':{
-                                      'METHOD' : 'RI_RPA_GPW',
-                                      'WFC_GPW':{
-                                                 'EPS_FILTER' : str(self.inp_dict['eps_filter']),
-                                                 'EPS_GRID'   :   str(self.inp_dict['eps_grid'])
-                                      },
-                                      'RI_RPA' : {
-                                                  'RPA_NUM_QUAD_POINTS' :    '%d' %(self.inp_dict['rpa_num_quad_points']),
-                                                  'SIZE_FREQ_INTEG_GROUP' :  '%d' %(self.inp_dict['size_freq_integ_group']) ,
-                                                  'GW' :' ',
-                                                  'HF' :{
-                                                           'FRACTION' :  '1.0000000',
-                                                           'SCREENING' :{
-                                                                         'EPS_SCHWARZ' :  str(self.inp_dict['eps_schwarz']),
-                                                                         'SCREEN_ON_INITIAL_P' : 'FALSE'
-                                                           },
-                                                            'MEMORY': {
-                                                                       'MAX_MEMORY' : '0' # '%d' %(self.inp_dict['max_memory'])
-                                                            },
-                                                    },
-                                                   'RI_G0W0' :{
-                                                               'FIT_ERROR' : ' ',
-                                                               'CORR_OCC'  :  '%d' %(self.inp_dict['corr_occ']),
-                                                               'CORR_VIRT' :  '%d' %(self.inp_dict['corr_virt']),
-                                                               'CROSSING_SEARCH'  : 'NEWTON',
-                                                               'CHECK_FIT' : ' ',
-                                                               'EV_SC_ITER' : '%d' %(self.inp_dict['ev_sc_iter']),
-                                                               'OMEGA_MAX_FIT' : '1.0',
-                                                               'ANALYTIC_CONTINUATION' : 'PADE',
-                                                               'PRINT_GW_DETAILS' : ' ' 
-                                                   },
-                                      },
-                'GROUP_SIZE' : '%d' %(self.inp_dict['group_size']),
-              }
+                    'XC_FUNCTIONAL': {'_': 'PBE'}, 
+                    'WF_CORRELATION': {
+                        'RI_RPA': {
+                            'RPA_NUM_QUAD_POINTS': '100', 
+                            'GW': {
+                                'CORR_MOS_OCC': '20', 
+                                'CORR_MOS_VIRT': '20', 
+                                'EV_GW_ITER': '10', 
+                                'NPARAM_PADE': '16', 
+                                'RI_SIGMA_X': ''
+                            }
+                        }
+                    }
             }
-        elif self.inp_dict['gw_type']=='GW-IC':
-#! in general, image charge calculations are super-good converged and the parameters shouldn't matter at all
-#      &XC
-#         &WF_CORRELATION
-#            ERI_METHOD  OS
-#            GROUP_SIZE  12
-#            METHOD  RI_RPA_GPW
-#            RI  OVERLAP
-#            &RI_RPA
-#               &HF
-#                  FRACTION  1.0000000
-#                  &MEMORY
-#                     MAX_MEMORY  0
-#                  &END MEMORY
-#                  &SCREENING
-#                     SCREEN_ON_INITIAL_P  FALSE
-#                  &END SCREENING
-#               &END HF
-#               IM_TIME
-#               &IM_TIME
-#                  EPS_FILTER_IM_TIME  1.0E-12
-#                  GW
-#               &END IM_TIME
-#               MINIMAX
-#               &RI_G0W0
-#                  CORR_OCC  3
-#                  CORR_VIRT  3
-#                  EV_SC_ITER  1
-#                  IC
-#                  OMEGA_MAX_FIT  .36749843813163794053 ! this parameter is actually not needed in the image 
-#                                                       ! charge calculation and doesn't do anything
-#                  PRINT_GW_DETAILS
-#                  RI  OVERLAP
-#               &END RI_G0W0
-#               SIZE_FREQ_INTEG_GROUP  1200             ! this parameter is also not doing anything 
-#                                                       ! in the image charge calculation and you can delete it
-#            &END RI_RPA
-#            &WFC_GPW
-#               EPS_FILTER  1.0E-12
-#               EPS_GRID  1.0E-12
-#            &END WFC_GPW
-#         &END WF_CORRELATION
-#         &XC_FUNCTIONAL PBE-
-#         &END XC_FUNCTIONAL-
-#      &END XC            
+        elif self.inp_dict['gw_type']=='GW-IC':           
             self.xc_gw={
-                     'XC_FUNCTIONAL': {'_': 'PBE'},
-                     'WF_CORRELATION' : {
-                                           'ERI_METHOD' :  'OS',
-                                           'GROUP_SIZE' : '%d' %(self.inp_dict['group_size']),
-                                           'METHOD'     : 'RI_RPA_GPW',
-                                           'RI'         : 'OVERLAP',
-                                           'RI_RPA' : {
-                                                      'HF' : {
-                                                              'FRACTION' :  '1.0',
-                                                              'MEMORY' : {
-                                                                 'MAX_MEMORY' :  '0'
-                                                              },#END MEMORY
-                                                              'SCREENING' : {
-                                                                 'SCREEN_ON_INITIAL_P' :  'FALSE'
-                                                              },#END SCREENING
-                                                      },#END HF
-                                                      'IM_TIME ' : '',
-                                                      'IM_TIME' : {
-                                                                  'EPS_FILTER_IM_TIME' : str(self.inp_dict['eps_filter_im_time']),
-                                                                  'GW' : ''
-                                                      },#END IM_TIME
-                                                      'MINIMAX' : '',
-                                                      'RI_G0W0' : {
-                                                                  'CORR_OCC'         : '%d' %(self.inp_dict['corr_occ']),
-                                                                  'CORR_VIRT'        : '%d' %(self.inp_dict['corr_virt']),
-                                                                  'EV_SC_ITER'       : '1',
-                                                                  'IC'               : '',
-                                                                  'PRINT_GW_DETAILS' : '',
-                                                                  'RI'               : 'OVERLAP',
-                                                      },#END RI_G0W0
-                                           },#END RI_RPA
-                                           'WFC_GPW' : {
-                                                       'EPS_FILTER' : str(self.inp_dict['eps_filter']),
-                                                       'EPS_GRID' :   str(self.inp_dict['eps_grid'])
-                                           }#END WFC_GPW
-                     }#END WF_CORRELATION                    
+                    'XC_FUNCTIONAL': {'_': 'PBE'}, 
+                    'WF_CORRELATION': {
+                        'RI': {
+                            'RI_METRIC': {
+                                'POTENTIAL_TYPE': 'IDENTITY'
+                            }
+                        }, 
+                        'LOW_SCALING': {}, 
+                        'RI_RPA': {
+                            'GW': {
+                                'CORR_MOS_OCC': '10', 
+                                'CORR_MOS_VIRT': '10', 
+                                'IC': ['', {}]
+                            }
+                        }
+                    }
             }            
 
         elif self.inp_dict['gw_type']=='GW-LS': 
@@ -445,6 +299,10 @@ class Get_CP2K_Input():
             'FORCE_EVAL': [],
         }
         
+        if self.inp_dict['gw_type']:
+            self.inp['GLOBAL']['PRINT_LEVEL']='MEDIUM'
+                         
+                         
         ### CHECK WHETHER MOTION SECTION NEEDED OR NOT
         if self.sections_dict[self.workchain]['motion']:
             self.inp['MOTION']=self.get_motion()
@@ -816,7 +674,7 @@ class Get_CP2K_Input():
         if not self.inp_dict['gw_type']:
             basis_set = 'BASIS_MOLOPT'
         else:
-            basis_set = 'RI_HFX_BASIS_all'        
+            basis_set = 'GW_BASIS_SET'        
 
         
 
@@ -855,7 +713,14 @@ class Get_CP2K_Input():
                                                 'NBROYDEN'  : '8'
                            },
                            'PRINT'    : print_scf
-                  }
+                  },
+                 'DEFAULT' : {'MAX_SCF'         : '200'                      ,
+                              'SCF_GUESS'       : 'RESTART'                  ,
+                              'EPS_SCF'         : '1.0E-6'                   ,
+                              'LEVEL_SHIFT'     : 0.1                        ,
+                              'PRINT'           : print_scf
+                             }
+                              
         }
 
         
@@ -875,7 +740,7 @@ class Get_CP2K_Input():
         force_eval = {
             'METHOD': 'Quickstep',
             'DFT': {
-                'BASIS_SET_FILE_NAME': basis_set,
+                'BASIS_SET_FILE_NAME': 'BASIS_MOLOPT',
                 'POTENTIAL_FILE_NAME': 'POTENTIAL',
                 'CHARGE':str(self.inp_dict['charge']),
                 'QS': self.sections_dict[self.workchain]['qs'],
@@ -883,7 +748,7 @@ class Get_CP2K_Input():
                     'CUTOFF': str(self.inp_dict['mgrid_cutoff']),
                     'NGRIDS': '5',
                 },
-                'SCF': scf_opt[self.inp_dict['ot_switch']],
+                'SCF': scf_opt[self.inp_dict['diag_method']],
                 'XC': self.sections_dict[self.workchain]['xc'],
             },
             'SUBSYS': {
@@ -931,24 +796,26 @@ class Get_CP2K_Input():
         for kind in kinds_used:
             pp = ATOMIC_KINDS[kind]['pseudo']
             bs = ATOMIC_KINDS[kind][basis_set] 
+            if  self.inp_dict['gw_type']  in {'GW', 'GW-IC'}:
+                bs = ATOMIC_KINDS[kind]['GW_BASIS_SET']            
             force_eval['SUBSYS']['KIND'].append({
                 '_': kind,
                 'BASIS_SET': bs,
                 'POTENTIAL': pp
             })
             if  self.inp_dict['gw_type'] :
-                ba = ATOMIC_KINDS[kind]['RI_AUX_BASIS_SET']
-                force_eval['SUBSYS']['KIND'][-1]['RI_AUX_BASIS_SET'] = ba
+                ba = ATOMIC_KINDS[kind]['RI_AUX']
+                force_eval['SUBSYS']['KIND'][-1]['BASIS_SET RI_AUX'] = ba
             if  self.inp_dict['gw_type']=='GW-IC' :### ADD SECTION FOR GHOST ATOMS
                 force_eval['SUBSYS']['KIND'].append({
                 '_': kind+'G',
                 'BASIS_SET': bs,
                 'POTENTIAL': pp
                 })
-                ba = ATOMIC_KINDS[kind]['RI_AUX_BASIS_SET']
+                ba = ATOMIC_KINDS[kind]['RI_AUX']
                 force_eval['SUBSYS']['KIND'][-1]['GHOST'] = 'TRUE'
                 force_eval['SUBSYS']['KIND'][-1]['ELEMENT'] = kind
-                force_eval['SUBSYS']['KIND'][-1]['RI_AUX_BASIS_SET'] = ba
+                force_eval['SUBSYS']['KIND'][-1]['BASIS_SET RI_AUX'] = ba
 
 
         ### ADD KINDS for SPIN GUESS : DFT AND GW cases

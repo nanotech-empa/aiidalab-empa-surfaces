@@ -11,7 +11,7 @@ from aiida.orm import Code
 
 from apps.surfaces.widgets.metadata import MetadataWidget
 
-from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
+#from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
 from apps.surfaces.widgets.cp2k2dict import CP2K2DICT
 from aiida_cp2k.utils import Cp2kInput
@@ -65,9 +65,14 @@ class InputDetails(ipw.VBox):
         # Displaying input sections.
         self.output = ipw.Output()
         self.displayed_sections = []
+        self.gw = ipw.ToggleButton(value=False, description='Activate GW',
+                                                    tooltip='Activate GW', style={'description_width': '80px'})
+        self.gw.observe(self.on_gw_toggle,'value')
             
         super().__init__(children=[self.output])
 
+        
+        
     @observe('details')
     def _observe_details(self, _=None):
         with self.output:
@@ -83,15 +88,27 @@ class InputDetails(ipw.VBox):
             self.plain_input=ipw.Textarea(value='', disabled=False, layout={'width': '60%'})
             self.plain_input_accordion = ipw.Accordion(selected_index=None)
             self.plain_input_accordion.children=[self.plain_input]
-            self.plain_input_accordion.set_title(0,'plain input')
-           
-              
+            self.plain_input_accordion.set_title(0,'plain input')           
+             
             self.displayed_sections = []
+            add_children = []
+            if  'Molecule' in sys_type:
+                add_children=[self.gw]
             for sec in SECTIONS_TO_DISPLAY[sys_type]:
                 section = sec()
                 section.manager = self
                 self.displayed_sections.append(section)    
-            display(ipw.VBox(self.displayed_sections + [self.plain_input_accordion]))
+            display(ipw.VBox(add_children + self.displayed_sections + [self.plain_input_accordion]))
+            
+ 
+    def on_gw_toggle(self,c=None):
+        tmp_details = self.details.copy()
+        if self.gw.value:
+            tmp_details['system_type'] = 'Molecule_GW'
+            self.details = tmp_details
+        else:
+            tmp_details['system_type'] = 'Molecule'
+            self.details = tmp_details
 
     def create_plain_input(self):
         inp_dict = Get_CP2K_Input(input_dict = self.final_dictionary).inp
@@ -124,6 +141,8 @@ class InputDetails(ipw.VBox):
         ## MOLECULE   
         elif self.details['system_type'] == 'Molecule' :
             tmp_dict.update({'workchain' : 'MoleculeOptWorkChain'})
+        elif self.details['system_type'] == 'Molecule_GW' :    
+            tmp_dict.update({'workchain' : 'GWWorkChain'})
             
         ## BULK
         elif self.details['system_type'] == 'Bulk' :
@@ -194,10 +213,10 @@ class ConvergenceDetailsWidget(ipw.Accordion):
     manager = Instance(InputDetails, allow_none=True)
     def __init__(self):    
         
-        self.max_force = ipw.FloatText(descritpion='MAX FORCE',value=1e-4,
-                                       style=STYLE, layout=LAYOUT2)
-        self.mgrid_cutoff = ipw.IntText(descritpion='MGRID CUTOFF',value=600,
-                                        style=STYLE, layout=LAYOUT2)
+        self.max_force = ipw.FloatText(description='MAX FORCE',value=1e-4,
+                                       style={'description_width': 'initial'}, layout={'width': '170'})
+        self.mgrid_cutoff = ipw.IntText(description='MGRID CUTOFF',value=600,
+                                        style={'description_width': 'initial'}, layout={'width': '170'})
 
         
         self.set_title(0,'Convergence parameters')    
@@ -262,23 +281,24 @@ class UksSectionWidget(ipw.Accordion):
         
         def on_uks(c=None):
             self.uks = self.uks_toggle.value
+            
         self.uks_toggle.observe(on_uks, 'value')        
         
         self.multiplicity = ipw.IntText(value=0,
                                            description='MULTIPLICITY',
-                                           style=STYLE, layout=LAYOUT)
+                                           style={'description_width': 'initial'}, layout={'width': '140px'})
         self.spin_u = ipw.Text(placeholder='1..10 15',
                                             description='IDs atoms spin U',
-                                            style=STYLE, layout={'width': '60%'})
+                                            style={'description_width': 'initial'})
 
         self.spin_d = ipw.Text(placeholder='1..10 15',
                                             description='IDs atoms spin D',
-                                            style=STYLE, layout={'width': '60%'})
+                                            style={'description_width': 'initial'})
         
         
         self.charge = ipw.IntText(value=0,
                                  description='net charge',
-                                 style=STYLE, layout=LAYOUT)
+                                 style={'description_width': 'initial'}, layout={'width': '120px'})
         
         ## guess multiplicity
         def multiplicity_guess(c=None):
@@ -334,7 +354,8 @@ class UksSectionWidget(ipw.Accordion):
             self.uks_toggle.value=False
             self.children = []
         elif self.uks:
-            self.children = [ipw.VBox([self.uks_toggle, self.multiplicity, self.spin_u, self.spin_d, self.charge])]
+            self.children = [ipw.VBox(
+                [ipw.HBox([self.uks_toggle, self.multiplicity, self.spin_u, self.spin_d]), self.charge])]
         else:
             self.children = [ipw.VBox([self.uks_toggle, self.charge])]
             
@@ -406,7 +427,74 @@ class MixedDftWidget(ipw.ToggleButtons):
             link((self.manager, 'calc_type'), (self, 'calc_type'))
             self.update_list_fixed()
         #print('m obmanager',self.value,mol_ids_range(self.to_fix),datetime.now().strftime("%H:%M:%S"))
-                
+
+class GwWidget(ipw.HBox):
+    details = Dict()
+    manager = Instance(InputDetails, allow_none=True)
+    
+    def __init__(self,):
+        self.gw_type = ipw.ToggleButtons(value = 'GW',
+                                description='GW/GW+IC',options=['GW', 'GW-IC'],
+                                style={'description_width': 'initial'})
+        self.ic_plane_z = ipw.FloatText(description='IC z plane',value=1.4,
+                                       style={'description_width': 'initial'}, layout={'width': '170'})
+        
+        super().__init__(children=[self.gw_type])
+        
+        self.gw_type.observe(self.on_gw, 'value')         
+        
+    def return_dict(self):
+        if self.value == 'DFT':
+            return {'gw_type': None}
+        else:
+            size = self.details['sys_size'] * 2 +15
+            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))
+            if self.gw_type.value == 'GW':
+                return {
+                    'ic_plane_z' : None,
+                    'gw_type': 'GW',
+                    'cell'   : gwcell,
+                    'periodic':'NONE',
+                    'poisson_solver' : 'MT',
+                    'center_coordinates' : True,
+                    'diag_method'        : 'DEFAULT'
+                }
+            else:
+                return {
+                    'ic_plane_z' : self.ic_plane_z.value,
+                    'gw_type': 'GW-IC',
+                    'cell'   : gwcell,
+                    'periodic':'NONE',
+                    'poisson_solver' : 'MT',
+                    'center_coordinates' : True,
+                    'diag_method'        : 'DEFAULT'
+                }                
+        
+
+    ## need to simplify this: trick to switch froth and back from GW and DFT    
+    def on_gw(self,c=None):
+        if self.gw_type.value == 'GW':
+            self.children=[self.gw_type]
+        else:
+            self.children=[self.gw_type,self.ic_plane_z]
+        
+            
+    @observe('manager')
+    def _observe_manager(self, _=None):
+        if self.manager is None:
+            return
+        else:
+            link((self.manager, 'details'), (self, 'details'))  
+            if self.details['system_type'] == 'Molecule_GW':
+                self.gw_type.value = 'GW'
+                self.children = [self.gw_type]
+            elif self.details['system_type'] == 'Molecule_GW-IC':
+                self.gw_type.value = 'GW-IC'   
+                self.children = [self.gw_type,self.ic_plane_z ]
+            else:
+                self.gw_type.value = 'DFT'
+                self.children = [self.gw_type]
+        
 class FixedAtomsWidget(ipw.Text):
     details = Dict()
     to_fix = List()
@@ -630,30 +718,35 @@ class MetadataWidget(ipw.VBox):
 
             
 SECTIONS_TO_DISPLAY = {
-        'None'     : [],
-        'Bulk'     : [DescriptionWidget,
-                      VdwSelectorWidget, 
-                      UksSectionWidget,
-                      StructureInfoWidget,
-                      FixedAtomsWidget,
-                      ConvergenceDetailsWidget,
-                      CellSectionWidget, 
-                      MetadataWidget],
-        'SlabXY'   : [DescriptionWidget,
-                      VdwSelectorWidget, 
-                      UksSectionWidget, 
-                      MixedDftWidget,
-                      StructureInfoWidget,
-                      FixedAtomsWidget,
-                      ConvergenceDetailsWidget,
-                      CellSectionWidget, 
-                      MetadataWidget],
-        'Molecule' : [DescriptionWidget,
-                      VdwSelectorWidget, 
-                      UksSectionWidget,
-                      StructureInfoWidget,
-                      FixedAtomsWidget,
-                      ConvergenceDetailsWidget,
-                      CellSectionWidget, 
-                      MetadataWidget]
+    'None'     : [],
+    'Bulk'     : [DescriptionWidget,
+                  VdwSelectorWidget, 
+                  UksSectionWidget,
+                  StructureInfoWidget,
+                  FixedAtomsWidget,
+                  ConvergenceDetailsWidget,
+                  CellSectionWidget, 
+                  MetadataWidget],
+    'SlabXY'   : [DescriptionWidget,
+                  VdwSelectorWidget, 
+                  UksSectionWidget, 
+                  MixedDftWidget,
+                  StructureInfoWidget,
+                  FixedAtomsWidget,
+                  ConvergenceDetailsWidget,
+                  CellSectionWidget, 
+                  MetadataWidget],
+    'Molecule' : [DescriptionWidget,
+                  VdwSelectorWidget,
+                  UksSectionWidget,
+                  StructureInfoWidget,
+                  FixedAtomsWidget,
+                  ConvergenceDetailsWidget,
+                  CellSectionWidget, 
+                  MetadataWidget],
+    'Molecule_GW' : [DescriptionWidget,
+                     GwWidget,
+                     UksSectionWidget,
+                     StructureInfoWidget,
+                     MetadataWidget],
     }

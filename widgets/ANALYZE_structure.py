@@ -256,13 +256,11 @@ class StructureAnalyzer(HasTraits):
             
     def analyze(self):
         atoms=self.structure
+        sys_size = np.ptp(atoms.positions,axis=0)
         no_cell=atoms.cell[0][0] <0.1 or atoms.cell[1][1] <0.1 or atoms.cell[2][2] <0.1 
         if no_cell:
             # set bounding box as cell
-            cx =(np.amax(atoms.positions[:,0]) - np.amin(atoms.positions[:,0])) + 10
-            cy =(np.amax(atoms.positions[:,1]) - np.amin(atoms.positions[:,1])) + 10
-            cz =(np.amax(atoms.positions[:,2]) - np.amin(atoms.positions[:,2])) + 10
-            atoms.cell = (cx, cy, cz)
+            atoms.cell = sys_size + 10
 
         atoms.set_pbc([True,True,True])
 
@@ -283,9 +281,9 @@ class StructureAnalyzer(HasTraits):
         spins_down = set(str(the_a.symbol)+str(the_a.tag) for the_a in atoms if the_a.tag == 2)
         #### check if there is vacuum otherwise classify as bulk and skip
 
-        vacuum_x=np.max(atoms.positions[:,0]) - np.min(atoms.positions[:,0]) +4 < atoms.cell[0][0]
-        vacuum_y=np.max(atoms.positions[:,1]) - np.min(atoms.positions[:,1]) +4 < atoms.cell[1][1]
-        vacuum_z=np.max(atoms.positions[:,2]) - np.min(atoms.positions[:,2]) +4 < atoms.cell[2][2]
+        vacuum_x=sys_size[0] +4 < atoms.cell[0][0]
+        vacuum_y=sys_size[1] +4 < atoms.cell[1][1]
+        vacuum_z=sys_size[2] +4 < atoms.cell[2][2]
         all_elements = atoms.get_chemical_symbols() # list(set(atoms.get_chemical_symbols())) need ALL for spin guess   
         cov_radii = [covalent_radii[a.number] for a in atoms]
 
@@ -406,6 +404,7 @@ class StructureAnalyzer(HasTraits):
                 'slab_elements' : slab_elements,
                 'spins_up'      : spins_up,
                 'spins_down'    : spins_down,
+                'sys_size'      : sys_size,
                 'summary'       : summary
                }
 
