@@ -22,7 +22,6 @@ class StructureAnalyzer(HasTraits):
     structure = Instance(Atoms, allow_none=True)
     details = Dict()
     def __init__(self):
-        
 
         super().__init__()
         
@@ -249,12 +248,12 @@ class StructureAnalyzer(HasTraits):
     
     @observe('structure')
     def _observe_structure(self, _=None):
-        if self.structure is None:
-            self.details = {}
-        else:
-            self.details = self.analyze()
+        self.details = self.analyze()
             
     def analyze(self):
+        if self.structure is None:
+            return {}
+        
         atoms=self.structure
         sys_size = np.ptp(atoms.positions,axis=0)
         no_cell=atoms.cell[0][0] <0.1 or atoms.cell[1][1] <0.1 or atoms.cell[2][2] <0.1 
