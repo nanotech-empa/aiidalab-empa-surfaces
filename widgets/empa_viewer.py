@@ -6,14 +6,15 @@ from aiidalab_widgets_base.utils import string_range_to_list, list_to_string_ran
 from traitlets import  Dict, Unicode, observe
 
 ## custom set for visualization
-def default_vis_func(details):
-#    if structure is None:
-#        return {}
-#    an=StructureAnalyzer()
-#    an.set_trait('structure',structure)
-#    details=an.details
+def default_vis_func(structure):
+    if structure is None:
+        return {},{}
+    an=StructureAnalyzer()
+    #an.set_trait('structure',structure)
+    an.structure = structure
+    details=an.details
     if not details:
-        return {}
+        return {},{}
     if details['system_type']=='SlabXY':
         all_mol = [item for sublist in details['all_molecules'] for item in sublist]
         the_rest = list(set(range(details['numatoms']))-set(all_mol))
@@ -63,7 +64,7 @@ def default_vis_func(details):
                 'type' : 'ball+stick'
             }
         }
-    return vis_dict 
+    return vis_dict ,details
 class EmpaStructureViewer(StructureDataViewer):
     DEFAULT_SELECTION_OPACITY = 0.2
     DEFAULT_SELECTION_RADIUS = 6
@@ -212,11 +213,7 @@ class EmpaStructureViewer(StructureDataViewer):
             return
                 
         else:   
-            
-            analyzer = StructureAnalyzer()
-            analyzer.structure = self.structure
-            self.details = analyzer.analyze() 
-            vis_dict = self.vis_func(self.details) # self.vis_func(self.structure)
+            vis_dict,self.details = self.vis_func(self.structure) # self.vis_func(self.structure)
 
             ## keys must be integers 0,1,2,...
             if vis_dict:
@@ -277,7 +274,8 @@ class EmpaStructureViewer(StructureDataViewer):
         if(self.vis_func) : self.custom_vis()
         self.orient_z_up()
     
-    @observe('displayed_structure')
-    def _update_structure_viewer(self, change):
-        super()._update_structure_viewer(change)
-        if(self.vis_func) : self.custom_vis()
+#    @observe('displayed_structure')
+#    def _update_structure_viewer(self, change):
+#        super()._update_structure_viewer(change)
+#        if(self.vis_func) : self.custom_vis()
+#

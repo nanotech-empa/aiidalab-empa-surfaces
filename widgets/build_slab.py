@@ -21,7 +21,8 @@ from apps.surfaces.widgets.ANALYZE_structure import StructureAnalyzer
 class BuildSlab(ipw.VBox):
     structure = Instance(Atoms, allow_none=True)
     molecule = Instance(Atoms, allow_none=True)
-    sys_type = Unicode()
+    #sys_type = Unicode()
+    details = Dict()
     slab = Instance(Atoms, allow_none=True)
     manager = Instance(StructureManagerWidget, allow_none=True)
     def __init__(self):
@@ -52,11 +53,12 @@ class BuildSlab(ipw.VBox):
     @observe('molecule')
     def on_struct_change(self, change=None):
         """Selected molecule from structure."""
-        analyzer = StructureAnalyzer()
-        analyzer.structure = change['new']
-        details = analyzer.analyze()
-        print(self.sys_type)
-        if details and details['system_type'] == 'Molecule':
+        #analyzer = StructureAnalyzer(who_called_me='BuildSlab',only_sys_type=True)
+        #analyzer.structure = change['new']
+        #details = analyzer.analyze()
+        #print('observe moleucle in Build ')
+        #if self.sys_type == 'Molecule':
+        if self.details and self.details['system_type'] == 'Molecule':
             self.create_bttn.disabled = False
             nx, ny = slabs.guess_slab_size(self.molecule)
             self.nx_slider.value = nx
@@ -71,7 +73,7 @@ class BuildSlab(ipw.VBox):
     def _change_manager(self, value):
         """Set structure manager trait."""
         manager = value['new']
-        print('manager change')
+        #print('manager change')
         if manager is None:
             return
         dlink((manager, 'structure'), (self, 'molecule'))

@@ -21,8 +21,9 @@ from traitlets import HasTraits, Instance, Dict, observe
 class StructureAnalyzer(HasTraits):
     structure = Instance(Atoms, allow_none=True)
     details = Dict()
-    def __init__(self):
-
+    def __init__(self,only_sys_type=False,who_called_me='Boh'):
+        self.only_sys_type = only_sys_type
+        self.who_called_me = who_called_me
         super().__init__()
         
                 
@@ -251,6 +252,7 @@ class StructureAnalyzer(HasTraits):
         self.details = self.analyze()
             
     def analyze(self):
+        #print(self.who_called_me,' called analyzer with fast: ',self.only_sys_type)
         if self.structure is None:
             return {}
         
@@ -301,27 +303,38 @@ class StructureAnalyzer(HasTraits):
         if vacuum_x and vacuum_y and vacuum_z:
             is_a_molecule=True
             sys_type='Molecule'
-            summary='Molecule: \n'
-            all_molecules=self.molecules([i for i in range(len(atoms))],atoms)
-            com=np.average(atoms.positions,axis=0)
-            summary+='COM: '+str(com)+', min z: '+str(np.min(atoms.positions[:,2]))
+            if not self.only_sys_type:
+                summary='Molecule: \n'
+                all_molecules=self.molecules([i for i in range(len(atoms))],atoms)
+                com=np.average(atoms.positions,axis=0)
+                summary+='COM: '+str(com)+', min z: '+str(np.min(atoms.positions[:,2]))
         if vacuum_x and vacuum_y and (not vacuum_z):
             is_a_wire=True
             sys_type='Wire'
-            summary='Wire along z contains: \n'
-            slabatoms=[ia for ia in range(len(atoms))]   
+            if not self.only_sys_type:
+                summary='Wire along z contains: \n'
+                slabatoms=[ia for ia in range(len(atoms))]   
         if vacuum_y and vacuum_z and (not vacuum_x):
             is_a_wire=True
             sys_type='Wire'
-            summary='Wire along x contains: \n'
-            slabatoms=[ia for ia in range(len(atoms))]
+            if not self.only_sys_type:
+                summary='Wire along x contains: \n'
+                slabatoms=[ia for ia in range(len(atoms))]
         if vacuum_x and vacuum_z and (not vacuum_y):
             is_a_wire=True
             sys_type='Wire'
-            summary='Wire along y contains: \n'
-            slabatoms=[ia for ia in range(len(atoms))]        
+            if not self.only_sys_type:
+                summary='Wire along y contains: \n'
+                slabatoms=[ia for ia in range(len(atoms))]        
         ####END check
-        if not (is_a_bulk or is_a_molecule or is_a_wire):
+        is_a_slab = not (is_a_bulk or is_a_molecule or is_a_wire)
+        if self.only_sys_type:
+            if is_a_slab:
+                return {'system_type':'Slab'}
+            else:
+                return {'system_type':sys_type}
+            
+        elif is_a_slab:
             tipii,layersg=self.get_types(atoms,0.1)
             if vacuum_x:
                 slabtype='YZ'
