@@ -444,31 +444,28 @@ class GwWidget(ipw.HBox):
         self.gw_type.observe(self.on_gw, 'value')         
         
     def return_dict(self):
-        if self.value == 'DFT':
-            return {'gw_type': None}
+        size = self.details['sys_size'] * 2 +15
+        gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))
+        if self.gw_type.value == 'GW':
+            return {
+                'ic_plane_z' : None,
+                'gw_type': 'GW',
+                'cell'   : gwcell,
+                'periodic':'NONE',
+                'poisson_solver' : 'MT',
+                'center_coordinates' : True,
+                'diag_method'        : 'DEFAULT'
+            }
         else:
-            size = self.details['sys_size'] * 2 +15
-            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))
-            if self.gw_type.value == 'GW':
-                return {
-                    'ic_plane_z' : None,
-                    'gw_type': 'GW',
-                    'cell'   : gwcell,
-                    'periodic':'NONE',
-                    'poisson_solver' : 'MT',
-                    'center_coordinates' : True,
-                    'diag_method'        : 'DEFAULT'
-                }
-            else:
-                return {
-                    'ic_plane_z' : self.ic_plane_z.value,
-                    'gw_type': 'GW-IC',
-                    'cell'   : gwcell,
-                    'periodic':'NONE',
-                    'poisson_solver' : 'MT',
-                    'center_coordinates' : True,
-                    'diag_method'        : 'DEFAULT'
-                }                
+            return {
+                'ic_plane_z' : self.ic_plane_z.value,
+                'gw_type': 'GW-IC',
+                'cell'   : gwcell,
+                'periodic':'NONE',
+                'poisson_solver' : 'MT',
+                'center_coordinates' : True,
+                'diag_method'        : 'DEFAULT'
+            }                
         
 
     ## need to simplify this: trick to switch froth and back from GW and DFT    
@@ -668,6 +665,7 @@ class MetadataWidget(ipw.VBox):
                                       layout={'width': 'initial'})
         
         self.num_machines = ipw.IntText(value=1, description='# Nodes', style=STYLE, layout=LAYOUT2)
+        self.num_machines_scf = ipw.IntText(value=1, description='# Nodes_scf', style=STYLE, layout=LAYOUT2)
 
         self.num_mpiprocs_per_machine = ipw.IntText(value=12, description='# Tasks', style=STYLE, layout=LAYOUT2)
 
@@ -685,21 +683,40 @@ class MetadataWidget(ipw.VBox):
         mpi_tasks = self.num_machines.value * self.num_mpiprocs_per_machine.value
         walltime = int(self.walltime_d.value * 3600 * 24 + self.walltime_h.value * 3600 + 
                        self.walltime_m.value * 60)
-        return {
-                'mpi_tasks' : mpi_tasks,
-                'walltime'  : walltime , 
-                'metadata'  : {
-                    'options' : {
-                        'resources' : {
-                            'num_machines' : self.num_machines.value,
-                            'num_mpiprocs_per_machine' : self.num_mpiprocs_per_machine.value,
-                            'num_cores_per_mpiproc' : self.num_cores_per_mpiproc.value
-                                      },
-                        'max_wallclock_seconds' : walltime,
-                        'withmpi': True
+        if self.details['system_type'] == 'Molecule_GW':
+            return {
+                    'num_machines_scf' : self.num_machines_scf.value,
+                    'num_mpiprocs_per_machine_scf' : self.selected_code.computer.get_default_mpiprocs_per_machine(),
+                    'mpi_tasks' : mpi_tasks,
+                    'walltime'  : walltime , 
+                    'metadata'  : {
+                        'options' : {
+                            'resources' : {
+                                'num_machines' : self.num_machines.value,
+                                'num_mpiprocs_per_machine' : self.num_mpiprocs_per_machine.value,
+                                'num_cores_per_mpiproc' : self.num_cores_per_mpiproc.value
+                                          },
+                            'max_wallclock_seconds' : walltime,
+                            'withmpi': True
+                        }
                     }
-                }
-        }
+            }            
+        else:
+            return {
+                    'mpi_tasks' : mpi_tasks,
+                    'walltime'  : walltime , 
+                    'metadata'  : {
+                        'options' : {
+                            'resources' : {
+                                'num_machines' : self.num_machines.value,
+                                'num_mpiprocs_per_machine' : self.num_mpiprocs_per_machine.value,
+                                'num_cores_per_mpiproc' : self.num_cores_per_mpiproc.value
+                                          },
+                            'max_wallclock_seconds' : walltime,
+                            'withmpi': True
+                        }
+                    }
+            }
 
     
     
@@ -715,6 +732,17 @@ class MetadataWidget(ipw.VBox):
         else:
             link((self.manager, 'details'), (self, 'details'))
             link((self.manager, 'selected_code'), (self, 'selected_code'))
+            if self.details['system_type'] == 'Molecule_GW':
+                    self.children = [
+                        self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
+                        self.num_machines_scf,
+                        ipw.HBox([ipw.HTML("walltime:"), self.walltime_d, self.walltime_h, self.walltime_m])
+                    ]
+            else:
+                    self.children = [
+                        self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
+                        ipw.HBox([ipw.HTML("walltime:"), self.walltime_d, self.walltime_h, self.walltime_m])
+                    ]                
 
             
 SECTIONS_TO_DISPLAY = {
