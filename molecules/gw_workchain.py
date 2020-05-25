@@ -7,7 +7,7 @@ import numpy as np
 from copy import deepcopy
 
 class GwWorkChain(WorkChain):
-    """Compute Band Structure of a material."""
+    """Compute GW for a molecule."""
 
     @classmethod
     def define(cls, spec):
