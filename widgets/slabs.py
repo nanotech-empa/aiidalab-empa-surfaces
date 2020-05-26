@@ -268,10 +268,10 @@ PdGa_dict={
 
 
 def guess_slab_size(mol):
-    cx = np.amax(mol.positions[:,0]) - np.amin(mol.positions[:,0]) + 10
-    cy = np.amax(mol.positions[:,1]) - np.amin(mol.positions[:,1]) + 10
-    nx = int(round(cx/Au_x))
-    ny = int(round(cy/Au_y))
+    cx = np.amax(mol.positions[:,0]) - np.amin(mol.positions[:,0]) + 12
+    cy = np.amax(mol.positions[:,1]) - np.amin(mol.positions[:,1]) + 12
+    nx = int(round(cx/Au_x))+1
+    ny = int(round(cy/Au_y))+1
     return nx, ny
 
 def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
