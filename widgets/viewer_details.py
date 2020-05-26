@@ -31,6 +31,10 @@ class ViewerDetails(ipw.VBox):
         self.selection = []
         
         self.viewer = nglview.NGLWidget()
+        ##avoid center-on-click
+        self.viewer.stage.set_parameters(mouse_preset='pymol')
+        #self.viewer.stage.set_parameters(mouse_preset='coot')
+       
         self.info_out = ipw.Output()
         
         children = [
@@ -99,7 +103,12 @@ class ViewerDetails(ipw.VBox):
             else:
                 rest_i.append(i_a)
         return mol_i, rest_i
-        
+    
+    def reset_selection(self):
+        self.selection = []
+        with self.info_out:
+            clear_output()
+            print("Selection: [" + " ".join([str(x+1) for x in self.selection]) + "]")
         
     def setup(self, atoms, details=None):
         
@@ -113,15 +122,33 @@ class ViewerDetails(ipw.VBox):
             self.viewer.remove_component(cid)
         
         if details is None:
-            self.mol_inds = list(np.arange(0, len(atoms)))
-            self.rest_inds = []
+            self.mol_inds = [] #list(np.arange(0, len(atoms)))
+            if atoms is None:
+                return
+            else:
+                self.rest_inds = list(np.arange(0, len(atoms))) # [] #default all big spheres
         else:
-            self.mol_inds = [item for sublist in self.details['all_molecules'] for item in sublist]
-            self.rest_inds = self.details['slabatoms']+self.details['bottom_H']+self.details['adatoms'] +self.details['unclassified']
+            if details['system_type']=='Bulk':
+                self.mol_inds = [] 
+                self.rest_inds = list(np.arange(0, len(atoms))) 
+            elif details['system_type']=='Wire':
+                self.mol_inds = list(np.arange(0, len(atoms))) 
+                self.rest_inds = [] 
+            else:
+                self.mol_inds = [item for sublist in self.details['all_molecules'] for item in sublist]
+                self.rest_inds = self.details['slabatoms']+self.details['bottom_H']+self.details['adatoms'] +self.details['unclassified']
         self._gen_translation_indexes() 
         
-        self.molecules_ase = self.atoms[self.mol_inds]
-        self.rest_ase = self.atoms[self.rest_inds]
+        #print('in view mol ',self.mol_inds)
+        #print('in view rest ',self.rest_inds)
+        if len(self.mol_inds) > 0:
+            self.molecules_ase = self.atoms[self.mol_inds]
+        else:
+            self.molecules_ase=Atoms()
+        if len(self.rest_inds) > 0:
+            self.rest_ase = self.atoms[self.rest_inds]
+        else:
+            self.rest_ase=Atoms()
 
         # component 0: Molecule
         self.viewer.add_component(nglview.ASEStructure(self.molecules_ase), default_representation=False)
@@ -213,8 +240,8 @@ class ViewerDetails(ipw.VBox):
         
         if len(vis_list) > 0:
 
-            vis_atoms  = [x for x in vis_list if isinstance(x, (int, long))]
-            vis_points = [x for x in vis_list if not isinstance(x, (int, long))]
+            vis_atoms  = [x for x in vis_list if isinstance(x, int)]
+            vis_points = [x for x in vis_list if not isinstance(x, int)]
             
             if len(vis_atoms) != 0:
                 

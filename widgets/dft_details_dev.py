@@ -8,9 +8,6 @@ from collections import OrderedDict
 
 ###The widgets defined here assign value to the following input keywords
 ###stored in job_details:
-#  'calc_name'    : 'TEST CALC'
-#  'fixed_atoms'  : '1..100'
-#  'num_machines' 
 #  'max_force'    
 #  'calc_type'    : 'Mixed DFT'
 #  'mgrid_cutoff' 
@@ -38,11 +35,7 @@ layout = {'width': '70%'}
 layout2 = {'width': '35%'}
 FUNCTION_TYPE = type(lambda c: c)
 WIDGETS_DISABLE_DEFAULT = {
-    'calc_name'                : False,  
     'fixed_atoms'              : False,
-    'num_machines'             : False,
-    'num_mpiprocs_per_machine' : True,
-    'num_cores_per_mpiproc'    : True,
     'max_force'                : False,
     'calc_type'                : False,
     'mgrid_cutoff'             : False,
@@ -75,9 +68,6 @@ class DFTDetails(ipw.VBox):
         ### Define all child widgets contained in this composite widget
         self.job_details=job_details
 
-        self.calc_name = ipw.Text(description='Calculation Name: ',
-                                  placeholder='A great name.',
-                                  style=style, layout=layout)
 
         self.fixed_atoms = ipw.Text(placeholder='1..10',
                                     description='Fixed Atoms',
@@ -85,19 +75,7 @@ class DFTDetails(ipw.VBox):
         
         self.btn_fixed_atoms = ipw.Button(description='show',
                     layout={'width': '10%'})
-        self.btn_fixed_pressed = False
-
-        self.num_machines = ipw.IntText(value=1,
-                           description='# Nodes',
-                           style=style, layout=layout) 
-        
-        self.num_mpiprocs_per_machine = ipw.IntText(value=12,
-                           description='# Tasks',
-                           style=style, layout=layout)
-        
-        self.num_cores_per_mpiproc = ipw.IntText(value=1,
-                           description='# Threads',
-                           style=style, layout=layout)        
+        self.btn_fixed_pressed = False 
         
         self.max_force = ipw.BoundedFloatText(description='MAX_FORCE:', value=1e-4, min=1e-4, 
                                         max=1e-3, step=1e-4,style=style, layout=layout)
@@ -370,10 +348,6 @@ class DFTDetails(ipw.VBox):
         #### 
                 
         self.independent_widgets = OrderedDict([
-            ('num_machines'             ,   self.num_machines              ),
-            ('num_mpiprocs_per_machine' ,   self.num_mpiprocs_per_machine  ),
-            ('num_cores_per_mpiproc'    ,   self.num_cores_per_mpiproc     ),
-            ('calc_name'                ,   self.calc_name                 ),
             ('fixed_atoms'              ,   self.fixed_atoms               ),
             ('max_force'                ,   self.max_force                 ),
             ('calc_type'                ,   self.calc_type                 ), 
@@ -445,9 +419,7 @@ class DFTDetails(ipw.VBox):
                        
         
     def reset(self,
-              calc_name="",
               fixed_atoms="",
-              num_machines=1,
               btn_fixed_pressed=False,
               btn_fixed_atoms="show",
               vdw_switch=True,
@@ -456,9 +428,7 @@ class DFTDetails(ipw.VBox):
               uks_switch='RKS',
               cell=''
              ):         
-        self.calc_name.value = calc_name
         self.fixed_atoms.value = fixed_atoms
-        self.num_machines.value = int(num_machines)
         self.btn_fixed_pressed=btn_fixed_pressed
         self.btn_fixed_atoms.description = btn_fixed_atoms           
         self.calc_type.value = calc_type
@@ -505,5 +475,3 @@ class DFTDetails(ipw.VBox):
         else:
             self.spin_guess_string = None
             self.spin_guess.children = tuple()
-            
-    
