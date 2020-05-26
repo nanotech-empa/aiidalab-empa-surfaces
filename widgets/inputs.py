@@ -747,6 +747,7 @@ class MetadataWidget(ipw.VBox):
             
 SECTIONS_TO_DISPLAY = {
     'None'     : [],
+    'Wire'     : [],
     'Bulk'     : [DescriptionWidget,
                   VdwSelectorWidget, 
                   UksSectionWidget,
