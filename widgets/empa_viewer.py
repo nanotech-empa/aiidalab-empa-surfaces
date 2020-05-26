@@ -18,23 +18,23 @@ def default_vis_func(structure):
     if details['system_type']=='SlabXY':
         all_mol = [item for sublist in details['all_molecules'] for item in sublist]
         the_rest = list(set(range(details['numatoms']))-set(all_mol))
-        vis_dict={
+        vis_dict={ ## rep 0 must be the substrate otherwise in case of no moleucle it crashes
             0 : {
-                'ids' : list_to_string_range(all_mol,shift=0),
-                'aspectRatio' : 2.5 , 
-                'highlight_aspectRatio' : 2.6 , 
-                'highlight_color' : 'red',
-                'highlight_opacity' : 0.6,
-                'name' : 'molecule',
-                'type' : 'ball+stick'
-            }, 
-            1 : {
                 'ids' : list_to_string_range(the_rest,shift=0),
                 'aspectRatio' : 10 , 
                 'highlight_aspectRatio' : 10.1 , 
                 'highlight_color' : 'green',
                 'highlight_opacity' :0.6,
                 'name' : 'substrate',
+                'type' : 'ball+stick'
+            },  
+            1 : {
+                'ids' : list_to_string_range(all_mol,shift=0),
+                'aspectRatio' : 2.5 , 
+                'highlight_aspectRatio' : 2.6 , 
+                'highlight_color' : 'red',
+                'highlight_opacity' : 0.6,
+                'name' : 'molecule',
                 'type' : 'ball+stick'
             },            
         }
@@ -79,7 +79,7 @@ class EmpaStructureViewer(StructureDataViewer):
         representation and ids cover all atom indexes Supported: {'ball+stick','licorice','hyperball'}
         Example of dictionary returned by a possible vis_func with two components:
                 vis_dict={
-            0 : {
+            1 : {
                 'ids' : '0 3..40',
                 'aspectRatio' : 3 ,
                 'highlight_aspectRatio' : 3.3 ,
@@ -88,7 +88,7 @@ class EmpaStructureViewer(StructureDataViewer):
                 'name' : 'molecule',
                 'type' : 'ball+stick'
             },
-            1 : {
+            0 : {
                 'ids' : '2 41..49',
                 'aspectRatio' : 10 ,
                 'highlight_aspectRatio' : 10.3 ,
@@ -239,18 +239,18 @@ class EmpaStructureViewer(StructureDataViewer):
                 for component in range(len(self.vis_dict)):
 
                     rep_indexes=list(string_range_to_list(self.vis_dict[component]['ids'],shift=0)[0])
+                    if rep_indexes:
+                        mol = self.structure[rep_indexes]
 
-                    mol = self.structure[rep_indexes]
+                        self._viewer.add_component(nglview.ASEStructure(mol), default_representation=False)
 
-                    self._viewer.add_component(nglview.ASEStructure(mol), default_representation=False)
-
-                    if self.vis_dict[component]['type'] == 'ball+stick':
-                        aspectRatio = self.vis_dict[component]['aspectRatio']
-                        self._viewer.add_ball_and_stick(aspectRatio=aspectRatio, opacity=1.0,component=component)
-                    elif self.vis_dict[component]['type'] == 'licorice':
-                        self._viewer.add_licorice(opacity=1.0,component=component)
-                    elif self.vis_dict[component]['type'] == 'hyperball':
-                        self._viewer.add_hyperball(opacity=1.0,component=component)                    
+                        if self.vis_dict[component]['type'] == 'ball+stick':
+                            aspectRatio = self.vis_dict[component]['aspectRatio']
+                            self._viewer.add_ball_and_stick(aspectRatio=aspectRatio, opacity=1.0,component=component)
+                        elif self.vis_dict[component]['type'] == 'licorice':
+                            self._viewer.add_licorice(opacity=1.0,component=component)
+                        elif self.vis_dict[component]['type'] == 'hyperball':
+                            self._viewer.add_hyperball(opacity=1.0,component=component)                    
             self._gen_translation_indexes()
             self._viewer.add_unitcell()
             self._viewer.center()

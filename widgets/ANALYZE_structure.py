@@ -307,7 +307,7 @@ class StructureAnalyzer(HasTraits):
                 summary='Molecule: \n'
                 all_molecules=self.molecules([i for i in range(len(atoms))],atoms)
                 com=np.average(atoms.positions,axis=0)
-                summary+='COM: '+str(com)+', min z: '+str(np.min(atoms.positions[:,2]))
+                summary+='COM: '+str(com)+', min z: '+str(np.min(atoms.positions[:,2]))+'\n'
         if vacuum_x and vacuum_y and (not vacuum_z):
             is_a_wire=True
             sys_type='Wire'
@@ -372,7 +372,7 @@ class StructureAnalyzer(HasTraits):
 
             ##end slab layers
             summary='Slab '+slabtype+' contains: \n'
-
+        summary+='Cell: '+" ".join([str(i) for i in atoms.cell.diagonal().tolist()])+'\n'
         if len(slabatoms) == 0:
             slab_elements = set([])
         else:
