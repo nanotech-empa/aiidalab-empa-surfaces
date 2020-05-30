@@ -11,7 +11,7 @@ from aiida.orm import FolderData
 import tempfile
 import shutil
 
-from apps.surfaces.widgets import analyze_structure
+from apps.surfaces.reactions import analyze_structure
 
 import subprocess
 
@@ -169,7 +169,8 @@ class NebDetails(ipw.VBox):
             return None
 
         if parent_calc.label == 'neb':
-            print("NEB not configured")
+            print("NEB wfn retrieve not configured")
+            return None
             ## parent is NEB
             #imag_nr = int(key.split("_")[-1]) + 1
             #parent_calc = val

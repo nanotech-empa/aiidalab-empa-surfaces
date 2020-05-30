@@ -1,4 +1,4 @@
-from apps.surfaces.widgets.analyze_structure import string_range_to_list
+from aiidalab_widgets_base.utils import string_range_to_list, list_to_string_range
 import numpy as np
 import itertools
 import copy

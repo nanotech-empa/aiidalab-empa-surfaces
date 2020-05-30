@@ -1,5 +1,4 @@
-from apps.surfaces.widgets.analyze_structure import mol_ids_range
-from apps.surfaces.widgets import analyze_structure
+from apps.surfaces.widgets.ANALYZE_structure import mol_ids_range
 from apps.surfaces.widgets.cp2k_input_validity import validate_input
 from aiidalab_widgets_base.utils import string_range_to_list, list_to_string_range
 
@@ -8,8 +7,6 @@ from datetime import datetime
 from ase import Atom, Atoms
 
 from aiida.orm import Code
-
-from apps.surfaces.widgets.metadata import MetadataWidget
 
 #from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
