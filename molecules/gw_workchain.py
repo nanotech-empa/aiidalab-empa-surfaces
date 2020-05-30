@@ -1,7 +1,7 @@
 from aiida.engine import WorkChain, ToContext
 from aiida_cp2k.calculations import Cp2kCalculation
 from apps.surfaces.widgets.create_xyz_input_files import make_geom_file
-from aiida.orm import SinglefileData
+from aiida.orm import SinglefileData, Dict
 from aiida.orm import Code
 import numpy as np
 from copy import deepcopy
@@ -52,8 +52,8 @@ class GwWorkChain(WorkChain):
         builder.parameters = Dict(dict=submit_dict_scf)
         
         builder.file = {
-            'basis'     : '/home/aiida/apps/surfaces/slab/BASIS',
-            'pseudo'    : '/home/aiida/apps/surfaces/slab/POTENTIAL',
+            'basis'     : SinglefileData(file='/home/aiida/apps/surfaces/Files/BASIS_MOLOPT'),
+            'pseudo'    :  SinglefileData(file='/home/aiida/apps/surfaces/Files/POTENTIAL'),
             'input_xyz' : self.inputs.xyz_gw
         }
         builder.metadata.options.resources = {
@@ -79,8 +79,8 @@ class GwWorkChain(WorkChain):
         builder.parameters = Dict(dict=self.inputs.submit_dict.get_dict())
         
         builder.file = {
-            'basis'     : '/home/aiida/apps/surfaces/slab/BASIS',
-            'pseudo'    : '/home/aiida/apps/surfaces/slab/POTENTIAL',
+            'basis'     :  SinglefileData(file='/home/aiida/apps/surfaces/Files/BASIS_MOLOPT_ADD'),
+            'pseudo'    :  SinglefileData(file='/home/aiida/apps/surfaces/Files/GTH_POTENTIAL'),
             'input_xyz' : self.inputs.xyz_gw
         }
         builder.metadata.options.resources = {
