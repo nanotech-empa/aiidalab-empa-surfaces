@@ -31,6 +31,8 @@ def CP2K2DICT(input_lines=''):
                 else:
                     i_am_at = i_am_at[0:-len(i_am_at[-1])]
             else:
+                while key in i_am_at[-1].keys(): #fixes teh case where inside &KINDS we have BASIS .. and BASIS RI_AUX ..
+                    key = key+' '
                 if has_arg:
                     i_am_at[-1].update({key:" ".join([str(s) for s in l.split()[1:] ])})
                 else:

@@ -110,6 +110,7 @@ class InputDetails(ipw.VBox):
     def create_plain_input(self):
         inp_dict = Get_CP2K_Input(input_dict = self.final_dictionary).inp
         #self.plain_input.value = str(inp_dict) #test
+        #print(inp_dict)
         inp_plain = Cp2kInput(inp_dict)
         self.plain_input.value = inp_plain.render()         
         

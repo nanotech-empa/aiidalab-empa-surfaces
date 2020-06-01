@@ -43,7 +43,8 @@ class GwWorkChain(WorkChain):
         del submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['B']
         del submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['C']
         cell = str(cella[0]) +' '+str(cellb[1]) +' '+str(cellc[2]) 
-        submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['ABC']=cell     
+        submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['ABC'] = cell   
+        submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['LEVEL_SHIFT'] = 0.1
         
                         
         builder = Cp2kCalculation.get_builder()
@@ -61,7 +62,7 @@ class GwWorkChain(WorkChain):
             "num_mpiprocs_per_machine": self.inputs.final_dict['num_mpiprocs_per_machine_scf'],
         }
         builder.metadata.options.max_wallclock_seconds = 5*3600        
-        
+        builder.metadata.options['withmpi'] = True
         builder.metadata.label = 'scf_step'
         builder.metadata.description = self.inputs.final_dict['description']      
         
@@ -74,21 +75,24 @@ class GwWorkChain(WorkChain):
         #calc2
         #new structure with maybe ghost atoms
         restart_folder = self.ctx.calculation.outputs.remote_folder
+        builder = Cp2kCalculation.get_builder()
         # code 
         builder.code = self.inputs.code
-        builder.parameters = Dict(dict=self.inputs.submit_dict.get_dict())
+        submit_dict = deepcopy(self.inputs.submit_dict.get_dict())
+        builder.parameters = Dict(dict=submit_dict)
         
         builder.file = {
-            'basis'     :  SinglefileData(file='/home/aiida/apps/surfaces/Files/BASIS_MOLOPT_ADD'),
-            'pseudo'    :  SinglefileData(file='/home/aiida/apps/surfaces/Files/GTH_POTENTIAL'),
+            'basis'     :  SinglefileData(file='/home/aiida/apps/surfaces/Files/BASIS_MOLOPT'),
+            'pseudo'    :  SinglefileData(file='/home/aiida/apps/surfaces/Files/POTENTIAL'),
             'input_xyz' : self.inputs.xyz_gw
         }
         builder.metadata.options.resources = {
-            'num_machines' : self.inputs.final_dict['num_machines_scf'],
-            'num_mpiprocs_per_machine' : self.inputs.final_dict['num_mpiprocs_per_machine_scf'],
-            'num_cores_per_mpiproc' : self.inputs.final_dict['num_cores_per_mpiproc']
+            'num_machines' : self.inputs.final_dict['metadata']['options']['resources']['num_machines'],
+            'num_mpiprocs_per_machine' : self.inputs.final_dict['metadata']['options']['resources']['num_mpiprocs_per_machine'],
+            'num_cores_per_mpiproc' : self.inputs.final_dict['metadata']['options']['resources']['num_cores_per_mpiproc']
         }
-        builder.metadata.options.max_wallclock_seconds = 5*3600        
+        builder.metadata.options['withmpi'] = True
+        builder.metadata.options.max_wallclock_seconds = self.inputs.final_dict['metadata']['options']['max_wallclock_seconds']      
         
         builder.metadata.label = 'gw_step'
         builder.metadata.description = self.inputs.final_dict['description'] 

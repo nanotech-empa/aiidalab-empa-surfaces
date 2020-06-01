@@ -717,7 +717,7 @@ class Get_CP2K_Input():
                  'DEFAULT' : {'MAX_SCF'         : '200'                      ,
                               'SCF_GUESS'       : 'RESTART'                  ,
                               'EPS_SCF'         : '1.0E-6'                   ,
-                              'LEVEL_SHIFT'     : 0.1                        ,
+                              #'LEVEL_SHIFT'     : 0.1                        ,
                               'PRINT'           : print_scf
                              }
                               

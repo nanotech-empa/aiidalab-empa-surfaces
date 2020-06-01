@@ -22,7 +22,7 @@ def make_geom_file(structure, filename,
     #spin_guess = extract_spin_guess(structure)
     
     ###spin_from widgets
-    spin_guess = [string_range_to_list(spin_u.value),string_range_to_list(spin_d.value)]
+    spin_guess = [string_range_to_list(spin_u.value)[0],string_range_to_list(spin_d.value)[0]]
     if selection is None:
         atoms = structure.get_ase()
     else:
@@ -42,11 +42,11 @@ def make_geom_file(structure, filename,
     for i_line, line in enumerate(orig_lines):
         new_line = line
         lsp = line.split()
-        if spin_guess is not None:
-            if i_line in spin_guess[0]:
-                new_line = lsp[0]+"1 " + " ".join(lsp[1:])+"\n"
-            if i_line in spin_guess[1]:
-                new_line = lsp[0]+"2 " + " ".join(lsp[1:])+"\n"
+        #if spin_guess is not None:
+        if i_line in spin_guess[0]:
+            new_line = lsp[0]+"1 " + " ".join(lsp[1:])+"\n"
+        if i_line in spin_guess[1]:
+            new_line = lsp[0]+"2 " + " ".join(lsp[1:])+"\n"
         modif_lines.append(new_line)
         
     #### adding ghost atoms for image charge calculations
