@@ -4,7 +4,9 @@ from __future__ import absolute_import
 import ipywidgets as ipw
 from IPython.display import display, clear_output
 
-from apps.surfaces.widgets import  analyze_structure
+#from apps.surfaces.widgets import analyze_structure
+from apps.surfaces.widgets.ANALYZE_structure import StructureAnalyzer
+
 from aiidalab_widgets_base import viewer
 
 from aiida.orm import CalcFunctionNode, CalcJobNode, Node, QueryBuilder, WorkChainNode, StructureData, load_node
@@ -244,7 +246,12 @@ class SearchCompletedWidget(ipw.VBox):
                 structure=maybe[i]
         ase_struct = structure.get_ase()        
         
-        res = analyze_structure.analyze(ase_struct)
+        #res = analyze_structure.analyze(ase_struct)
+        
+        an=StructureAnalyzer()
+        an.structure = ase_struct
+        res=an.details
+        
         mol_formula=''
         for imol in res['all_molecules']:
             mol_formula+=ase_struct[imol].get_chemical_formula()+' '
