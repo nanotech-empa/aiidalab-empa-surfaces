@@ -391,7 +391,7 @@ class Get_CP2K_Input():
             }
 
         ### GEO_OPT
-        if self.workchain == 'SlabGeoOptWorkChain' or self.workchain == 'BulkOptWorkChain':
+        if self.workchain == 'SlabGeoOptWorkChain' or self.workchain == 'BulkOptWorkChain' or self.workchain == 'MoleculeOptWorkChain' :
             motion['GEO_OPT'] = {
                     'MAX_FORCE': '%f' % (self.inp_dict['max_force']),
                     'MAX_ITER': '1000',

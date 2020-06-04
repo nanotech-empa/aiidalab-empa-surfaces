@@ -13,6 +13,7 @@ import ipywidgets as ipw
 from collections import Counter
 from scipy.signal import find_peaks
 from scipy.spatial import ConvexHull
+from aiidalab_widgets_base.utils import  list_to_string_range
 
 from traitlets import HasTraits, Instance, Dict, observe
 
@@ -278,8 +279,9 @@ class StructureAnalyzer(HasTraits):
         is_a_molecule=False
         is_a_wire=False
 
-        spins_up   = set(str(the_a.symbol)+str(the_a.tag) for the_a in atoms if the_a.tag == 1)
-        spins_down = set(str(the_a.symbol)+str(the_a.tag) for the_a in atoms if the_a.tag == 2)
+        spins_up   = [the_a.index for the_a in atoms if the_a.tag == 1]
+        spins_down = [the_a.index for the_a in atoms if the_a.tag == 2]
+        other_tags = [the_a.index for the_a in atoms if the_a.tag > 2]
         #### check if there is vacuum otherwise classify as bulk and skip
 
         vacuum_x=sys_size[0] +4 < atoms.cell[0][0]
@@ -294,6 +296,12 @@ class StructureAnalyzer(HasTraits):
         #metalating_atoms=['Ag','Au','Cu','Co','Ni','Fe']
 
         summary=''
+        if spins_up:
+            summary += 'spins_up: '+ list_to_string_range(spins_up)
+        if spins_down:
+            summary += 'spins_down: '+ list_to_string_range(spins_down)
+        if other_tags:
+            summary += 'other_tags: '+ list_to_string_range(other_tags)            
         if (not vacuum_z) and (not vacuum_x) and (not vacuum_y):
             is_a_bulk=True
             sys_type='Bulk'
@@ -416,6 +424,7 @@ class StructureAnalyzer(HasTraits):
                 'slab_elements' : slab_elements,
                 'spins_up'      : spins_up,
                 'spins_down'    : spins_down,
+                'other_tags'    : other_tags,
                 'sys_size'      : sys_size,
                 'summary'       : summary
                }
