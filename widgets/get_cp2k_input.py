@@ -825,7 +825,7 @@ class Get_CP2K_Input():
             'Co' : {'n':'3','l':'2','nel':[1,-1]}
         }
         if (self.inp_dict['spin_u'] !='' or self.inp_dict['spin_d'] !='') and self.inp_dict['multiplicity'] > 0  :
-            spin_elements=string_range_to_list(self.inp_dict['spin_u'])+string_range_to_list(self.inp_dict['spin_u'])
+            spin_elements=string_range_to_list(self.inp_dict['spin_u'])[0]+string_range_to_list(self.inp_dict['spin_u'])[0]
             spin_elements=list(set([self.inp_dict['elements'][j] for j in spin_elements]))
             for element in spin_elements:
                 for u in [1,2]:
