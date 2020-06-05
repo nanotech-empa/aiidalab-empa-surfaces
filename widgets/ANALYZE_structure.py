@@ -296,43 +296,43 @@ class StructureAnalyzer(HasTraits):
         #metalating_atoms=['Ag','Au','Cu','Co','Ni','Fe']
 
         summary=''
-        if spins_up:
-            summary += 'spins_up: '+ list_to_string_range(spins_up)
-        if spins_down:
-            summary += 'spins_down: '+ list_to_string_range(spins_down)
-        if other_tags:
-            summary += 'other_tags: '+ list_to_string_range(other_tags)            
+        if len(spins_up)>0:
+            summary += 'spins_up: '+ list_to_string_range(spins_up)+'\n'
+        if len(spins_down)>0:
+            summary += 'spins_down: '+ list_to_string_range(spins_down)+'\n'
+        if len(other_tags)>0:
+            summary += 'other_tags: '+ list_to_string_range(other_tags) +'\n'           
         if (not vacuum_z) and (not vacuum_x) and (not vacuum_y):
             is_a_bulk=True
             sys_type='Bulk'
-            summary='Bulk contains: \n'
+            summary += 'Bulk contains: \n'
             slabatoms=[ia for ia in range(len(atoms))]
 
         if vacuum_x and vacuum_y and vacuum_z:
             is_a_molecule=True
             sys_type='Molecule'
             if not self.only_sys_type:
-                summary='Molecule: \n'
+                summary += 'Molecule: \n'
                 all_molecules=self.molecules([i for i in range(len(atoms))],atoms)
                 com=np.average(atoms.positions,axis=0)
-                summary+='COM: '+str(com)+', min z: '+str(np.min(atoms.positions[:,2]))+'\n'
+                summary += 'COM: '+str(com)+', min z: '+str(np.min(atoms.positions[:,2]))+'\n'
         if vacuum_x and vacuum_y and (not vacuum_z):
             is_a_wire=True
             sys_type='Wire'
             if not self.only_sys_type:
-                summary='Wire along z contains: \n'
+                summary += 'Wire along z contains: \n'
                 slabatoms=[ia for ia in range(len(atoms))]   
         if vacuum_y and vacuum_z and (not vacuum_x):
             is_a_wire=True
             sys_type='Wire'
             if not self.only_sys_type:
-                summary='Wire along x contains: \n'
+                summary += 'Wire along x contains: \n'
                 slabatoms=[ia for ia in range(len(atoms))]
         if vacuum_x and vacuum_z and (not vacuum_y):
             is_a_wire=True
             sys_type='Wire'
             if not self.only_sys_type:
-                summary='Wire along y contains: \n'
+                summary += 'Wire along y contains: \n'
                 slabatoms=[ia for ia in range(len(atoms))]        
         ####END check
         is_a_slab = not (is_a_bulk or is_a_molecule or is_a_wire)
@@ -379,33 +379,33 @@ class StructureAnalyzer(HasTraits):
                 slab_layers[idx].append(ia)
 
             ##end slab layers
-            summary='Slab '+slabtype+' contains: \n'
-        summary+='Cell: '+" ".join([str(i) for i in atoms.cell.diagonal().tolist()])+'\n'
+            summary += 'Slab '+slabtype+' contains: \n'
+        summary += 'Cell: '+" ".join([str(i) for i in atoms.cell.diagonal().tolist()])+'\n'
         if len(slabatoms) == 0:
             slab_elements = set([])
         else:
             slab_elements=set(atoms[slabatoms].get_chemical_symbols())
 
         if len(bottom_H) >0:
-            summary+='bottom H: ' + mol_ids_range(bottom_H)   + '\n'
+            summary += 'bottom H: ' + mol_ids_range(bottom_H)   + '\n'
         if len(slabatoms) > 0:    
-            summary+='slab atoms: '   + mol_ids_range(slabatoms)  + '\n' 
+            summary += 'slab atoms: '   + mol_ids_range(slabatoms)  + '\n' 
         for nlayer in range(len(slab_layers)):
-            summary+='slab layer '+str(nlayer+1)+': '+ mol_ids_range(slab_layers[nlayer])+'\n'    
+            summary += 'slab layer '+str(nlayer+1)+': '+ mol_ids_range(slab_layers[nlayer])+'\n'    
         if len(adatoms)>0:
 
-            summary+='adatoms: '  + mol_ids_range(adatoms)    + '\n'  
+            summary += 'adatoms: '  + mol_ids_range(adatoms)    + '\n'  
         if all_molecules:
 
-            summary+='#'+str(len(all_molecules))   + ' molecules: '
+            summary += '#'+str(len(all_molecules))   + ' molecules: '
             for nmols in range(len(all_molecules)):
-                summary+=str(nmols)+') '+ mol_ids_range(all_molecules[nmols])
+                summary+=str(nmols+1)+') '+ mol_ids_range(all_molecules[nmols])
 
-        summary+=' \n' 
+        summary += ' \n' 
         if len(mol_ids_range(metalatings))>0:
-            summary+='metal atoms inside molecules (already counted): '+ mol_ids_range(metalatings) + '\n'
+            summary += 'metal atoms inside molecules (already counted): '+ mol_ids_range(metalatings) + '\n'
         if len(mol_ids_range(unclassified))>0:
-            summary+='unclassified: ' + mol_ids_range(unclassified)
+            summary += 'unclassified: ' + mol_ids_range(unclassified)
 
         ## INDEXES FROM 0 if mol_ids_range is not called    
             

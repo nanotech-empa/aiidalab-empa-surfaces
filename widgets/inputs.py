@@ -72,6 +72,7 @@ class InputDetails(ipw.VBox):
         
     @observe('details')
     def _observe_details(self, _=None):
+        self.to_fix = []
         with self.output:
             clear_output()
             
