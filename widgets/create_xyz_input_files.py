@@ -2,6 +2,7 @@ from aiidalab_widgets_base.utils import string_range_to_list, list_to_string_ran
 from aiida.orm import StructureData , SinglefileData, Str
 from aiida.engine import calcfunction
 from ase import Atoms
+import numpy as np
 
 @calcfunction
 def make_geom_file(structure, filename,
@@ -25,8 +26,12 @@ def make_geom_file(structure, filename,
     spin_guess = [string_range_to_list(spin_u.value)[0],string_range_to_list(spin_d.value)[0]]
     if selection is None:
         atoms = structure.get_ase()
+        tags=np.zeros(len(atoms))
+        atoms.set_tags(tags)        
     else:
         atoms = structure.get_ase()[selection]
+        tags=np.zeros(len(atoms))
+        atoms.set_tags(tags)        
     n_atoms = len(atoms)
     tmpdir = tempfile.mkdtemp()
     file_path = tmpdir + "/" + filename
