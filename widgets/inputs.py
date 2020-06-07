@@ -11,6 +11,7 @@ from aiida.orm import Code
 #from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
 from apps.surfaces.widgets.cp2k2dict import CP2K2DICT
+from apps.surfaces.widgets.number_of_nodes import compute_cost,compute_nodes
 from aiida_cp2k.utils import Cp2kInput
 
 from apps.surfaces.widgets.get_cp2k_input import Get_CP2K_Input
@@ -667,7 +668,10 @@ class MetadataWidget(ipw.VBox):
         self.num_machines_scf = ipw.IntText(value=1, description='# Nodes_scf', style=STYLE, layout=LAYOUT2)
 
         self.num_mpiprocs_per_machine = ipw.IntText(value=12, description='# Tasks', style=STYLE, layout=LAYOUT2)
+        
 
+                                  
+        self.num_mpiprocs_per_machine.observe(self.guess_nodes)
         self.num_cores_per_mpiproc = ipw.IntText(value=1, description='# Threads', style=STYLE, layout=LAYOUT2)
 
         children = [
@@ -717,7 +721,10 @@ class MetadataWidget(ipw.VBox):
                     }
             }
 
-    
+    def guess_nodes(self,c=None):
+        if self.details and 'all_elements' in self.details.keys():
+            cost=compute_cost(self.details['all_elements'])
+            self.num_machines.value = compute_nodes(cost,self.num_mpiprocs_per_machine.value)    
     
     @observe('selected_code')
     def _observe_selected_code(self, _=None):
@@ -741,7 +748,8 @@ class MetadataWidget(ipw.VBox):
                     self.children = [
                         self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
                         ipw.HBox([ipw.HTML("walltime:"), self.walltime_d, self.walltime_h, self.walltime_m])
-                    ]                
+                    ]  
+            self.guess_nodes()
 
             
 SECTIONS_TO_DISPLAY = {
