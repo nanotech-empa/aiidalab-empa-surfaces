@@ -51,6 +51,7 @@ class InputDetails(ipw.VBox):
     do_cell_opt = Bool()
     uks = Bool()
     calc_type = Unicode()
+    net_charge = Int()
 
     def __init__(self,):
         """
@@ -270,6 +271,7 @@ class VdwSelectorWidget(ipw.ToggleButton):
 class UksSectionWidget(ipw.Accordion):
     details = Dict()
     uks = Bool()
+    net_charge = Int()
     calc_type = Unicode()
     manager = Instance(InputDetails, allow_none=True)
     def __init__(self):
@@ -302,7 +304,8 @@ class UksSectionWidget(ipw.Accordion):
         
         ## guess multiplicity
         def multiplicity_guess(c=None):
-            system_charge=self.details['total_charge'] + self.charge.value 
+            self.net_charge = self.charge.value
+            system_charge=self.details['total_charge'] - self.net_charge
             setu=set(string_range_to_list(self.spin_u.value)[0])
             setd=set(string_range_to_list(self.spin_d.value)[0])
             ## check if same atom entered in two different spins
@@ -377,6 +380,7 @@ class UksSectionWidget(ipw.Accordion):
             link((self.manager, 'details'), (self, 'details'))
             link((self.manager, 'calc_type'), (self, 'calc_type'))
             link((self.manager, 'uks'), (self, 'uks'))
+            link((self.manager, 'net_charge'), (self, 'net_charge'))
             self.widgets_to_show()
     
 class MixedDftWidget(ipw.ToggleButtons):
@@ -525,6 +529,7 @@ class FixedAtomsWidget(ipw.Text):
 class CellSectionWidget(ipw.Accordion):
     details = Dict()
     do_cell_opt = Bool()
+    net_charge = Int()
     manager = Instance(InputDetails, allow_none=True)
     
     def __init__(self):
@@ -538,10 +543,24 @@ class CellSectionWidget(ipw.Accordion):
 
 
         self.poisson_solver = ipw.Dropdown(description='Poisson solver',
-                                           options=['MT','PERIODIC', 'ANALYTIC','IMPLICIT',
-                                           'MULTIPOLE','WAVELET'],
+                                           options=['PERIODIC'],
                                            value='PERIODIC',
                                            style=STYLE, layout=LAYOUT2)
+        def observe_periodic(c=None):
+            if self.periodic.value == 'NONE':
+                self.poisson_solver.options = ['MT','ANALYTIC','IMPLICIT',
+                                           'MULTIPOLE','WAVELET']
+                self.poisson_solver.value = 'MT'
+            elif self.periodic.value == 'XYZ':
+                self.poisson_solver.options = ['PERIODIC']
+                self.poisson_solver.value = 'PERIODIC'
+                if self.net_charge:
+                    self.periodic.value = 'NONE'
+                
+        self.periodic.observe(observe_periodic)
+        
+
+        
         self.cell_sym  = ipw.Dropdown(description='symmetry',
                                       options=['CUBIC','HEXAGONL', 'MONOCLINIC','NONE',
                                                'ORTHORHOMBIC','RHOMBOHEDRAL','TETRAGONAL_AB',
@@ -551,6 +570,17 @@ class CellSectionWidget(ipw.Accordion):
 
         self.cell = ipw.Text(description='cell size',
                             style=STYLE, layout={'width': '60%'})
+        
+        
+        def observe_poisson(c=None):
+            if self.poisson_solver.value == 'MT':
+                cell = self.details['sys_size'] * 2 +15
+                self.cell.value = " ".join(map(str, [int(i) for i in cell.tolist()]))
+            elif self.poisson_solver.value == 'PERIODIC':
+                self.cell.value =  self.details['cell']
+                
+            
+        self.poisson_solver.observe(observe_poisson)        
         
         self.center_coordinates = ipw.RadioButtons(description='center coordinates',
                                                    options=['False', 'True'],
@@ -621,7 +651,10 @@ class CellSectionWidget(ipw.Accordion):
     def _observe_do_cell_opt(self,_=None):
         self.widgets_to_show()
 
-        
+    @observe('net_charge')    
+    def _observe_net_charge(self,_=None):
+        if self.net_charge:
+            self.periodic.value = 'NONE'
     
         
     
@@ -632,6 +665,7 @@ class CellSectionWidget(ipw.Accordion):
         else:
             link((self.manager, 'details'), (self, 'details'))
             link((self.manager, 'do_cell_opt'), (self, 'do_cell_opt'))
+            link((self.manager, 'net_charge'), (self, 'net_charge'))
             self.cell.value = self.details['cell']
             self.widgets_to_show()
 
