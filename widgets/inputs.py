@@ -75,6 +75,9 @@ class InputDetails(ipw.VBox):
     @observe('details')
     def _observe_details(self, _=None):
         self.to_fix = []
+        self.net_charge = 0
+        self.do_cell_opt = False
+        self.uks = False
         with self.output:
             clear_output()
             
@@ -554,7 +557,7 @@ class CellSectionWidget(ipw.Accordion):
             elif self.periodic.value == 'XYZ':
                 self.poisson_solver.options = ['PERIODIC']
                 self.poisson_solver.value = 'PERIODIC'
-                if self.net_charge:
+                if self.net_charge and self.details['system_type']=='Molecule':
                     self.periodic.value = 'NONE'
                 
         self.periodic.observe(observe_periodic)
@@ -653,7 +656,7 @@ class CellSectionWidget(ipw.Accordion):
 
     @observe('net_charge')    
     def _observe_net_charge(self,_=None):
-        if self.net_charge:
+        if self.net_charge and self.details['system_type']=='Molecule':
             self.periodic.value = 'NONE'
     
         
