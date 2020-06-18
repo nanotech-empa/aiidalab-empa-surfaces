@@ -25,12 +25,11 @@ class BuildSlab(ipw.VBox):
     details = Dict()
     slab = Instance(Atoms, allow_none=True)
     manager = Instance(StructureManagerWidget, allow_none=True)
-    def __init__(self):
-
+    def __init__(self, title=''):
+        self.title = title
         self.drop_surface = ipw.Dropdown(description="Surface",
-                                    options=["Au(111)","Ag(111)","Cu(111)","hBN","PdGa_A_Pd1","PdGa_A_Pd3"],
+                                    options=["Au(111)", "Ag(111)", "Cu(111)", "hBN", "PdGa_A_Pd1", "PdGa_A_Pd3"],
                                     value="Au(111)"
-        #                           ,style=style, layout=layout
                                     )
         self.nx_slider = ipw.IntSlider(description="nx", min=1, max=60, continuous_update=False)
         self.ny_slider = ipw.IntSlider(description="ny", min=1, max=30, continuous_update=False)

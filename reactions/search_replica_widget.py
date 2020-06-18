@@ -27,11 +27,6 @@ from aiida.plugins import WorkflowFactory, CalculationFactory
 
 from .collective_variables import COLVARS
 
-
-ReplicaWorkchain = WorkflowFactory('replica')
-Cp2kCalculation = CalculationFactory('cp2k')
-
-
 style = {'description_width': '120px'}
 layout = {'width': '70%'}
 
