@@ -65,6 +65,8 @@ def default_vis_func(structure):
             }
         }
     return vis_dict ,details
+
+
 class EmpaStructureViewer(StructureDataViewer):
     DEFAULT_SELECTION_OPACITY = 0.2
     DEFAULT_SELECTION_RADIUS = 6
@@ -213,7 +215,7 @@ class EmpaStructureViewer(StructureDataViewer):
             return
                 
         else:   
-            vis_dict,self.details = self.vis_func(self.structure) # self.vis_func(self.structure)
+            vis_dict, self.details = self.vis_func(self.structure) # self.vis_func(self.structure)
 
             ## keys must be integers 0,1,2,...
             if vis_dict:
@@ -271,11 +273,7 @@ class EmpaStructureViewer(StructureDataViewer):
     @observe('structure')
     def _update_displayed_structure(self, change):
         super()._update_displayed_structure(change=change)
-        if(self.vis_func) : self.custom_vis()
+        with self.hold_trait_notifications():
+            if(self.vis_func) : self.custom_vis()
         self.orient_z_up()
     
-#    @observe('displayed_structure')
-#    def _update_structure_viewer(self, change):
-#        super()._update_structure_viewer(change)
-#        if(self.vis_func) : self.custom_vis()
-#
