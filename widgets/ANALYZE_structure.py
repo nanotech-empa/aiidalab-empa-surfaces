@@ -250,7 +250,8 @@ class StructureAnalyzer(HasTraits):
     
     @observe('structure')
     def _observe_structure(self, _=None):
-        self.details = self.analyze()
+        with self.hold_trait_notifications():
+            self.details = self.analyze()
             
     def analyze(self):
         #print(self.who_called_me,' called analyzer with fast: ',self.only_sys_type)
