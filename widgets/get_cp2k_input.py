@@ -1,709 +1,871 @@
-from apps.surfaces.widgets.find_mol import mol_ids_range
+from aiidalab_widgets_base.utils import string_range_to_list, list_to_string_range
 import numpy as np
 import itertools
+import copy
 
-from aiida.orm.data.base import Int, Float, Str, Bool
+#from aiida.orm import Int, Float, Str, Bool, List
+#from aiida.orm import  Dict
+import copy
 
 ATOMIC_KINDS = {
-    'H' :('TZV2P-MOLOPT-GTH','GTH-PBE-q1'),
-    'Au':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q11'),
-    'Ag':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q11'),
-    'Cu':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q11'),
-    'Al':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q3'),
-    'B' :('DZVP-MOLOPT-SR-GTH','GTH-PBE-q3'),
-    'Br':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q7'),
-    'C' :('TZV2P-MOLOPT-GTH','GTH-PBE-q4'),
-    'Ga':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q13'),        
-    'N' :('TZV2P-MOLOPT-GTH','GTH-PBE-q5'),
-    'O' :('TZV2P-MOLOPT-GTH','GTH-PBE-q6'),
-    'Pd':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q18'),
-    'S' :('TZV2P-MOLOPT-GTH','GTH-PBE-q6'),
-    'Zn':('DZVP-MOLOPT-SR-GTH','GTH-PBE-q12')
+    'H' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q1'   },
+    'Au':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
+    'Ag':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
+    'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
+    'Al':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'   },
+    'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'   },
+    'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q7'   },
+    'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q4'   },
+    'Si':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-GTH'    , 'pseudo' : 'GTH-PBE-q4'   },
+    'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13'  },        
+    'N' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q5'   },
+    'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   },
+    'Pd':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q18'  },
+    'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   },
+    'Zn':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q12'  },
 }
+
+for element in ATOMIC_KINDS.keys():
+    ATOMIC_KINDS[element]['RI_AUX'] = None
+    ATOMIC_KINDS[element]['RI_HFX_BASIS_all'] = None
+    
+ATOMIC_KINDS['H']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['C']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['H']['GW_BASIS_SET'] = 'aug-cc-pVDZ-GTH'
+ATOMIC_KINDS['C']['GW_BASIS_SET'] = 'aug-cc-pVDZ-GTH'
 
 # possible metal atoms for empirical substrate
 METAL_ATOMS = ['Au', 'Ag', 'Cu']
 
-def get_cp2k_input(align                 = None, 
-                   atoms                 = None,
-                   calc_type             = None,                   
-                   cell                  = None,
-                   cell_free             = None,
-                   cell_sym              = None,
-                   center_switch         = None,
-                   colvar_target         = None, 
-                   corr_occ              = None,
-                   corr_virt             = None,
-                   endpoints             = None,
-                   eps_filter            = None,
-                   eps_grid              = None,
-                   eps_schwarz           = None,
-                   ev_sc_iter            = None,
-                   first_slab_atom       = None,
-                   fixed_atoms           = None,
-                   functional            = None,
-                   gw_type               = None,
-                   group_size            = None,
-                   last_slab_atom        = None,
-                   max_force             = None,                    
-                   mgrid_cutoff          = None,                    
-                   machine_cores         = None,
-                   multiplicity          = None,
-                   nproc_rep             = None,
-                   nreplicas             = None,
-                   nreplica_files        = None,
-                   nstepsit              = None,
-                   remote_calc_folder    = None,
-                   replica_name          = None,
-                   rotate                = None,
-                   rpa_num_quad_points   = None,
-                   size_freq_integ_group = None,
-                   spin_guess            = None,
-                   spring                = None,
-                   spring_unit           = None,
-                   struc_folder          = None,
-                   subsys_colvar         = None,
-                   system_charge         = None,
-                   target_unit           = None,
-                   uks_switch            = None,
-                   vdw_switch            = None,
-                   walltime              = None, 
-                   workchain             = None,
-                   wfn_cp_commands       = None
-                   ):
+DEFAULT_INPUT_DICT ={
+# GENERAL
+        'added_mos'             : False                 ,
+        'atoms'                 : None                  ,
+        'calc_type'             : 'Full DFT'            ,
+        'cell'                  : None                  ,
+        'cell_free'             : None                  ,
+        'cell_sym'              : 'ORTHORHOMBIC'        , 
+        'center_coordinates'    : False                 ,
+        'charge'                : 0                     , 
+        'corr_occ'              : 10                    , 
+        'corr_virt'             : 10                    , 
+        'first_slab_atom'       : None                  , 
+        'fixed_atoms'           : ''                    ,
+        'functional'            : 'PBE'                 , 
+        'gw_type'               : None                  , 
+        'last_slab_atom'        : None                  , 
+        'max_force'             : 0.0001                ,
+        'max_memory'            : 0                     ,
+        'mgrid_cutoff'          : 600                   , 
+        'mpi_tasks'             : None                  , 
+        'multiplicity'          : 0                     , 
+        'diag_method'             : 'OT'                  ,
+        'parent_folder'         : None                  , # why is ext_restart named this?
+        'periodic'              : None                  ,
+        'poisson_solver'        : None                  ,
+        #'remote_calc_folder'    : None                  , 
+        'smear'                 : False                 ,
+        'spin_d'                : ''                    ,
+        'spin_u'                : ''                    , 
+        #'struc_folder'          : None                  , 
+        'vdw_switch'            : None                  , 
+        'walltime'              : 86000                 , 
+        'workchain'             : 'SlabGeoOptWorkChain' , 
+# NEB & Replica chain
+        'align'                 : False                 ,
+        'colvar_target'         : None                  ,   
+        'endpoints'             : True                  ,
+        'nproc_rep'             : None                  , 
+        'nreplicas'             : None                  , 
+        'nreplica_files'        : None                  , 
+        'nstepsit'              : 5                     ,
+        'rotate'                : False                 , 
+        'spring'                : 0.05                  , 
+        'spring_unit'           : None                  , 
+        'subsys_colvar'         : None                  , 
+        'target_unit'           : None                  , 
+}
     
-    print("CALC TYPE ",calc_type)
-    RUN_TYPE={'SlabGeoOptWorkChain'  : 'GEO_OPT',
-              'NEBWorkchain'         : 'BAND',
-              'ReplicaWorkchain'     : 'GEO_OPT',
-              'CellOptWorkChain'     : 'CELL_OPT',
-              'BulkOptWorkChain'     : 'GEO_OPT',
-              'MoleculeOptWorkChain' : 'GEO_OPT'
-             }
 
+########py_type_conversion={type(Str(''))   : str   ,
+########                   type(Bool(True)) : bool  ,
+########                   type(Float(1.0)) : float ,
+########                   type(Int(1))     : int
+########                  }
+########
+########def to_py_type(aiida_obj):
+########    if type(aiida_obj) in py_type_conversion.keys():
+########        return py_type_conversion[type(aiida_obj)](aiida_obj)
+########    elif type(aiida_obj) == type(List()):                
+########        pylist=list(aiida_obj)
+########        return pylist
+########    elif type(aiida_obj) == type(Dict()):                
+########        pydict=aiida_obj.get_dict()
+########        return pydict
+########    else:
+########        return aiida_obj
 
-    inp = {
-        'GLOBAL': {
-            'RUN_TYPE': RUN_TYPE[workchain.value],
-            'WALLTIME': '%d' % walltime,
-            'PRINT_LEVEL': 'LOW',
-            'EXTENDED_FFT_LENGTHS': ''
-        },
-        'MOTION': get_motion(align           = align,
-                             cell_free       = cell_free,
-                             endpoints       = endpoints,
-                             fixed_atoms     = fixed_atoms,
-                             max_force       = max_force,
-                             nproc_rep       = nproc_rep,
-                             nreplicas       = nreplicas,
-                             nstepsit        = nstepsit,
-                             rotate          = rotate,
-                             spring          = spring,
-                             nreplica_files  = nreplica_files,
-                             workchain=workchain
-                            ),
-        'FORCE_EVAL': [],
-    }
-
-    if remote_calc_folder is not None:
-        inp['EXT_RESTART'] = {
-            'RESTART_FILE_NAME': './parent_calc/aiida-1.restart'
-        }    
-
-    if calc_type == 'Mixed DFTB':
-        inp['FORCE_EVAL'] = [force_eval_mixed(
-                                cell            = cell,
-                                first_slab_atom = first_slab_atom,
-                                last_slab_atom  = last_slab_atom,
-                                machine_cores   = machine_cores),
-                                force_eval_fist(
-                                          atoms = atoms,
-                                          cell  = cell
-                                ),
-                                get_force_eval_qs_dftb(
-                                          cell  = cell,
-                                          vdw_switch = vdw_switch
-                                )
-                            ]
-        inp['MULTIPLE_FORCE_EVALS'] = {
-            'FORCE_EVAL_ORDER': '2 3',
-            'MULTIPLE_SUBSYS': 'T'
-        }
-    elif calc_type == 'Mixed DFT':
-        inp['FORCE_EVAL'] = [force_eval_mixed(
-                                              cell             = cell,
-                                              first_slab_atom  = first_slab_atom,
-                                              last_slab_atom   = last_slab_atom,
-                                              machine_cores    = machine_cores),
-                                              force_eval_fist(
-                                                         atoms = atoms,
-                                                         cell  = cell
-                                              ),
-                                              get_force_eval_qs_dft(
-                                                         atoms         = atoms,
-                                                         cell          = cell,
-                                                         center_switch = center_switch,
-                                                         mgrid_cutoff  = mgrid_cutoff,
-                                                         vdw_switch    = vdw_switch,
-                                                         topology      = 'mol.xyz'
-                                                       )
-                            ]
-        
-        inp['MULTIPLE_FORCE_EVALS'] = {
-            'FORCE_EVAL_ORDER': '2 3',
-            'MULTIPLE_SUBSYS': 'T'
-        }
-        
-###FULL DFT CALCULATIONS
-    elif calc_type == 'Full DFT':
-        ## XYZ file name for DFT section    
-
-        if workchain.value == 'NEBWorkchain':
-            full_dft_topology = 'replica1.xyz'
-        elif workchain.value == 'SlabGeoOptWorkChain':
-            full_dft_topology = 'mol_on_slab.xyz'
-        elif workchain.value == 'MoleculeOptWorkChain':
-            full_dft_topology = 'mol.xyz'            
-        else:
-            full_dft_topology = 'bulk.xyz'
-            
-        inp['FORCE_EVAL'] = [get_force_eval_qs_dft(
-                                atoms                 = atoms                 ,
-                                cell                  = cell                  ,
-                                cell_sym              = cell_sym              ,
-                                center_switch         = center_switch         ,
-                                corr_occ              = corr_occ              ,
-                                corr_virt             = corr_virt             ,
-                                eps_filter            = eps_filter            ,
-                                eps_grid              = eps_grid              ,
-                                eps_schwarz           = eps_schwarz           ,
-                                ev_sc_iter            = ev_sc_iter            ,
-                                gw_type               = gw_type               ,
-                                group_size            = group_size            ,
-                                mgrid_cutoff          = mgrid_cutoff          ,
-                                multiplicity          = multiplicity          ,
-                                rpa_num_quad_points   = rpa_num_quad_points   ,
-                                size_freq_integ_group = size_freq_integ_group ,
-                                spin_guess            = spin_guess            ,
-                                system_charge         = system_charge         ,
-                                topology              = full_dft_topology     ,
-                                uks_switch            = uks_switch            ,                               
-                                vdw_switch            = vdw_switch            ,                                
-                                workchain             = workchain
-                             )
-                            ]
-
-    return inp
-
-
-###MOTION SECTION
-def get_motion(fixed_atoms    = None,
-               cell_free      = None,
-               max_force      = None,
-               nproc_rep      = None,
-               nreplicas      = None,
-               nreplica_files = None,
-               spring         = None,
-               rotate         = None,
-               align          = None,
-               nstepsit       = None,
-               endpoints      = None,
-               workchain      = None
-              ):
+class Get_CP2K_Input():
+    def __init__(self,input_dict = None):
     
-    motion = {
-               'PRINT' : {
-                  'RESTART_HISTORY' :{'_': 'OFF'},
-               },
-        'CONSTRAINT': {
-            'FIXED_ATOMS': {
-                'LIST': '%s' % (fixed_atoms),
-            }
-        }
-    }
+        self.inp_dict = copy.deepcopy(DEFAULT_INPUT_DICT)
+        for inp_key in input_dict:
+            #self.inp_dict[inp_key] = to_py_type(input_dict[inp_key]) 
+            self.inp_dict[inp_key] = input_dict[inp_key]
 
-  
-    #GEO_OPT
-    if workchain.value == 'SlabGeoOptWorkChain' or workchain.value == 'BulkOptWorkChain':
-        motion['GEO_OPT'] = {
-                'MAX_FORCE': '%f' % (max_force),
-                'MAX_ITER': '5000',
-                'OPTIMIZER': 'BFGS',
-                     'BFGS' : {
-                         'TRUST_RADIUS' : '[bohr] 0.1',
-                     },
-        }
-    #END GEO_OPT
-    
-    #CELL_OPT
-    if workchain.value == 'CellOptWorkChain':
-        motion['CELL_OPT'] = {
-                'OPTIMIZER': 'BFGS',
-                'TYPE': 'DIRECT_CELL_OPT',
-                'MAX_FORCE': '%f' % (max_force),
-                'EXTERNAL_PRESSURE' : '0',
-                'MAX_ITER': '500'
-                 }
-        if cell_free !='FREE':
-            motion['CELL_OPT'][str(cell_free)] = ''
-    #END CELL_OPT
-    
-    #NEB
-    if workchain.value == 'NEBWorkchain':
-            
-        motion['BAND']= {
-                'NPROC_REP': nproc_rep,
-                'BAND_TYPE': 'CI-NEB',
-                'NUMBER_OF_REPLICA': nreplicas,
-                'K_SPRING': str(spring),
-                'CONVERGENCE_CONTROL': {
-                    'MAX_FORCE': str(max_force),
-                    'RMS_FORCE': str(Float(max_force)*10),
-                    'MAX_DR': str(Float(max_force)*20),
-                    'RMS_DR': str(Float(max_force)*50)
-                },
-                'ROTATE_FRAMES': str(rotate)[0],
-                'ALIGN_FRAMES': str(align)[0],
-                'CI_NEB': {
-                    'NSTEPS_IT': str(nstepsit)
-                },
-                'OPTIMIZE_BAND': {
-                    'OPT_TYPE': 'DIIS',
-                    'OPTIMIZE_END_POINTS': str(endpoints)[0],
-                    'DIIS': {
-                        'MAX_STEPS': 1000
+        self.qs_default={
+                    'METHOD': 'GPW',
+                    'EXTRAPOLATION': 'ASPC',
+                    'EXTRAPOLATION_ORDER': '3',
+                    'EPS_DEFAULT': '1.0E-14',
+                    } 
+        self.qs_gw={
+                    'METHOD'             : 'GPW',
+                    'EPS_PGF_ORB'        : '1.0E-80',
+                    'EPS_FILTER_MATRIX'  : '1.0E-80'
                     }
-                },
-                'PROGRAM_RUN_INFO': {
-                    'INITIAL_CONFIGURATION_INFO': ''
-                },
-                'CONVERGENCE_INFO': {
-                    '_': ''
-                },
-                'REPLICA': []
-            }
+        self.qs_neb={
+                                  'METHOD': 'GPW',
+                                  'EXTRAPOLATION': 'USE_GUESS',
+                                  'EPS_DEFAULT': '1.0E-14',
+                                }
 
+        self.xc_default={
+                    'XC_FUNCTIONAL': {'_': 'PBE'},
+                }
 
-        # The fun part
-        for r in range(nreplica_files):
-            motion['BAND']['REPLICA'].append({
-               'COORD_FILE_NAME': 'replica{}.xyz'.format(r+1)
-           })
-
-    ##END NEB 
-           
-    ##REPLICA CHAIN
-    if workchain.value == 'ReplicaWorkchain':
+        ### XC FOR GW
+        self.xc_gw = {}
         
-        motion['CONSTRAINT'].append({
-                           'COLLECTIVE': {
-                               'COLVAR': 1,
-                               'RESTRAINT': {
-                                   'K': '[{}] {}'.format(spring_unit, spring)
-                               },
-                               'TARGET': '[{}] {}'.format(target_unit, colvar_target),
-                               'INTERMOLECULAR': ''
-                           }                                              
-        })
-        ##END REPLICA CHAIN
-    
-    return motion 
-
-def force_eval_mixed(cell=None, first_slab_atom=None, last_slab_atom=None,
-                     machine_cores=None):
-    first_mol_atom = 1
-    last_mol_atom = first_slab_atom - 1
-
-    mol_delim = (first_mol_atom, last_mol_atom)
-    slab_delim = (first_slab_atom, last_slab_atom)
-
-    force_eval = {
-        'METHOD': 'MIXED',
-        'MIXED': {
-            'MIXING_TYPE': 'GENMIX',
-            'GROUP_PARTITION': '2 %d' % (machine_cores-2),
-            'GENERIC': {
-                'ERROR_LIMIT': '1.0E-10',
-                'MIXING_FUNCTION': 'E1+E2',
-                'VARIABLES': 'E1 E2'
-            },
-            'MAPPING': {
-                'FORCE_EVAL_MIXED': {
-                    'FRAGMENT':
-                        [{'_': '1', ' ': '%d  %d' % mol_delim},
-                         {'_': '2', ' ': '%d  %d' % slab_delim}],
-                },
-                'FORCE_EVAL': [{'_': '1', 'DEFINE_FRAGMENTS': '1 2'},
-                               {'_': '2', 'DEFINE_FRAGMENTS': '1'}],
+        #maybe we will reintroduce EPS_DEFAULT
+        #if self.inp_dict['gw_type'] is not None:
+        #            self.qs_gw['EPS_DEFAULT']=self.inp_dict['eps_default']
+        if self.inp_dict['gw_type']=='GW':                   
+            self.xc_gw={
+                    'XC_FUNCTIONAL': {'_': 'PBE'}, 
+                    'WF_CORRELATION': {
+                        'RI_RPA': {
+                            'RPA_NUM_QUAD_POINTS': '100', 
+                            'GW': {
+                                'CORR_MOS_OCC': '20', 
+                                'CORR_MOS_VIRT': '20', 
+                                'EV_GW_ITER': '10', 
+                                'NPARAM_PADE': '16', 
+                                'RI_SIGMA_X': ''
+                            }
+                        }
+                    }
             }
-        },
-        'SUBSYS': {
-                'CELL': {'A': '%f %f %f' % (cell[0],cell[1],cell[2]),
-                         'B': '%f %f %f' % (cell[3],cell[4],cell[5]),
-                         'C': '%f %f %f' % (cell[6],cell[7],cell[8]),                         
+        elif self.inp_dict['gw_type']=='GW-IC':           
+            self.xc_gw={
+                    'XC_FUNCTIONAL': {'_': 'PBE'}, 
+                    'WF_CORRELATION': {
+                        'RI': {
+                            'RI_METRIC': {
+                                'POTENTIAL_TYPE': 'IDENTITY'
+                            }
+                        }, 
+                        'LOW_SCALING': {}, 
+                        'RI_RPA': {
+                            'GW': {
+                                'CORR_MOS_OCC': '10', 
+                                'CORR_MOS_VIRT': '10', 
+                                'IC': ['', {}]
+                            }
+                        }
+                    }
+            }            
+
+        elif self.inp_dict['gw_type']=='GW-LS': 
+#    &XC
+#      &XC_FUNCTIONAL PBE
+#      &END XC_FUNCTIONAL
+#      &WF_CORRELATION
+#        METHOD RI_RPA_GPW
+#        RI OVERLAP
+#        ERI_METHOD OS
+#        &WFC_GPW
+#          ! normally, this EPS_FILTER controls the accuracy and
+#          ! the time for the cubic_scaling RPA calculation
+#          ! values like this should be really safe
+#          EPS_FILTER  1.0E-20
+#          EPS_GRID 1.0E-30
+#          EPS_PGF_ORB_S 1.0E-30
+#        &END
+#        &RI_RPA
+#          RPA_NUM_QUAD_POINTS    12   ! same as for N^4-scaling GW. For low-scaling GW, we do computations in imaginary time 
+#                                      ! and imaginary frequency and we use a special time/frequency grid ("minimax grid"). 
+#                                      ! The highest number is 20 because the generation for grids with more than 20 points 
+#                                      ! is numerically unstable. 
+#                                      ! 12 points is a good compromise between good accuracy, good numerical stability 
+#                                      ! and fast computation.
+#          MINIMAX
+#          IM_TIME
+#          &IM_TIME
+#           EPS_FILTER_IM_TIME 1.0E-20
+#           GROUP_SIZE_3C 32            ! a group size to do computations
+#           GROUP_SIZE_P 4              ! another group size to do computations
+#           MEMORY_CUT 12               ! high memory cut reduces memory to prevent out of memory but the computation takes longer. 
+#                                       ! For Patrick's tensors which may come soon, this number can be lowered.
+#           GW
+#           MEMORY_INFO
+#          &END
+#          &RI_G0W0                     ! all the parameters below are as in normal GW
+#            FIT_ERROR
+#            CORR_OCC 2
+#            CORR_VIRT 2
+#            CROSSING_SEARCH NEWTON
+#            CHECK_FIT
+#            EV_SC_ITER 1
+#            OMEGA_MAX_FIT 1.0
+#            ANALYTIC_CONTINUATION PADE
+#            RI OVERLAP
+#            RI_SIGMA_X
+#            PRINT_GW_DETAILS
+#          &END RI_G0W0
+#        &END RI_RPA
+#      &END
+#    &END XC
+    
+           self.xc_gw={
+                       'XC_FUNCTIONAL': {'_': 'PBE'},
+                       'WF_CORRELATION' : {
+                                          'METHOD'     : 'RI_RPA_GPW',
+                                          'RI'         : 'OVERLAP', 
+                                          'ERI_METHOD' : 'OS',
+                                         'WFC_GPW' : {
+                                                     'EPS_FILTER'    : str(self.inp_dict['eps_filter']),
+                                                     'EPS_GRID'      : str(self.inp_dict['eps_grid']),
+                                                     'EPS_PGF_ORB_S' : str(self.inp_dict['eps_pgf_orb_s'])
+                                         },#END
+                                         'RI_RPA' : {
+                                                    'RPA_NUM_QUAD_POINTS' : '%d' %(np.min([self.inp_dict['rpa_num_quad_points'],20])),
+                                                    'MINIMAX'             : '',
+                                                    'IM_TIME '             : '',
+                                                    'IM_TIME' : {
+                                                                'EPS_FILTER_IM_TIME' : str(self.inp_dict['eps_filter_im_time']),
+                                                                'GROUP_SIZE_3C'      : str(self.inp_dict['group_size_3c']),
+                                                                'GROUP_SIZE_P'       : str(self.inp_dict['group_size_p']),
+                                                                'MEMORY_CUT'         : str(self.inp_dict['memory_cut']),
+                                                                'GW'                 : '',
+                                                                'MEMORY_INFO'        : ''
+                                                    },#END IM_TIME
+                                                    'RI_G0W0' : {
+                                                                'FIT_ERROR'             : '',
+                                                                'CORR_OCC'              : '%d' %(self.inp_dict['corr_occ']),
+                                                                'CORR_VIRT'             : '%d' %(self.inp_dict['corr_virt']),
+                                                                'CROSSING_SEARCH'       : 'NEWTON',
+                                                                'CHECK_FIT'             : '',
+                                                                'EV_SC_ITER'            : '%d' %(self.inp_dict['ev_sc_iter']),
+                                                                'OMEGA_MAX_FIT'         : '1.0',
+                                                                'ANALYTIC_CONTINUATION' : 'PADE',
+                                                                'RI'                    : 'OVERLAP',
+                                                                'RI_SIGMA_X'            : '',
+                                                                'PRINT_GW_DETAILS'      : ''
+                                                    }#END RI_G0W0
+                                         }#END RI_RPA
+                       }#END WF_CORRELATION
+           }#END XC    
+    
+        ###END XC FOR GW
+
+
+        self.sections_dict={
+           'SlabGeoOptWorkChain'  :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True},
+           'ReplicaWorkChain'     :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True},
+           'CellOptWorkChain'     :{'run_type' : 'CELL_OPT', 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True}, 
+           'BulkOptWorkChain'     :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True}, 
+           'MoleculeOptWorkChain' :{'run_type' : 'GEO_OPT' , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : True},
+           'GWWorkChain'          :{'run_type' : 'ENERGY'  , 'xc' : self.xc_gw      , 'qs' : self.qs_gw      , 'motion' : False},
+           'MoleculeKSWorkChain'  :{'run_type' : 'ENERGY'  , 'xc' : self.xc_default , 'qs' : self.qs_default , 'motion' : False}, # name to just SCF ?
+           'NEBWorkChain'         :{'run_type' : 'BAND'    , 'xc' : self.xc_default , 'qs' : self.qs_neb     , 'motion' : True},
+
+        }    
+    
+################ START INPUT SECTIONS
+        self.workchain=self.inp_dict['workchain']
+        self.cell=self.inp_dict['cell'].split()
+        if len(self.cell) == 3:
+            self.cell=np.diag(np.array(self.cell, dtype=float)).flatten().tolist()
+        else :
+            self.cell=np.array(self.cell, dtype=float).flatten().tolist()
+        self.inp = {
+            'GLOBAL': {
+                'RUN_TYPE': self.sections_dict[self.workchain]['run_type'],
+                'WALLTIME': '%d' % (int(self.inp_dict['walltime'])*0.97),
+                'PRINT_LEVEL': 'LOW',
+                'EXTENDED_FFT_LENGTHS': ''
+            },
+            'FORCE_EVAL': [],
+        }
+        
+        if self.inp_dict['gw_type']:
+            self.inp['GLOBAL']['PRINT_LEVEL']='MEDIUM'
+                         
+                         
+        ### CHECK WHETHER MOTION SECTION NEEDED OR NOT
+        if self.sections_dict[self.workchain]['motion']:
+            self.inp['MOTION']=self.get_motion()
+            
+        ### EXTERNAL RESTART from parent folder
+        if self.inp_dict['parent_folder'] is not None:
+            self.inp['EXT_RESTART'] = {
+                'RESTART_FILE_NAME': '   ./parent_calc/aiida-1.restart'
+            }    
+        ### FORCEVAL case MIXED DFTB
+        if self.inp_dict['calc_type'] == 'Mixed DFTB':
+            self.inp['FORCE_EVAL'] = [self.force_eval_mixed(),
+                                 self.force_eval_fist(),
+                                 self.get_force_eval_qs_dftb()
+                                ]
+            self.inp['MULTIPLE_FORCE_EVALS'] = {
+                'FORCE_EVAL_ORDER': '2 3',
+                'MULTIPLE_SUBSYS': 'T'
+            }
+            
+        ### FORCEVAL case MIXED DFT    
+        elif self.inp_dict['calc_type'] == 'Mixed DFT':
+            self.inp_dict['topology'] = 'mol.xyz' 
+            self.inp['FORCE_EVAL'] = [self.force_eval_mixed(),
+                                 self.force_eval_fist(),
+                                 self.get_force_eval_qs_dft()
+                                ]
+
+            self.inp['MULTIPLE_FORCE_EVALS'] = {
+                'FORCE_EVAL_ORDER': '2 3',
+                'MULTIPLE_SUBSYS': 'T'
+            }
+
+        ### FULL DFT CALCULATIONS
+        elif self.inp_dict['calc_type'] == 'Full DFT':
+            ## XYZ file name for DFT section    
+
+            if self.workchain == 'NEBWorkChain':
+                full_dft_topology = 'replica1.xyz'
+            elif self.workchain == 'SlabGeoOptWorkChain':
+                full_dft_topology = 'mol_on_slab.xyz'
+            elif self.workchain == 'MoleculeOptWorkChain':
+                full_dft_topology = 'mol.xyz'  
+            elif self.workchain == 'GWWorkChain':
+                full_dft_topology = 'mol.xyz'
+            else:
+                full_dft_topology = 'bulk.xyz'
+            self.inp_dict['topology'] = full_dft_topology    
+            self.inp['FORCE_EVAL'] = self.get_force_eval_qs_dft()
+            
+        # ----
+        # add the colvar subsystem for Replica calcs
+        subsys_cv = self.inp_dict['subsys_colvar']
+        if subsys_cv is not None:
+            if isinstance(self.inp['FORCE_EVAL'],list):
+                # mixed environment, add only to first force_eval
+                self.inp['FORCE_EVAL'][0]['SUBSYS']['COLVAR'] = subsys_cv
+            else:
+                self.inp['FORCE_EVAL']['SUBSYS']['COLVAR'] = subsys_cv
+        # ----
+
+    ### MOTION SECTION
+    def get_motion(self):
+
+#        motion = {
+#                   'PRINT' : {
+#                      'RESTART_HISTORY' :{'_': 'OFF'},
+#                   },
+#            'CONSTRAINT': {
+#                'FIXED_ATOMS': {
+#                    'LIST': '%s' % (self.inp_dict['fixed_atoms']),
+#                }
+#            }
+#        }
+
+        motion = {
+                   'PRINT' : {
+                      'RESTART_HISTORY' :{'_': 'OFF'},
+                   }
+        }
+        if len(self.inp_dict['fixed_atoms'].split()) >0:
+            motion['CONSTRAINT']={
+                'FIXED_ATOMS': {
+                    'LIST': '%s' % (self.inp_dict['fixed_atoms']),
+                }
+            }
+
+        ### GEO_OPT
+        if self.workchain == 'SlabGeoOptWorkChain' or self.workchain == 'BulkOptWorkChain' or self.workchain == 'MoleculeOptWorkChain' :
+            motion['GEO_OPT'] = {
+                    'MAX_FORCE': '%f' % (self.inp_dict['max_force']),
+                    'MAX_ITER': '1000',
+                    'OPTIMIZER': 'BFGS',
+                         'BFGS' : {
+                             'TRUST_RADIUS' : '[bohr] 0.1',
                          },
-            'TOPOLOGY': {
-                'COORD_FILE_NAME': 'mol_on_slab.xyz',
-                'COORDINATE': 'XYZ',
-                'CONNECTIVITY': 'OFF',
+            }
+        ### END GEO_OPT
+
+        ### CELL_OPT
+        if self.workchain == 'CellOptWorkChain':
+            motion['CELL_OPT'] = {
+                    'OPTIMIZER': 'BFGS',
+                    'TYPE': 'DIRECT_CELL_OPT',
+                    'MAX_FORCE': '%f' % (self.inp_dict['max_force']),
+                    'EXTERNAL_PRESSURE' : '0',
+                    'MAX_ITER': '1000'
+                     }
+            if self.inp_dict['cell_free'] !='FREE':
+                motion['CELL_OPT'][str(self.inp_dict['cell_free'])] = ''
+        #### END CELL_OPT
+
+        ### NEB
+        if self.workchain == 'NEBWorkChain':
+
+            motion['BAND']= {
+                    'NPROC_REP'           : self.inp_dict['nproc_rep'],
+                    'BAND_TYPE'           : 'CI-NEB',
+                    'NUMBER_OF_REPLICA'   : self.inp_dict['nreplicas'],
+                    'K_SPRING'            : str(self.inp_dict['spring']),
+                    'CONVERGENCE_CONTROL' : {
+                        'MAX_FORCE'       : str(self.inp_dict['max_force']),
+                        'RMS_FORCE'       : str(float(self.inp_dict['max_force'])*10),
+                        'MAX_DR'          : str(float(self.inp_dict['max_force'])*20),
+                        'RMS_DR'          : str(float(self.inp_dict['max_force'])*50)
+                    },
+                    'ROTATE_FRAMES'       : str(self.inp_dict['rotate']),
+                    'ALIGN_FRAMES'        : str(self.inp_dict['align']),
+                    'CI_NEB': {
+                        'NSTEPS_IT'       : str(self.inp_dict['nstepsit'])
+                    },
+                    'OPTIMIZE_BAND': {
+                        'OPT_TYPE': 'DIIS',
+                        'OPTIMIZE_END_POINTS': str(self.inp_dict['endpoints']),
+                        'DIIS': {
+                            'MAX_STEPS': '1000'
+                        }
+                    },
+                    'PROGRAM_RUN_INFO': {
+                        'INITIAL_CONFIGURATION_INFO': ''
+                    },
+                    'CONVERGENCE_INFO': {
+                        '_': ''
+                    },
+                    'REPLICA': []
+                }
+
+
+            # The fun part
+            for r in range(int(self.inp_dict['nreplica_files'])):
+                motion['BAND']['REPLICA'].append({
+                   'COORD_FILE_NAME': 'replica{}.xyz'.format(r+1)
+               })
+
+        ### END NEB 
+
+        ### REPLICA CHAIN
+        if self.workchain == 'ReplicaWorkChain':
+            
+            cv_section = {
+                'COLLECTIVE': {
+                    'COLVAR': 1,
+                    'RESTRAINT': {
+                        'K': '[{}] {}'.format(self.inp_dict['spring_unit'], self.inp_dict['spring'])
+                    },
+                    'TARGET': '[{}] {}'.format(self.inp_dict['target_unit'], self.inp_dict['colvar_target']),
+                    'INTERMOLECULAR': ''
+                }
+            }
+            if 'CONSTRAINT' in motion:
+                motion['CONSTRAINT'] = [motion['CONSTRAINT'], cv_section]
+            else:
+                motion['CONSTRAINT'] = cv_section
+            
+        ### END REPLICA CHAIN
+
+        return motion 
+    
+    ### MULTI FORCEVAL FOR MIXED
+    def force_eval_mixed(self):
+        first_mol_atom = 1
+        last_mol_atom = self.inp_dict['first_slab_atom'] - 1
+
+        mol_delim = (first_mol_atom, last_mol_atom)
+        slab_delim = (self.inp_dict['first_slab_atom'], self.inp_dict['last_slab_atom'])
+
+        force_eval = {
+            'METHOD': 'MIXED',
+            'MIXED': {
+                'MIXING_TYPE': 'GENMIX',
+                'GROUP_PARTITION': '2 %d' % (int(self.inp_dict['mpi_tasks'])-2),
+                'GENERIC': {
+                    'ERROR_LIMIT': '1.0E-10',
+                    'MIXING_FUNCTION': 'E1+E2',
+                    'VARIABLES': 'E1 E2'
+                },
+                'MAPPING': {
+                    'FORCE_EVAL_MIXED': {
+                        'FRAGMENT':
+                            [{'_': '1', ' ': '%d  %d' % mol_delim},
+                             {'_': '2', ' ': '%d  %d' % slab_delim}],
+                    },
+                    'FORCE_EVAL': [{'_': '1', 'DEFINE_FRAGMENTS': '1 2'},
+                                   {'_': '2', 'DEFINE_FRAGMENTS': '1'}],
+                }
+            },
+            'SUBSYS': {
+                    'CELL': {'A': '%f %f %f' % (self.cell[0],self.cell[1],self.cell[2]),
+                             'B': '%f %f %f' % (self.cell[3],self.cell[4],self.cell[5]),
+                             'C': '%f %f %f' % (self.cell[6],self.cell[7],self.cell[8]),                         
+                             },
+                'TOPOLOGY': {
+                    'COORD_FILE_NAME': 'mol_on_slab.xyz',
+                    'COORD_FILE_FORMAT': 'XYZ',
+                    'CONNECTIVITY': 'OFF',
+                }
             }
         }
-    }
 
-    return force_eval
-
-def force_eval_fist(atoms=None,cell=None):
-    ff = {
-        'SPLINE': {
-            'EPS_SPLINE': '1.30E-5',
-            'EMAX_SPLINE': '0.8',
-        },
-        'CHARGE': [],
-        'NONBONDED': {
-            'GENPOT': [],
-            'LENNARD-JONES': [],
-            'EAM': {
-                'ATOMS': 'Au Au',
-                'PARM_FILE_NAME': 'Au.pot',
+        return force_eval
+    
+    ### FIST FOR MIXED
+    def force_eval_fist(self):
+        ff = {
+            'SPLINE': {
+                'EPS_SPLINE': '1.30E-5',
+                'EMAX_SPLINE': '0.8',
             },
-        },
-    }
-
-    element_list = list(np.unique(atoms.get_chemical_symbols()))
-
-    metal_atom = None
-    for el in element_list:
-        if el in METAL_ATOMS:
-            metal_atom = el
-            element_list.remove(el)
-            break
-
-    if metal_atom is None:
-        raise Exception("No valid metal atom found.")
-
-    for x in element_list + [metal_atom]:
-        ff['CHARGE'].append({'ATOM': x, 'CHARGE': 0.0})
-
-    genpot_fun = 'A*exp(-av*r)+B*exp(-ac*r)-C/(r^6)/( 1+exp(-20*(r/R-1)) )'
-
-    genpot_val = {
-        'H': '0.878363 1.33747 24.594164 2.206825 32.23516124268186181470 5.84114',
-        'else':  '4.13643 1.33747 115.82004 2.206825 113.96850410723008483218 5.84114'
-    }
-
-    for x in element_list:
-        ff['NONBONDED']['GENPOT'].append(
-            {'ATOMS': metal_atom+' ' + x,
-             'FUNCTION': genpot_fun,
-             'VARIABLES': 'r',
-             'PARAMETERS': 'A av B ac C R',
-             'VALUES': genpot_val[x] if x in genpot_val else genpot_val['else'],
-             'RCUT': '15'}
-        )
-
-    for x in itertools.combinations_with_replacement(element_list, 2):
-        ff['NONBONDED']['LENNARD-JONES'].append(
-            {'ATOMS': " ".join(x),
-             'EPSILON': '0.0',
-             'SIGMA': '3.166',
-             'RCUT': '15'}
-        )
-
-    force_eval = {
-        'METHOD': 'FIST',
-        'MM': {
-            'FORCEFIELD': ff,
-            'POISSON': {
-                'EWALD': {
-                  'EWALD_TYPE': 'none',
+            'CHARGE': [],
+            'NONBONDED': {
+                'GENPOT': [],
+                'LENNARD-JONES': [],
+                'EAM': {
+                    'ATOMS': 'Au Au',
+                    'PARM_FILE_NAME': 'Au.pot',
                 },
             },
-        },
-        'SUBSYS': {
-            'CELL': {'A': '%f %f %f' % (cell[0],cell[1],cell[2]),
-                     'B': '%f %f %f' % (cell[3],cell[4],cell[5]),
-                     'C': '%f %f %f' % (cell[6],cell[7],cell[8]),
-                     },
-            'TOPOLOGY': {
-                'COORD_FILE_NAME': 'mol_on_slab.xyz',
-                'COORDINATE': 'XYZ',
-                'CONNECTIVITY': 'OFF',
-            },
-        },
-    }
-    return force_eval
+        }
 
-def get_force_eval_qs_dftb(cell=None, vdw_switch=None):
-    force_eval = {
-        'METHOD': 'Quickstep',
-        'DFT': {
-            'QS': {
-                'METHOD': 'DFTB',
-                'EXTRAPOLATION': 'ASPC',
-                'EXTRAPOLATION_ORDER': '3',
-                'DFTB': {
-                    'SELF_CONSISTENT': 'T',
-                    'DISPERSION': '%s' % (str(vdw_switch)[0]),
-                    'ORTHOGONAL_BASIS': 'F',
-                    'DO_EWALD': 'F',
-                    'PARAMETER': {
-                        'PARAM_FILE_PATH': 'DFTB/scc',
-                        'PARAM_FILE_NAME': 'scc_parameter',
-                        'UFF_FORCE_FIELD': '../uff_table',
+        element_list = list(set(self.inp_dict['elements']))
+
+        metal_atom = None
+        for el in element_list:
+            if el in METAL_ATOMS:
+                metal_atom = el
+                element_list.remove(el)
+                break
+
+        if metal_atom is None:
+            raise Exception("No valid metal atom found.")
+
+        for x in element_list + [metal_atom]:
+            ff['CHARGE'].append({'ATOM': x, 'CHARGE': '0.0'})
+
+        genpot_fun = 'A*exp(-av*r)+B*exp(-ac*r)-C/(r^6)/( 1+exp(-20*(r/R-1)) )'
+
+        genpot_val = {
+            'H': '0.878363 1.33747 24.594164 2.206825 32.23516124268186181470 5.84114',
+            'else':  '4.13643 1.33747 115.82004 2.206825 113.96850410723008483218 5.84114'
+        }
+
+        for x in element_list:
+            ff['NONBONDED']['GENPOT'].append(
+                {'ATOMS': metal_atom+' ' + x,
+                 'FUNCTION': genpot_fun,
+                 'VARIABLES': 'r',
+                 'PARAMETERS': 'A av B ac C R',
+                 'VALUES': genpot_val[x] if x in genpot_val else genpot_val['else'],
+                 'RCUT': '15'}
+            )
+
+        for x in itertools.combinations_with_replacement(element_list, 2):
+            ff['NONBONDED']['LENNARD-JONES'].append(
+                {'ATOMS': " ".join(x),
+                 'EPSILON': '0.0',
+                 'SIGMA': '3.166',
+                 'RCUT': '15'}
+            )
+
+        force_eval = {
+            'METHOD': 'FIST',
+            'MM': {
+                'FORCEFIELD': ff,
+                'POISSON': {
+                    'EWALD': {
+                      'EWALD_TYPE': 'none',
                     },
                 },
             },
-            'SCF': {
-                'MAX_SCF': '30',
-                'SCF_GUESS': 'RESTART',
-                'EPS_SCF': '1.0E-6',
-                'OT': {
-                    'PRECONDITIONER': 'FULL_SINGLE_INVERSE',
-                    'MINIMIZER': 'CG',
+            'SUBSYS': {
+                'CELL': {'A': '%f %f %f' % (self.cell[0],self.cell[1],self.cell[2]),
+                         'B': '%f %f %f' % (self.cell[3],self.cell[4],self.cell[5]),
+                         'C': '%f %f %f' % (self.cell[6],self.cell[7],self.cell[8]),
+                         },
+                'TOPOLOGY': {
+                    'COORD_FILE_NAME': 'mol_on_slab.xyz',
+                    'COORD_FILE_FORMAT': 'XYZ',
+                    'CONNECTIVITY': 'OFF',
                 },
-                'OUTER_SCF': {
-                    'MAX_SCF': '20',
+            },
+        }
+        return force_eval
+
+    ### DFTB for MIXED
+    def get_force_eval_qs_dftb(self):
+        force_eval = {
+            'METHOD': 'Quickstep',
+            'DFT': {
+                'QS': {
+                    'METHOD': 'DFTB',
+                    'EXTRAPOLATION': 'ASPC',
+                    'EXTRAPOLATION_ORDER': '3',
+                    'DFTB': {
+                        'SELF_CONSISTENT': 'T',
+                        'DISPERSION': '%s' % (str(self.inp_dict['vdw_switch'])),
+                        'ORTHOGONAL_BASIS': 'F',
+                        'DO_EWALD': 'F',
+                        'PARAMETER': {
+                            'PARAM_FILE_PATH': 'DFTB/scc',
+                            'PARAM_FILE_NAME': 'scc_parameter',
+                            'UFF_FORCE_FIELD': '../uff_table',
+                        },
+                    },
+                },
+                'SCF': {
+                    'MAX_SCF': '30',
+                    'SCF_GUESS': 'RESTART',
                     'EPS_SCF': '1.0E-6',
-                },
-                'PRINT': {
-                    'RESTART': {
-                        'EACH': {
-                            'QS_SCF': '0',
-                            'GEO_OPT': '1',
-                        },
-                        'ADD_LAST': 'NUMERIC',
-                        'FILENAME': 'RESTART'
+                    'OT': {
+                        'PRECONDITIONER': 'FULL_SINGLE_INVERSE',
+                        'MINIMIZER': 'CG',
                     },
-                    'RESTART_HISTORY': {'_': 'OFF'}
-                }
-            }
-        },
-        'SUBSYS': {
-            'CELL': {'A': '%f %f %f' % (cell[0],cell[1],cell[2]),
-                     'B': '%f %f %f' % (cell[3],cell[4],cell[5]),
-                     'C': '%f %f %f' % (cell[6],cell[7],cell[8]),
-                     },
-            'TOPOLOGY': {
-                'COORD_FILE_NAME': 'mol.xyz',
-                'COORDINATE': 'xyz'
-            }
-        }
-    }
-
-    return force_eval
-
-# ==========================================================================
- 
-
-def get_force_eval_qs_dft(
-                          atoms                 = None,
-                          cell                  = None,
-                          cell_sym              = None,
-                          center_switch         = None,
-                          corr_occ              = None,
-                          corr_virt             = None,
-                          eps_filter            = None,
-                          eps_grid              = None,
-                          eps_schwarz           = None,
-                          ev_sc_iter            = None,
-                          gw_type               = None,
-                          group_size            = None,
-                          mgrid_cutoff          = None,
-                          multiplicity          = None,
-                          rpa_num_quad_points   = None,
-                          size_freq_integ_group = None,
-                          spin_guess            = None,
-                          system_charge         = None,
-                          topology              = None,
-                          uks_switch            = None,
-                          vdw_switch            = None,
-                          workchain             = None
-                         ):
-    uks_logic='.False.'
-    if uks_switch == 'UKS':
-        uks_logic='.True.'
-    else:
-        uks_logic='.False.'
-        multiplicity=int(0)
-    if system_charge == None:
-        system_charge = int(0)
-    qs_default={
-                'METHOD': 'GPW',
-                'EXTRAPOLATION': 'ASPC',
-                'EXTRAPOLATION_ORDER': '3',
-                'EPS_DEFAULT': '1.0E-14',
-                }    
-    qs_dict={'SlabGeoOptWorkChain'  : qs_default,
-             'ReplicaWorkchain'     : qs_default,
-             'CellOptWorkChain'     : qs_default, 
-             'BulkOptWorkChain'     : qs_default, 
-             'MoleculeOptWorkChain' : qs_default,
-             'NEBWorkchain' :{
-                              'METHOD': 'GPW',
-                              'EXTRAPOLATION': 'USE_GUESS',
-                              'EPS_DEFAULT': '1.0E-14',
+                    'OUTER_SCF': {
+                        'MAX_SCF': '20',
+                        'EPS_SCF': '1.0E-6',
+                    },
+                    'PRINT': {
+                        'RESTART': {
+                            'EACH': {
+                                'QS_SCF': '0',
+                                'GEO_OPT': '1',
                             },
-             
-            }
-    xc_default={
-                'XC_FUNCTIONAL': {'_': 'PBE'},
-            }
-
-######XC FOR GW    
-#    xc_gw={
-#            'XC_FUNCTIONAL': {'_': 'PBE'},
-#            'WF_CORRELATION':{
-#                              'METHOD' : gw_type,
-#                              'WFC_GPW':{
-#                                         'EPS_FILTER' : '1.0E'+str(eps_filter),
-#                                         'EPS_GRID' :   '1.0E'+str(eps_grid)
-#                              },
-#            'RI_RPA' : {
-#                        'RPA_NUM_QUAD_POINTS' :    '%d' %(rpa_num_quad_points),
-#                        'SIZE_FREQ_INTEG_GROUP' :  '%d' %(size_freq_integ_group) ,
-#                        'GW' :' ',
-#                        'HF' :{
-#                               'FRACTION' :  '1.0000000',
-#                               'SCREENING' :{
-#                                             'EPS_SCHWARZ' :  '1.0E'+str(eps_schwarz),
-#                                             'SCREEN_ON_INITIAL_P' : 'FALSE'
-#                               },
-#                                'MEMORY': {
-#                                           'MAX_MEMORY' : '512'
-#                                },
-#                        },
-#                       'RI_G0W0' :{
-#                                   'FIT_ERROR' : ' ',
-#                                   'CORR_OCC'  :  '%d' %(corr_occ),
-#                                   'CORR_VIRT' :  '%d' %(corr_virt),
-#                                   'CROSSING_SEARCH'  : 'NEWTON',
-#                                   'CHECK_FIT' : ' ',
-#                                   'EV_SC_ITER' : '%d' %(ev_sc_iter),
-#                                   'OMEGA_MAX_FIT' : '1.0',
-#                                   'ANALYTIC_CONTINUATION' : 'PADE',
-#                                   'PRINT_GW_DETAILS' : ' ' 
-#                       },
-#          },
-#        'GROUP_SIZE' : '%d' %(group_size),
-#      }
-#    }
-######END XC FOR GW
-    
-    force_eval = {
-        'METHOD': 'Quickstep',
-        'DFT': {
-            'UKS': uks_logic,
-            'MULTIPLICITY': '%d' % (multiplicity),
-            'BASIS_SET_FILE_NAME': 'BASIS_MOLOPT',
-            'POTENTIAL_FILE_NAME': 'POTENTIAL',
-            'CHARGE':'%d' % (system_charge),
-            'QS': qs_dict[workchain.value],
-            'MGRID': {
-                'CUTOFF': '%d' % (mgrid_cutoff),
-                'NGRIDS': '5',
-            },
-            'SCF': {
-                'MAX_SCF': '20',
-                'SCF_GUESS': 'RESTART',
-                'EPS_SCF': '1.0E-7',
-                'OT': {
-                    'PRECONDITIONER': 'FULL_SINGLE_INVERSE',
-                    'MINIMIZER': 'CG',
-                },
-                'OUTER_SCF': {
-                    'MAX_SCF': '15',
-                    'EPS_SCF': '1.0E-7',
-                },
-                'PRINT': {
-                    'RESTART': {
-                        'EACH': {
-                            'QS_SCF': '0',
-                            'GEO_OPT': '1',
+                            'ADD_LAST': 'NUMERIC',
+                            'FILENAME': 'RESTART'
                         },
-                        'ADD_LAST': 'NUMERIC',
-                        'FILENAME': 'RESTART'
-                    },
-                    'RESTART_HISTORY': {'_': 'OFF'}
+                        'RESTART_HISTORY': {'_': 'OFF'}
+                    }
                 }
             },
-            'XC': {
-                'XC_FUNCTIONAL': {'_': 'PBE'},
-            },
-        },
-        'SUBSYS': {
-            'CELL': {'A': '%f %f %f' % (cell[0],cell[1],cell[2]),
-                     'B': '%f %f %f' % (cell[3],cell[4],cell[5]),
-                     'C': '%f %f %f' % (cell[6],cell[7],cell[8]),
-                     },
-            'TOPOLOGY': {
-                'COORD_FILE_NAME': topology,
-                'COORDINATE': 'xyz',
-            },
-            'KIND': [],
-        }
-    }
-
-    if vdw_switch:
-        force_eval['DFT']['XC']['VDW_POTENTIAL'] = {
-            'DISPERSION_FUNCTIONAL': 'PAIR_POTENTIAL',
-            'PAIR_POTENTIAL': {
-                'TYPE': 'DFTD3',
-                'CALCULATE_C9_TERM': '.TRUE.',
-                'PARAMETER_FILE_NAME': 'dftd3.dat',
-                'REFERENCE_FUNCTIONAL': 'PBE',
-                'R_CUTOFF': '15',
+            'SUBSYS': {
+                'CELL': {'A': '%f %f %f' % (self.cell[0],self.cell[1],self.cell[2]),
+                         'B': '%f %f %f' % (self.cell[3],self.cell[4],self.cell[5]),
+                         'C': '%f %f %f' % (self.cell[6],self.cell[7],self.cell[8]),
+                         },
+                'TOPOLOGY': {
+                    'COORD_FILE_NAME': 'mol.xyz',
+                    'COORD_FILE_FORMAT': 'xyz'
+                }
             }
         }
 
-    if center_switch:
-        force_eval['SUBSYS']['TOPOLOGY']['CENTER_COORDINATES'] = {'_': ''},
+        return force_eval
 
-    kinds_used = np.unique(atoms.get_chemical_symbols())
+    # ==========================================================================
 
-    for kind in kinds_used:
-        bs, pp = ATOMIC_KINDS[kind] 
-        force_eval['SUBSYS']['KIND'].append({
-            '_': kind,
-            'BASIS_SET': bs,
-            'POTENTIAL': pp
-        })
+
+    def get_force_eval_qs_dft(self):
+
+        if not self.inp_dict['gw_type']:
+            basis_set = 'BASIS_MOLOPT'
+        else:
+            basis_set = 'GW_BASIS_SET'        
+
         
-##### ADD KINDS for SPIN GUESS
-        if spin_guess !='' and spin_guess:
-            spin_splitted = str(spin_guess).split() ## e.g. ['C1','-1','1','2','C2','1','1','2']
-            for ii,C1 in enumerate(spin_splitted[0::4]):
-                element=C1[0:-1]
-                bs, pp = ATOMIC_KINDS[element]
-                force_eval['SUBSYS']['KIND'].append(
-                                                    {
-                                                    '_': C1,
-                                                    'ELEMENT' : element,
-                                                    'BASIS_SET': bs,
-                                                    'POTENTIAL': pp,
-                                                     'BS':
+
+        
+        ### SCF PRINT
+        print_scf={'RESTART': {'EACH': {'QS_SCF' : '0',
+                                        'GEO_OPT': '1',
+                               },
+                               'ADD_LAST': 'NUMERIC',
+                               'FILENAME': 'RESTART'
+                   },
+                   'RESTART_HISTORY': {'_': 'OFF'}
+                  }
+        
+        ### DIAGONALIZATION AND OT
+        scf_opt={'OT'   : {'MAX_SCF'   : '20',
+                           'SCF_GUESS' : 'RESTART',
+                           'EPS_SCF'   : '1.0E-7',
+                           'OT': {'PRECONDITIONER': 'FULL_SINGLE_INVERSE',
+                                  'MINIMIZER'     : 'CG'
+                           },
+                           'OUTER_SCF': {'MAX_SCF': '50',
+                                         'EPS_SCF': '1.0E-7',                                         
+                           },
+                           'PRINT'    : print_scf
+                 },
+                 'DIAG' : {'MAX_SCF'         : '500'                      ,
+                           'SCF_GUESS'       : 'RESTART'                  ,
+                           'EPS_SCF'         : '1.0E-7'                   ,
+                           'CHOLESKY'        : 'INVERSE'                  ,
+                           'DIAGONALIZATION' : {'ALGORITHM' : 'STANDARD'} ,
+                           'MIXING'          : {
+                                                'METHOD'    : 'BROYDEN_MIXING' ,
+                                                'ALPHA'     : '0.1',
+                                                'BETA'      : '1.5',
+                                                'NBROYDEN'  : '8'
+                           },
+                           'PRINT'    : print_scf
+                  },
+                 'DEFAULT' : {'MAX_SCF'         : '200'                      ,
+                              'SCF_GUESS'       : 'RESTART'                  ,
+                              'EPS_SCF'         : '1.0E-6'                   ,
+                              #'LEVEL_SHIFT'     : 0.1                        ,
+                              'PRINT'           : print_scf
+                             }
+                              
+        }
+
+        
+        ### SMEARING
+        smear = {'_' : 'ON',
+                 'METHOD' : 'FERMI_DIRAC',
+                 'ELECTRONIC_TEMPERATURE' : '[K] 300'
+        }                
+        if self.inp_dict['smear']:
+               scf_opt['DIAG']['SMEAR'] = smear
+
+        ### ADDED_MOS
+        if self.inp_dict['added_mos']:
+                scf_opt['ADDED_MOS'] = self.inp_dict['added_mos']
+        
+        ### FORCEVAL MAIN        
+        force_eval = {
+            'METHOD': 'Quickstep',
+            'DFT': {
+                'BASIS_SET_FILE_NAME': 'BASIS_MOLOPT',
+                'POTENTIAL_FILE_NAME': 'POTENTIAL',
+                'CHARGE':str(self.inp_dict['charge']),
+                'QS': self.sections_dict[self.workchain]['qs'],
+                'MGRID': {
+                    'CUTOFF': str(self.inp_dict['mgrid_cutoff']),
+                    'NGRIDS': '5',
+                },
+                'SCF': scf_opt[self.inp_dict['diag_method']],
+                'XC': self.sections_dict[self.workchain]['xc'],
+            },
+            'SUBSYS': {
+                'CELL': {'A': '%f %f %f' % (self.cell[0],self.cell[1],self.cell[2]),
+                         'B': '%f %f %f' % (self.cell[3],self.cell[4],self.cell[5]),
+                         'C': '%f %f %f' % (self.cell[6],self.cell[7],self.cell[8]),
+                         'SYMMETRY' : self.inp_dict['cell_sym']
+                         },
+                'TOPOLOGY': {
+                    'COORD_FILE_NAME': str(self.inp_dict['topology']),
+                    'COORD_FILE_FORMAT': 'xyz',
+                },
+                'KIND': [],
+            }
+        }
+        if self.inp_dict['multiplicity'] > 0:
+            force_eval['DFT']['UKS']=''
+            force_eval['DFT']['MULTIPLICITY']=self.inp_dict['multiplicity']
+            
+        ### POISSON SOLVER
+        if self.inp_dict['periodic']:
+            force_eval['DFT']['POISSON']={'PERIODIC':self.inp_dict['periodic'],'PSOLVER':self.inp_dict['poisson_solver']}
+            force_eval['SUBSYS']['CELL'].update({'PERIODIC':self.inp_dict['periodic']})
+        
+        ### VDW
+        if self.inp_dict['vdw_switch']:
+            force_eval['DFT']['XC']['VDW_POTENTIAL'] = {
+                'DISPERSION_FUNCTIONAL': 'PAIR_POTENTIAL',
+                'PAIR_POTENTIAL': {
+                    'TYPE': 'DFTD3',
+                    'CALCULATE_C9_TERM': '.TRUE.',
+                    'PARAMETER_FILE_NAME': 'dftd3.dat',
+                    'REFERENCE_FUNCTIONAL': 'PBE',
+                    'R_CUTOFF': '15',
+                }
+            }
+            
+        ### CENTER COORDINATES
+        if self.inp_dict['center_coordinates']:
+            force_eval['SUBSYS']['TOPOLOGY']['CENTER_COORDINATES'] = {'_': ''},
+
+        ### KINDS SECTIONS    
+        kinds_used = list(set(self.inp_dict['elements']))
+
+        for kind in kinds_used:
+            pp = ATOMIC_KINDS[kind]['pseudo']
+            bs = ATOMIC_KINDS[kind][basis_set] 
+            if  self.inp_dict['gw_type']  in {'GW', 'GW-IC'}:
+                bs = ATOMIC_KINDS[kind]['GW_BASIS_SET']            
+            force_eval['SUBSYS']['KIND'].append({
+                '_': kind,
+                'BASIS_SET': bs,
+                'POTENTIAL': pp
+            })
+            if  self.inp_dict['gw_type'] :
+                ba = ATOMIC_KINDS[kind]['RI_AUX']
+                force_eval['SUBSYS']['KIND'][-1]['BASIS_SET RI_AUX'] = ba
+            if  self.inp_dict['gw_type']=='GW-IC' :### ADD SECTION FOR GHOST ATOMS
+                force_eval['SUBSYS']['KIND'].append({
+                '_': kind+'G',
+                'BASIS_SET': bs,
+                'POTENTIAL': pp
+                })
+                ba = ATOMIC_KINDS[kind]['RI_AUX']
+                force_eval['SUBSYS']['KIND'][-1]['GHOST'] = 'TRUE'
+                force_eval['SUBSYS']['KIND'][-1]['ELEMENT'] = kind
+                force_eval['SUBSYS']['KIND'][-1]['BASIS_SET RI_AUX'] = ba
+
+
+        ### ADD KINDS for SPIN GUESS : DFT AND GW cases
+        spin_dict={
+            'C'  : {'n':'2','l':'1','nel':[1,-1]},
+            'N'  : {'n':'2','l':'1','nel':[1,-1]},
+            'Co' : {'n':'3','l':'2','nel':[1,-1]}
+        }
+        if (self.inp_dict['spin_u'] !='' or self.inp_dict['spin_d'] !='') and self.inp_dict['multiplicity'] > 0  :
+            spin_elements=string_range_to_list(self.inp_dict['spin_u'])[0]+string_range_to_list(self.inp_dict['spin_u'])[0]
+            spin_elements=list(set([self.inp_dict['elements'][j] for j in spin_elements]))
+            for element in spin_elements:
+                for u in [1,2]:
+                    pp = ATOMIC_KINDS[element]['pseudo']
+                    bs = ATOMIC_KINDS[element][basis_set] 
+                    force_eval['SUBSYS']['KIND'].append(
                                                         {
-                                                         'ALPHA':
+                                                        '_': element+str(u),
+                                                        'ELEMENT' : element,
+                                                        'BASIS_SET': bs,
+                                                        'POTENTIAL': pp,
+                                                         'BS':
                                                             {
-                                                             'NEL': spin_splitted[4*ii+1],
-                                                             'L': spin_splitted[4*ii+2],
-                                                             'N': spin_splitted[4*ii+3]
-                                                             },
-                                                         ####BETA CONSTRAINED TO ALPHA
-                                                         'BETA':
-                                                            {
-                                                             'NEL': str(-1*int(spin_splitted[4*ii+1])), ## -1*NEL of ALPHA
-                                                             'L': spin_splitted[4*ii+2],
-                                                             'N': spin_splitted[4*ii+3]
+                                                             'ALPHA':
+                                                                {
+                                                                 'NEL' : spin_dict[element]['nel'][u-1],
+                                                                 'L'   : spin_dict[element]['l'],
+                                                                 'N'   : spin_dict[element]['n']
+                                                                 },
+                                                             ####BETA CONSTRAINED TO ALPHA
+                                                             'BETA':
+                                                                {
+                                                                 'NEL' : -1*+spin_dict[element]['nel'][u-1],
+                                                                 'L'   : spin_dict[element]['l'],
+                                                                 'N'   : spin_dict[element]['n']
+                                                                 }
                                                              }
-                                                         }
-                                                    }
-                                                   )
-##### END ADD KINDS
-        
-        
-    if workchain.value == 'CellOptWorkChain':
-         force_eval['STRESS_TENSOR']= 'ANALYTICAL'
-    if workchain.value != 'NEBWorkchain':
-        force_eval['DFT']['RESTART_FILE_NAME']='./parent_calc/aiida-RESTART.wfn'
-    
-    return force_eval
+                                                        }
+                                                       )           
+                    if self.inp_dict['gw_type']:
+                        ba = ATOMIC_KINDS[element]['RI_AUX_BASIS_SET']
+                        force_eval['SUBSYS']['KIND'][-1]['RI_AUX_BASIS_SET'] = ba                  
+            ##### END ADD KINDS
+
+        ### STRESS TENSOR for CELL_OPT
+        if self.workchain == 'CellOptWorkChain':
+             force_eval['STRESS_TENSOR']= 'ANALYTICAL'
+                
+        ### RESTART from .wfn IF NOT NEB        
+        if self.workchain != 'NEBWorkChain':
+            force_eval['DFT']['RESTART_FILE_NAME']='./parent_calc/aiida-RESTART.wfn'
+
+        return force_eval

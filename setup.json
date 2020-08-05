@@ -1,0 +1,48 @@
+{
+    "version": "1.0.0a1",
+    "name": "empa-surfaces",
+    "url": "https://github.com/cpignedoli/aiidalab-empa-surfaces",
+    "license": "MIT License",
+    "author": "nanotech@surfaces laboratory, Empa",
+    "author_email": "carlo.pignedoli@empa.ch",
+    "description": "Tools for on-surface chemistry, developed at the nanotech@surfaces laboratory, Empa",
+    "classifiers": [
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Framework :: AiiDA",
+        "Development Status :: 4 - Beta"
+    ],
+    "install_requires": [
+        "aiida-core>=1.0.0,<2.0.0",
+        "ase"
+    ],
+    "entry_points": {
+        "aiida.workflows": [
+            "replica = reactions.workchains:ReplicaWorkChain",
+            "neb = reactions.workchains:NebWorkChain"
+        ],
+        "aiida.parsers": [
+            "cp2k_neb_parser = reactions.parsers:Cp2kNebParser"
+        ]
+    },
+    "setup_requires": ["reentry"],
+    "reentry_register": true,
+    "data_files": [
+        [".", ["setup.json"]]
+    ],
+    "extras_require": {
+    "test": [
+            "pgtest==1.2.0",
+            "pytest>=4.4,<5.0.0",
+            "pytest-cov>=2.6.1,<3.0.0",
+            "coverage"
+    ],
+    "pre-commit":[
+            "pre-commit==1.17.0",
+            "yapf==0.28.0",
+            "prospector==1.1.7",
+            "pylint==2.3.1"
+    ]
+    }
+}
