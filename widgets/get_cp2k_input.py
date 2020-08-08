@@ -463,19 +463,18 @@ class Get_CP2K_Input():
         if self.workchain == 'ReplicaWorkChain':
             
             cv_section = {
-                'COLLECTIVE': {
-                    'COLVAR': 1,
-                    'RESTRAINT': {
-                        'K': '[{}] {}'.format(self.inp_dict['spring_unit'], self.inp_dict['spring'])
-                    },
-                    'TARGET': '[{}] {}'.format(self.inp_dict['target_unit'], self.inp_dict['colvar_target']),
-                    'INTERMOLECULAR': ''
-                }
+                'COLVAR': 1,
+                'RESTRAINT': {
+                    'K': '[{}] {}'.format(self.inp_dict['spring_unit'], self.inp_dict['spring'])
+                },
+                'TARGET': '[{}] {}'.format(self.inp_dict['target_unit'], self.inp_dict['colvar_target']),
+                'INTERMOLECULAR': ''
             }
+            
             if 'CONSTRAINT' in motion:
-                motion['CONSTRAINT'] = [motion['CONSTRAINT'], cv_section]
+                motion['CONSTRAINT']['COLLECTIVE'] = cv_section
             else:
-                motion['CONSTRAINT'] = cv_section
+                motion['CONSTRAINT'] = {'COLLECTIVE': cv_section}
             
         ### END REPLICA CHAIN
 
