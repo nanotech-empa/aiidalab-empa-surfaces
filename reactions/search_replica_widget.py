@@ -34,7 +34,7 @@ class SearchReplicaWidget(ipw.VBox):
     
     def __init__(self, **kwargs):
         
-        self.preprocess_version = 0.05
+        self.preprocess_version = 0.11
         
         btn_style = {'description_width': '60px'}
         btn_layout = {'width': '20%'}
@@ -115,7 +115,7 @@ class SearchReplicaWidget(ipw.VBox):
         self.print_checked_pk_list(selected_replica_calc, check_list)
         
     def print_checked_pk_list(self, replica_calc, check_list):
-        list_of_pks = [rep[2].pk for rep in replica_calc['replicas']]
+        list_of_pks = [rep[2] for rep in replica_calc['replicas']]
         with self.output_checked_pks:
             clear_output()
             print("List of all replica PKs:")
@@ -127,30 +127,38 @@ class SearchReplicaWidget(ipw.VBox):
         
     
     def generate_energy_cv_plot(self, replica_calc):
-        plot_energy = []
+        plot_energy_scf = []
+        plot_energy_frc = []
         plot_colvar = []
         wc_pk_str = str(replica_calc['wcs'][0].pk)
         
         for i, rep in enumerate(replica_calc['replicas']):
-            cv_target, energy, struct_node = rep
+            cv_target, energy, struct_pk = rep
+            struct_node = load_node(struct_pk)
             colvar_actual = struct_node.get_extra('replica_calcs')[wc_pk_str]['colvar_actual']
-            plot_energy.append(energy)
+            plot_energy_scf.append(energy[0])
+            plot_energy_frc.append(energy[1])
             plot_colvar.append(colvar_actual)
             
-        plot_energy = np.array(plot_energy)*27.2114
-        plot_energy -= plot_energy[0]
+        plot_energy_scf = np.array(plot_energy_scf)*27.2114
+        plot_energy_scf -= plot_energy_scf[0]
             
+        plot_energy_frc = np.array(plot_energy_frc)*27.2114
+        plot_energy_frc -= plot_energy_frc[0]
+        
         plt.figure(figsize=(10, 5))
         plt.ylabel('Energy/eV')
         plt.xlabel('Collective variable')
-        plt.plot(plot_colvar, plot_energy, 'o-')
+        plt.plot(plot_colvar, plot_energy_scf, 'go-', label='SCF energy')
+        plt.plot(plot_colvar, plot_energy_frc, 'bo-', label='FORCE_EVAL energy')
        
         for i, rep in enumerate(replica_calc['replicas']):
             # if the replica has no cv_target and has energy, it's an initial one, paint as red
-            cv_target, energy, struct_node = rep
+            cv_target, energy, struct_pk = rep
             if cv_target == None and energy is not None:
-                plt.plot(plot_colvar[0], plot_energy[0], 'ro-')            
+                plt.plot(plot_colvar[i], plot_energy_scf[i], 'ro-')
         
+        plt.legend()
         plt.grid()
         plt.show()
             
@@ -166,9 +174,10 @@ class SearchReplicaWidget(ipw.VBox):
         
         for i, rep in enumerate(replica_calc['replicas']):
             
-            cv_target, energy, struct_node = rep
+            cv_target, energy, struct_pk = rep
+            struct_node = load_node(struct_pk)
             
-            html = '<table>'
+            html = '<table style="border-spacing:20px 0px;border-collapse:separate;">'
             
             struct_rep_info = struct_node.get_extra('replica_calcs')[wc_pk_str]
             d2prev = struct_rep_info['dist_previous']
@@ -176,28 +185,42 @@ class SearchReplicaWidget(ipw.VBox):
             thumbnail = struct_rep_info['thumbnail']
             
             cv_target_str = "-" if cv_target is None else "%.2f" % cv_target
-            energy_str = "%.6f" % energy
+            
+            energy_scf_str = "%.6f" % energy[0]
+            energy_frc_str = "%.6f" % energy[1]
+            
             colvar_actual_str = "%.4f" % colvar_actual
             d2prev_str = "-" if d2prev == '-' else "%.4f" % float(d2prev)
             
             check_me = ipw.Checkbox(
                 value=True,
-                description='Check me',
+                description='select',
                 disabled=False,
                 layout=layout
             )
             check_me.observe(lambda x, rc=replica_calc, cl=check_list: self.print_checked_pk_list(rc, cl), 'value')
             check_list.append(check_me)
 
-            html += '<td><img width="400px" src="data:image/png;base64,{}" title="">'.format(thumbnail)
-
+            html = '<img width="400px" src="data:image/png;base64,{}" title="">'.format(thumbnail)
+            
+            html += '<table style="border-spacing:6px 0px;border-collapse:separate;">'
+            
             # Output some information about the replica...
-            html += '<p><b>Target: {}</b><br> <b>CV actual:</b> {}<br> <b>Energy:</b> {}<br> <b>d2prev:</b> {}</p>'\
-                    .format(cv_target_str, colvar_actual_str, energy_str, d2prev_str)
-            html += '<p>pk: {}</p>'.format(struct_node.pk)
+            html += '<tr><td align="left"><b>Target:</b></td><td align="right">{}</td></tr>'\
+                .format(cv_target_str)
+            html += '<tr><td align="left"><b>CV actual:</b></td><td align="right">{}</td></tr>'\
+                .format(colvar_actual_str)
+            html += '<tr><td align="left"><b>Energy (scf) /au:</b></td><td align="right">{}</td></tr>'\
+                .format(energy_scf_str)
+            html += '<tr><td align="left"><b>Energy (force) /au:</b></td><td align="right">{}</td></tr>'\
+                .format(energy_frc_str)
+            html += '<tr><td align="left"><b>dist to prev:</b></td><td align="right">{}</td></tr>'\
+                .format(d2prev_str)
+            html += '<tr><td align="left">pk: </td><td align="right">{}</td></tr>'\
+                .format(struct_node.pk)
 
             # ... and the download link.
-            html += '<p><a target="_blank" href="../export_structure.ipynb?uuid={}">View & export</a></p><td>'\
+            html += '<tr><td align="left"><a target="_blank" href="../export_structure.ipynb?uuid={}">View & export</a></td></tr>'\
                     .format(struct_node.uuid)
 
             html += '</table>'
@@ -238,7 +261,7 @@ class SearchReplicaWidget(ipw.VBox):
         replica_sets = OrderedDict()
         
         rep_set_template = {
-            'replicas'    : [], # (cv_target, energy, StructureData)
+            'replicas'    : [], # (cv_target, (energy_scf, e_force_eval), StructureData.pk)
             'wcs'         : [],
             'colvar_def'  : None,
             'colvar_inc'  : None, # colvar increasing or decreasing ?
@@ -247,11 +270,15 @@ class SearchReplicaWidget(ipw.VBox):
         for wc_qb in wc_list:
             wc = wc_qb[0]
             
+            if not wc.is_sealed:
+                print(str(wc.pk) + " is still running, skipping.")
+                continue
+            
             wc_out_names = list(wc.outputs)
             
-            if 'replica_0' not in wc_out_names:
+            if 'replica_0' not in wc_out_names and 'replica_00' not in wc_out_names:
                 continue
-            if 'energies' not in wc_out_names:
+            if 'params_0' not in wc_out_names and 'params_00' not in wc_out_names:
                 continue
             
             name = wc.description
@@ -260,10 +287,14 @@ class SearchReplicaWidget(ipw.VBox):
             # NB: there is no colvar target for replica_0 as that is the initial geometry
             cv_targets = [None] + cv_targets
             cv_inc = cv_targets[2] > cv_targets[1]
-            energies = wc.outputs['energies'].get_array('energies')
             
-            if len([n for n in wc_out_names if n.startswith('replica')]) != len(cv_targets):
-                continue
+            energies = [(wc.outputs[o]['energy_scf'], wc.outputs[o]['energy_force'])
+                         for o in sorted(wc.outputs) if o.startswith('params_')]
+            
+            num_replicas = len([n for n in wc_out_names if n.startswith('replica')])
+            
+            if num_replicas != len(cv_targets):
+                cv_targets = cv_targets[:num_replicas]
             
             if name not in replica_sets:
                 if name in existing_rep_sets:
@@ -306,15 +337,15 @@ class SearchReplicaWidget(ipw.VBox):
             # Add the replicas of this wc to the set if it doesn't exist there already
             # (e.g. in case of continuation from another wc)
             for i_rep in range(len(wc_replica_list)):
-                if wc_replica_list[i_rep].pk not in [s[2].pk for s in replica_sets[name]['replicas']]:
-                    replica = (cv_targets[i_rep], energies[i_rep], wc_replica_list[i_rep])
+                if wc_replica_list[i_rep].pk not in [s[2] for s in replica_sets[name]['replicas']]:
+                    replica = (cv_targets[i_rep], energies[i_rep], wc_replica_list[i_rep].pk)
                     replica_sets[name]['replicas'].append(replica)
             
             # Sort entries by cv target (e.g. one could be adding replicas in-between prev calculated ones)
             if cv_inc:
-                replica_sets[name]['replicas'].sort(key=lambda x:(x[0] is not None, x[0], x[2].pk))
+                replica_sets[name]['replicas'].sort(key=lambda x:(x[0] is not None, x[0], x[2]))
             else:
-                replica_sets[name]['replicas'].sort(reverse=True, key=lambda x:(x[0] is not None, x[0], x[2].pk))
+                replica_sets[name]['replicas'].sort(reverse=True, key=lambda x:(x[0] is not None, x[0], x[2]))
             
         return replica_sets
             
@@ -359,7 +390,8 @@ class SearchReplicaWidget(ipw.VBox):
         
         for i, rep in enumerate(replica_calc['replicas']):
             
-            cv_target, energy, struct = rep
+            cv_target, energy, struct_pk = rep
+            struct = load_node(struct_pk)
             
             progress.value = (i+1.)/n_rep
             prepoc_failed = False

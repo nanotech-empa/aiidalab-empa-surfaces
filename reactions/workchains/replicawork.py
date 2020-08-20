@@ -67,8 +67,7 @@ class ReplicaWorkChain(WorkChain):
                     cls.generate_replica
                 ),
                 cls.store_replica
-            ),
-            cls.finalize
+            )
         )
         
         spec.outputs.dynamic = True
@@ -83,7 +82,8 @@ class ReplicaWorkChain(WorkChain):
         self.ctx.prev_converged = True
         self.ctx.energy_list = []
         
-        self.ctx_init_energy_ran = False
+        self.ctx.init_energy_ran = False
+        self.ctx.init_geo_stored = False
 
         self.report('#{} replicas'.format(len(self.ctx.replica_list)))
         
@@ -109,7 +109,7 @@ class ReplicaWorkChain(WorkChain):
     # ==========================================================================
     def generate_replica(self):
         
-        if not self.ctx_init_energy_ran:
+        if not self.ctx.init_energy_ran:
             # together with the initial replica, submit the SCF for initial structure
             self.report('Running SCF to get inital geometry energy')
             inputs = self.build_calc_inputs(self.inputs.structure,
@@ -125,7 +125,7 @@ class ReplicaWorkChain(WorkChain):
             future = self.submit(Cp2kCalculation, **inputs)
             self.report("future: "+str(future))
             self.to_context(initial_scf=future)
-            self.ctx_init_energy_ran = True
+            self.ctx.init_energy_ran = True
             
         self.report("Running CP2K geometry optimization - Target: {}"
                     .format(self.ctx.this_replica))
@@ -168,32 +168,48 @@ class ReplicaWorkChain(WorkChain):
             self.ctx.prev_converged = True
         return self.ctx.replica.res.exceeded_walltime
 
-    
     # ==========================================================================
     def store_replica(self):
         
         n_dig = len(str(self.ctx.total_num_replica))
-        label = "replica_{:0{}}".format(self.ctx.replicas_done + 1, n_dig)
+        
+        if not self.ctx.init_geo_stored:
+            
+            self.out("replica_{:0{}}".format(0, n_dig), self.inputs.structure)
+            initial_params = Dict(dict={
+                'energy_scf': self.ctx.initial_scf.outputs['output_parameters']['energy_scf'],
+                'energy_force': self.ctx.initial_scf.outputs['output_parameters']['energy'],
+            })
+            initial_params.store()
+            self.out("params_{:0{}}".format(0, n_dig), initial_params)
+            
+            self.ctx.init_geo_stored = True
+        
+        num_label = "{:0{}}".format(self.ctx.replicas_done + 1, n_dig)
         self.ctx.replicas_done += 1
         
-        self.report("Storing %s" % label)
-        self.out(label, self.ctx.replica.outputs.output_structure)
+        self.report("Storing %s" % num_label)
+        self.out("replica_" + num_label, self.ctx.replica.outputs.output_structure)
         
-        en = self.ctx.replica.outputs['output_parameters']['energy']
-        self.ctx.energy_list.append(en)
+        params = Dict(dict={
+            'energy_scf': self.ctx.replica.outputs['output_parameters']['energy_scf'],
+            'energy_force': self.ctx.replica.outputs['output_parameters']['energy'],
+        })
+        params.store()
+        self.out("params_" + num_label, params)
         
     # ==========================================================================
-    def finalize(self):
-        # Store initial geometry as replica_0
-        n_dig = len(str(self.ctx.total_num_replica))
-        self.out("replica_{:0{}}".format(0, n_dig), self.inputs.structure)
-        initial_energy = self.ctx.initial_scf.outputs['output_parameters']['energy']
-        
-        en_arr = ArrayData()
-        en_arr.set_array("energies", np.array([initial_energy] + self.ctx.energy_list))
-        en_arr.store()
-        self.out("energies", en_arr)
-        self.report("Finish!")
+#    def finalize(self):
+#        # Store initial geometry as replica_0
+#        n_dig = len(str(self.ctx.total_num_replica))
+#        self.out("replica_{:0{}}".format(0, n_dig), self.inputs.structure)
+#        initial_energy = self.ctx.initial_scf.outputs['output_parameters']['energy']
+#        
+#        en_arr = ArrayData()
+#        en_arr.set_array("energies", np.array([initial_energy] + self.ctx.energy_list))
+#        en_arr.store()
+#        self.out("energies", en_arr)
+#        self.report("Finish!")
 
     # ==========================================================================
     @classmethod
@@ -304,6 +320,8 @@ class ReplicaWorkChain(WorkChain):
         
         inp = Get_CP2K_Input(inp_dict).inp
         
+        inp['GLOBAL']['PRINT_LEVEL'] = 'MEDIUM'
+        
         inputs['parameters'] = Dict(dict=inp)
 
         if remote_calc_folder is not None:
@@ -317,6 +335,7 @@ class ReplicaWorkChain(WorkChain):
         inputs['metadata']['options'] = {
             "resources": {"num_machines": num_machines},
             "max_wallclock_seconds": 86000,
+            "parser_name": 'cp2k_advanced_parser',
         }
 
         return inputs
