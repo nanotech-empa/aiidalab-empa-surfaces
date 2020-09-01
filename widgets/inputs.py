@@ -51,6 +51,7 @@ class InputDetails(ipw.VBox):
     do_cell_opt = Bool()
     uks = Bool()
     calc_type = Unicode()
+    gw_trait = Unicode()
     net_charge = Int()
 
     def __init__(self,):
@@ -96,7 +97,9 @@ class InputDetails(ipw.VBox):
             self.displayed_sections = []
             add_children = []
             if  'Molecule' in sys_type:
-                add_children=[self.gw]
+                supported_all_elements = all(elem in ['C','H','B','N','S','Zn','O',]  for elem in list(set(self.details['all_elements'])))
+                if supported_all_elements :
+                    add_children=[self.gw]
             for sec in SECTIONS_TO_DISPLAY[sys_type]:
                 section = sec()
                 section.manager = self
@@ -109,9 +112,11 @@ class InputDetails(ipw.VBox):
         if self.gw.value:
             tmp_details['system_type'] = 'Molecule_GW'
             self.details = tmp_details
+            self.gw_trait='GW'
         else:
             tmp_details['system_type'] = 'Molecule'
             self.details = tmp_details
+            self.gw_trait='None'
 
     def create_plain_input(self):
         inp_dict = Get_CP2K_Input(input_dict = self.final_dictionary).inp
@@ -437,14 +442,16 @@ class MixedDftWidget(ipw.ToggleButtons):
 
 class GwWidget(ipw.HBox):
     details = Dict()
+    gw_trait = Unicode()
     manager = Instance(InputDetails, allow_none=True)
     
     def __init__(self,):
         self.gw_type = ipw.ToggleButtons(value = 'GW',
                                 description='GW/GW+IC',options=['GW', 'GW-IC'],
                                 style={'description_width': 'initial'})
+        self.gw_trait='GW'
         self.ic_plane_z = ipw.FloatText(description='IC z plane',value=1.4,
-                                       style={'description_width': 'initial'}, layout={'width': '170'})
+                                       style={'description_width': 'initial'}, layout={'width': 'initial'}) #170
         
         super().__init__(children=[self.gw_type])
         
@@ -454,6 +461,8 @@ class GwWidget(ipw.HBox):
         size = self.details['sys_size'] * 2 +15
         gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))
         if self.gw_type.value == 'GW':
+            size = self.details['sys_size'] * 2 +15
+            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))            
             return {
                 'ic_plane_z' : None,
                 'gw_type': 'GW',
@@ -461,9 +470,11 @@ class GwWidget(ipw.HBox):
                 'periodic':'NONE',
                 'poisson_solver' : 'MT',
                 'center_coordinates' : True,
-                'diag_method'        : 'DEFAULT'
+                'diag_method'        : 'GW'
             }
         else:
+            size = self.details['sys_size'] * 2 + 30
+            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))            
             return {
                 'ic_plane_z' : self.ic_plane_z.value,
                 'gw_type': 'GW-IC',
@@ -471,7 +482,7 @@ class GwWidget(ipw.HBox):
                 'periodic':'NONE',
                 'poisson_solver' : 'MT',
                 'center_coordinates' : True,
-                'diag_method'        : 'DEFAULT'
+                'diag_method'        : 'GW'
             }                
         
 
@@ -479,8 +490,10 @@ class GwWidget(ipw.HBox):
     def on_gw(self,c=None):
         if self.gw_type.value == 'GW':
             self.children=[self.gw_type]
+            self.gw_trait='GW'
         else:
             self.children=[self.gw_type,self.ic_plane_z]
+            self.gw_trait='GW-IC'
         
             
     @observe('manager')
@@ -489,6 +502,7 @@ class GwWidget(ipw.HBox):
             return
         else:
             link((self.manager, 'details'), (self, 'details'))  
+            link((self.manager, 'gw_trait'), (self, 'gw_trait'))
             if self.details['system_type'] == 'Molecule_GW':
                 self.gw_type.value = 'GW'
                 self.children = [self.gw_type]
@@ -680,6 +694,7 @@ class MetadataWidget(ipw.VBox):
     """Setup metadata for an AiiDA process."""
     
     details = Dict()
+    gw_trait = Unicode()
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
     manager = Instance(InputDetails, allow_none=True)    
 
@@ -759,7 +774,13 @@ class MetadataWidget(ipw.VBox):
             }
 
     def guess_nodes(self,c=None):
-        if self.details and 'all_elements' in self.details.keys():
+        if self.gw_trait == 'GW':
+            self.num_machines.value = (max(int(self.details['numatoms']/25),1))**3
+            self.num_machines_scf.value = max(int(self.details['numatoms']/30),1)
+        elif self.gw_trait == 'GW-IC':
+            self.num_machines.value = (max(int(self.details['numatoms']/20),1))**3
+            self.num_machines_scf.value = max(int(self.details['numatoms']/15),1)
+        elif self.details and 'all_elements' in self.details.keys():
             cost=compute_cost(self.details['all_elements'])
             self.num_machines.value = compute_nodes(cost,self.num_mpiprocs_per_machine.value)    
     
@@ -768,12 +789,17 @@ class MetadataWidget(ipw.VBox):
         if self.selected_code:
             self.num_mpiprocs_per_machine.value = self.selected_code.computer.get_default_mpiprocs_per_machine()
             
+    @observe('gw_trait')
+    def _observe_gw_trit(self, _=None):   
+        self.guess_nodes()
+            
     @observe('manager')
     def _observe_manager(self, _=None):
         if self.manager is None:
             return
         else:
             link((self.manager, 'details'), (self, 'details'))
+            link((self.manager, 'gw_trait'), (self, 'gw_trait'))
             link((self.manager, 'selected_code'), (self, 'selected_code'))
             if self.details['system_type'] == 'Molecule_GW':
                     self.children = [

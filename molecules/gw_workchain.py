@@ -19,10 +19,12 @@ class GwWorkChain(WorkChain):
         spec.input('submit_dict', valid_type=Dict)
         spec.outline(
             cls.run_scf,
+            cls.validate_results,
             cls.run_gw,
+            cls.validate_results,
             cls.return_results
         )
-
+        spec.exit_code(300, 'CALC_FAILED', message='The calculation failed.')
         
     #calc1    
     def run_scf(self):
@@ -34,7 +36,7 @@ class GwWorkChain(WorkChain):
         submit_dict_scf['FORCE_EVAL']['DFT']['XC'] = {'XC_FUNCTIONAL': {'_': 'PBE'} }
         del(submit_dict_scf['FORCE_EVAL']['DFT']['POISSON'])
         del(submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['PERIODIC']) 
-        submit_dict_scf['FORCE_EVAL']['DFT']['QS']={'METHOD': 'GPW'}
+        #submit_dict_scf['FORCE_EVAL']['DFT']['QS']={'METHOD': 'GAPW'}
         #cell GW is *2 +15 of molecule size
         cella = np.fromstring(submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['A'],dtype=float,sep=' ')/2+3.5 
         cellb = np.fromstring(submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['B'],dtype=float,sep=' ')/2+3.5
@@ -45,6 +47,9 @@ class GwWorkChain(WorkChain):
         cell = str(cella[0]) +' '+str(cellb[1]) +' '+str(cellc[2]) 
         submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['ABC'] = cell   
         submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['LEVEL_SHIFT'] = 0.1
+        del(submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['EPS_EIGVAL'])
+        del(submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['OT'])
+        del(submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['OUTER_SCF'])
         
                         
         builder = Cp2kCalculation.get_builder()
@@ -53,8 +58,8 @@ class GwWorkChain(WorkChain):
         builder.parameters = Dict(dict=submit_dict_scf)
         
         builder.file = {
-            'basis'     : SinglefileData(file='/home/aiida/apps/surfaces/Files/BASIS_MOLOPT'),
-            'pseudo'    :  SinglefileData(file='/home/aiida/apps/surfaces/Files/POTENTIAL'),
+            'basis'     : SinglefileData(file='/home/aiida/apps/surfaces/Files/GW_BASIS_SET'),
+            'pseudo'    :  SinglefileData(file='/home/aiida/apps/surfaces/Files/ALL_POTENTIALS'),
             'input_xyz' : self.inputs.xyz_gw
         }
         builder.metadata.options.resources = {
@@ -71,9 +76,12 @@ class GwWorkChain(WorkChain):
         self.report("Submitted Cp2k calculation for SCF")
         return ToContext(calculation=running)
     
+#CHECK VALIDITY....
+#content_string = calc.outputs.retrieved.get_object_content(calc.get_attribute('output_filename'))    
+    
     def run_gw(self):        
         #calc2
-        #new structure with maybe ghost atoms
+               
         restart_folder = self.ctx.calculation.outputs.remote_folder
         builder = Cp2kCalculation.get_builder()
         # code 
@@ -82,8 +90,8 @@ class GwWorkChain(WorkChain):
         builder.parameters = Dict(dict=submit_dict)
         
         builder.file = {
-            'basis'     :  SinglefileData(file='/home/aiida/apps/surfaces/Files/BASIS_MOLOPT'),
-            'pseudo'    :  SinglefileData(file='/home/aiida/apps/surfaces/Files/POTENTIAL'),
+            'basis'     :  SinglefileData(file='/home/aiida/apps/surfaces/Files/GW_BASIS_SET'),
+            'pseudo'    :  SinglefileData(file='/home/aiida/apps/surfaces/Files/ALL_POTENTIALS'),
             'input_xyz' : self.inputs.xyz_gw
         }
         builder.metadata.options.resources = {
@@ -102,7 +110,11 @@ class GwWorkChain(WorkChain):
         running = self.submit(builder)
         self.report("Submitted Cp2k calculation for GW")
         return ToContext(calculation=running)        
+    
+    def validate_results(self):  
+        if self.ctx.calculation.exit_status != 0:
+            return self.exit_codes.CALC_FAILED        
         
     def return_results(self):
-        ##packing resutks and returning
+        ##packing results and returning
         return
