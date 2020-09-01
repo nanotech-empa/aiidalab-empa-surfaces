@@ -30,9 +30,19 @@ for element in ATOMIC_KINDS.keys():
     ATOMIC_KINDS[element]['RI_HFX_BASIS_all'] = None
     
 ATOMIC_KINDS['H']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['B']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
 ATOMIC_KINDS['C']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
-ATOMIC_KINDS['H']['GW_BASIS_SET'] = 'aug-cc-pVDZ-GTH'
-ATOMIC_KINDS['C']['GW_BASIS_SET'] = 'aug-cc-pVDZ-GTH'
+ATOMIC_KINDS['N']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['O']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['S']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['Zn']['RI_AUX'] = 'aug-cc-pVDZ-RIFIT'
+ATOMIC_KINDS['H']['GW_BASIS_SET'] = 'aug-cc-pVDZ-up'
+ATOMIC_KINDS['B']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
+ATOMIC_KINDS['C']['GW_BASIS_SET'] = 'aug-cc-pVDZ-up'
+ATOMIC_KINDS['N']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
+ATOMIC_KINDS['O']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
+ATOMIC_KINDS['S']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
+ATOMIC_KINDS['Zn']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
 
 # possible metal atoms for empirical substrate
 METAL_ATOMS = ['Au', 'Ag', 'Cu']
@@ -120,7 +130,7 @@ class Get_CP2K_Input():
                     'EPS_DEFAULT': '1.0E-14',
                     } 
         self.qs_gw={
-                    'METHOD'             : 'GPW',
+                    'METHOD'             : 'GAPW',
                     'EPS_PGF_ORB'        : '1.0E-80',
                     'EPS_FILTER_MATRIX'  : '1.0E-80'
                     }
@@ -141,22 +151,60 @@ class Get_CP2K_Input():
         #if self.inp_dict['gw_type'] is not None:
         #            self.qs_gw['EPS_DEFAULT']=self.inp_dict['eps_default']
         if self.inp_dict['gw_type']=='GW':                   
+# from Jan Wilhelm
+#&XC
+#  &XC_FUNCTIONAL PBE
+#  &END XC_FUNCTIONAL
+#  &WF_CORRELATION
+#    &RI_RPA
+#      RPA_NUM_QUAD_POINTS  120
+#      &GW
+#        CORR_MOS_OCC   10
+#        CORR_MOS_VIRT  10
+#        EV_GW_ITER      1
+#        RI_SIGMA_X
+#      &END GW
+#    &END RI_RPA
+#  &END
+#&END XC
             self.xc_gw={
                     'XC_FUNCTIONAL': {'_': 'PBE'}, 
                     'WF_CORRELATION': {
                         'RI_RPA': {
-                            'RPA_NUM_QUAD_POINTS': '100', 
+                            'RPA_NUM_QUAD_POINTS': '120', 
                             'GW': {
-                                'CORR_MOS_OCC': '20', 
-                                'CORR_MOS_VIRT': '20', 
-                                'EV_GW_ITER': '10', 
-                                'NPARAM_PADE': '16', 
+                                'CORR_MOS_OCC': '10', 
+                                'CORR_MOS_VIRT': '10', 
+                                'EV_GW_ITER': '1', 
                                 'RI_SIGMA_X': ''
                             }
                         }
                     }
             }
-        elif self.inp_dict['gw_type']=='GW-IC':           
+        elif self.inp_dict['gw_type']=='GW-IC':  
+# from Jan Wilhelm
+#&XC 
+#  &XC_FUNCTIONAL PBE
+#  &END XC_FUNCTIONAL
+#  &WF_CORRELATION
+#    &RI
+#      &RI_METRIC
+#        POTENTIAL_TYPE IDENTITY
+#      &END
+#    &END
+#    &LOW_SCALING
+#    &END
+#    &RI_RPA
+#      &GW
+#        CORR_MOS_OCC   10
+#        CORR_MOS_VIRT  10
+#        IC
+#        &IC
+#        &END
+#      &END GW
+#    &END RI_RPA
+#  &END
+#&END XC            
             self.xc_gw={
                     'XC_FUNCTIONAL': {'_': 'PBE'}, 
                     'WF_CORRELATION': {
@@ -177,94 +225,10 @@ class Get_CP2K_Input():
             }            
 
         elif self.inp_dict['gw_type']=='GW-LS': 
-#    &XC
-#      &XC_FUNCTIONAL PBE
-#      &END XC_FUNCTIONAL
-#      &WF_CORRELATION
-#        METHOD RI_RPA_GPW
-#        RI OVERLAP
-#        ERI_METHOD OS
-#        &WFC_GPW
-#          ! normally, this EPS_FILTER controls the accuracy and
-#          ! the time for the cubic_scaling RPA calculation
-#          ! values like this should be really safe
-#          EPS_FILTER  1.0E-20
-#          EPS_GRID 1.0E-30
-#          EPS_PGF_ORB_S 1.0E-30
-#        &END
-#        &RI_RPA
-#          RPA_NUM_QUAD_POINTS    12   ! same as for N^4-scaling GW. For low-scaling GW, we do computations in imaginary time 
-#                                      ! and imaginary frequency and we use a special time/frequency grid ("minimax grid"). 
-#                                      ! The highest number is 20 because the generation for grids with more than 20 points 
-#                                      ! is numerically unstable. 
-#                                      ! 12 points is a good compromise between good accuracy, good numerical stability 
-#                                      ! and fast computation.
-#          MINIMAX
-#          IM_TIME
-#          &IM_TIME
-#           EPS_FILTER_IM_TIME 1.0E-20
-#           GROUP_SIZE_3C 32            ! a group size to do computations
-#           GROUP_SIZE_P 4              ! another group size to do computations
-#           MEMORY_CUT 12               ! high memory cut reduces memory to prevent out of memory but the computation takes longer. 
-#                                       ! For Patrick's tensors which may come soon, this number can be lowered.
-#           GW
-#           MEMORY_INFO
-#          &END
-#          &RI_G0W0                     ! all the parameters below are as in normal GW
-#            FIT_ERROR
-#            CORR_OCC 2
-#            CORR_VIRT 2
-#            CROSSING_SEARCH NEWTON
-#            CHECK_FIT
-#            EV_SC_ITER 1
-#            OMEGA_MAX_FIT 1.0
-#            ANALYTIC_CONTINUATION PADE
-#            RI OVERLAP
-#            RI_SIGMA_X
-#            PRINT_GW_DETAILS
-#          &END RI_G0W0
-#        &END RI_RPA
-#      &END
-#    &END XC
-    
+
+#TO BE IMPLEMENTED    
            self.xc_gw={
-                       'XC_FUNCTIONAL': {'_': 'PBE'},
-                       'WF_CORRELATION' : {
-                                          'METHOD'     : 'RI_RPA_GPW',
-                                          'RI'         : 'OVERLAP', 
-                                          'ERI_METHOD' : 'OS',
-                                         'WFC_GPW' : {
-                                                     'EPS_FILTER'    : str(self.inp_dict['eps_filter']),
-                                                     'EPS_GRID'      : str(self.inp_dict['eps_grid']),
-                                                     'EPS_PGF_ORB_S' : str(self.inp_dict['eps_pgf_orb_s'])
-                                         },#END
-                                         'RI_RPA' : {
-                                                    'RPA_NUM_QUAD_POINTS' : '%d' %(np.min([self.inp_dict['rpa_num_quad_points'],20])),
-                                                    'MINIMAX'             : '',
-                                                    'IM_TIME '             : '',
-                                                    'IM_TIME' : {
-                                                                'EPS_FILTER_IM_TIME' : str(self.inp_dict['eps_filter_im_time']),
-                                                                'GROUP_SIZE_3C'      : str(self.inp_dict['group_size_3c']),
-                                                                'GROUP_SIZE_P'       : str(self.inp_dict['group_size_p']),
-                                                                'MEMORY_CUT'         : str(self.inp_dict['memory_cut']),
-                                                                'GW'                 : '',
-                                                                'MEMORY_INFO'        : ''
-                                                    },#END IM_TIME
-                                                    'RI_G0W0' : {
-                                                                'FIT_ERROR'             : '',
-                                                                'CORR_OCC'              : '%d' %(self.inp_dict['corr_occ']),
-                                                                'CORR_VIRT'             : '%d' %(self.inp_dict['corr_virt']),
-                                                                'CROSSING_SEARCH'       : 'NEWTON',
-                                                                'CHECK_FIT'             : '',
-                                                                'EV_SC_ITER'            : '%d' %(self.inp_dict['ev_sc_iter']),
-                                                                'OMEGA_MAX_FIT'         : '1.0',
-                                                                'ANALYTIC_CONTINUATION' : 'PADE',
-                                                                'RI'                    : 'OVERLAP',
-                                                                'RI_SIGMA_X'            : '',
-                                                                'PRINT_GW_DETAILS'      : ''
-                                                    }#END RI_G0W0
-                                         }#END RI_RPA
-                       }#END WF_CORRELATION
+                       
            }#END XC    
     
         ###END XC FOR GW
@@ -672,8 +636,10 @@ class Get_CP2K_Input():
 
         if not self.inp_dict['gw_type']:
             basis_set = 'BASIS_MOLOPT'
+            potential = 'POTENTIAL'
         else:
-            basis_set = 'GW_BASIS_SET'        
+            basis_set = 'GW_BASIS_SET'
+            potential = 'ALL_POTENTIALS'
 
         
 
@@ -699,7 +665,7 @@ class Get_CP2K_Input():
                                          'EPS_SCF': '1.0E-7',                                         
                            },
                            'PRINT'    : print_scf
-                 },
+                          },
                  'DIAG' : {'MAX_SCF'         : '500'                      ,
                            'SCF_GUESS'       : 'RESTART'                  ,
                            'EPS_SCF'         : '1.0E-7'                   ,
@@ -712,12 +678,23 @@ class Get_CP2K_Input():
                                                 'NBROYDEN'  : '8'
                            },
                            'PRINT'    : print_scf
-                  },
+                          },
                  'DEFAULT' : {'MAX_SCF'         : '200'                      ,
                               'SCF_GUESS'       : 'RESTART'                  ,
                               'EPS_SCF'         : '1.0E-6'                   ,
-                              #'LEVEL_SHIFT'     : 0.1                        ,
                               'PRINT'           : print_scf
+                             },
+                 'GW'      : {'EPS_SCF'         : '1.0E-6'                   ,
+                              'SCF_GUESS'       : 'RESTART'                  ,
+                              'MAX_SCF'         : '100'                      ,
+                              'OT': {'PRECONDITIONER': 'FULL_ALL',
+                                    'MINIMIZER'     : 'BROYDEN'
+                                    },
+                              'OUTER_SCF': {'MAX_SCF': '30'     ,
+                                            'EPS_SCF': '1.0E-6' ,
+                                           },
+                              'CHOLESKY' : 'OFF'      ,
+                              'EPS_EIGVAL' : '1.0E-6'
                              }
                               
         }
@@ -739,8 +716,8 @@ class Get_CP2K_Input():
         force_eval = {
             'METHOD': 'Quickstep',
             'DFT': {
-                'BASIS_SET_FILE_NAME': 'BASIS_MOLOPT',
-                'POTENTIAL_FILE_NAME': 'POTENTIAL',
+                'BASIS_SET_FILE_NAME': basis_set,
+                'POTENTIAL_FILE_NAME': potential,
                 'CHARGE':str(self.inp_dict['charge']),
                 'QS': self.sections_dict[self.workchain]['qs'],
                 'MGRID': {
@@ -796,7 +773,8 @@ class Get_CP2K_Input():
             pp = ATOMIC_KINDS[kind]['pseudo']
             bs = ATOMIC_KINDS[kind][basis_set] 
             if  self.inp_dict['gw_type']  in {'GW', 'GW-IC'}:
-                bs = ATOMIC_KINDS[kind]['GW_BASIS_SET']            
+                bs = ATOMIC_KINDS[kind]['GW_BASIS_SET']  
+                pp = 'ALL'
             force_eval['SUBSYS']['KIND'].append({
                 '_': kind,
                 'BASIS_SET': bs,
@@ -830,6 +808,9 @@ class Get_CP2K_Input():
                 for u in [1,2]:
                     pp = ATOMIC_KINDS[element]['pseudo']
                     bs = ATOMIC_KINDS[element][basis_set] 
+                    if  self.inp_dict['gw_type']  in {'GW', 'GW-IC'}:
+                        bs = ATOMIC_KINDS[kind]['GW_BASIS_SET']  
+                        pp = 'ALL'
                     force_eval['SUBSYS']['KIND'].append(
                                                         {
                                                         '_': element+str(u),
@@ -855,8 +836,8 @@ class Get_CP2K_Input():
                                                         }
                                                        )           
                     if self.inp_dict['gw_type']:
-                        ba = ATOMIC_KINDS[element]['RI_AUX_BASIS_SET']
-                        force_eval['SUBSYS']['KIND'][-1]['RI_AUX_BASIS_SET'] = ba                  
+                        ba = ATOMIC_KINDS[element]['RI_AUX']
+                        force_eval['SUBSYS']['KIND'][-1]['BASIS_SET RI_AUX'] = ba                  
             ##### END ADD KINDS
 
         ### STRESS TENSOR for CELL_OPT

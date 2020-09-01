@@ -288,7 +288,9 @@ class StructureAnalyzer(HasTraits):
         vacuum_x=sys_size[0] +4 < atoms.cell[0][0]
         vacuum_y=sys_size[1] +4 < atoms.cell[1][1]
         vacuum_z=sys_size[2] +4 < atoms.cell[2][2]
-        all_elements = atoms.get_chemical_symbols() # list(set(atoms.get_chemical_symbols())) need ALL for spin guess   
+        # do not use a set in the following line list(set(atoms.get_chemical_symbols())) 
+        # need ALL atoms and elements for spin guess and for cost calculation
+        all_elements = atoms.get_chemical_symbols()    
         cov_radii = [covalent_radii[a.number] for a in atoms]
 
         nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
