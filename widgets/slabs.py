@@ -397,16 +397,21 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
     #rotate molecule
     mol.rotate(phi,'z')
 
-    # position molecule
-    mol_slab_dist = 2.3
-
     mol.cell = (cx,cy,cz)
     mol.pbc = (True,True,True)
 
     # position molecule a bit above gold slab
+    min_mol_slab_dist = 2.3
+    avg_mol_slab_dist = 3.2
+    
     mol.center()
     mol_z_min = np.min(mol.positions[:,2])
-    mol.positions[:,2] += slab_z_max - mol_z_min + mol_slab_dist
+    mol_z_avg = np.mean(mol.positions[:,2])
+    
+    min_shift = slab_z_max - mol_z_min + min_mol_slab_dist
+    avg_shift = slab_z_max - mol_z_avg + avg_mol_slab_dist
+    
+    mol.positions[:,2] += np.max([min_shift, avg_shift])
 
     # translate molecule 
     mol.positions += np.array([dx,dy,dz])
