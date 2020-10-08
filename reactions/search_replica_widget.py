@@ -34,7 +34,7 @@ class SearchReplicaWidget(ipw.VBox):
     
     def __init__(self, **kwargs):
         
-        self.preprocess_version = 0.11
+        self.preprocess_version = 0.12
         
         btn_style = {'description_width': '60px'}
         btn_layout = {'width': '20%'}
@@ -345,7 +345,7 @@ class SearchReplicaWidget(ipw.VBox):
             if cv_inc:
                 replica_sets[name]['replicas'].sort(key=lambda x:(x[0] is not None, x[0], x[2]))
             else:
-                replica_sets[name]['replicas'].sort(reverse=True, key=lambda x:(x[0] is not None, x[0], x[2]))
+                replica_sets[name]['replicas'].sort(reverse=True, key=lambda x:(x[0] is None, x[0], x[2]))
             
         return replica_sets
             
