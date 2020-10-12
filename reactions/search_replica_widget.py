@@ -34,7 +34,7 @@ class SearchReplicaWidget(ipw.VBox):
     
     def __init__(self, **kwargs):
         
-        self.preprocess_version = 0.14
+        self.preprocess_version = 0.16
         
         btn_style = {'description_width': '60px'}
         btn_layout = {'width': '20%'}
@@ -280,10 +280,11 @@ class SearchReplicaWidget(ipw.VBox):
         for wc_qb in wc_list:
             wc = wc_qb[0]
             
-            if wc.is_excepted:
-                continue
+            # we also want to potentially recover replicas from an excepted calculation
+            #if wc.is_excepted:
+            #    continue
             
-            if not wc.is_sealed:
+            if not wc.is_terminated:
                 print(str(wc.pk) + " is still running, skipping.")
                 continue
             
