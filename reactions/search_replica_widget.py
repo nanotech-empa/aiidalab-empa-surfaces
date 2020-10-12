@@ -34,7 +34,7 @@ class SearchReplicaWidget(ipw.VBox):
     
     def __init__(self, **kwargs):
         
-        self.preprocess_version = 0.12
+        self.preprocess_version = 0.14
         
         btn_style = {'description_width': '60px'}
         btn_layout = {'width': '20%'}
@@ -88,6 +88,8 @@ class SearchReplicaWidget(ipw.VBox):
         
         selected_replica_calc = self.replica_calcs[self.drop_replica.value]
         
+        self.order_replicas_by_cv_actual(selected_replica_calc)
+        
         html_list, check_list = self.generate_thumbnail_html(selected_replica_calc)
 
         with self.output_header:
@@ -132,6 +134,9 @@ class SearchReplicaWidget(ipw.VBox):
         plot_colvar = []
         wc_pk_str = str(replica_calc['wcs'][0].pk)
         
+        ref_en_scf = None
+        ref_en_frc = None
+        
         for i, rep in enumerate(replica_calc['replicas']):
             cv_target, energy, struct_pk = rep
             struct_node = load_node(struct_pk)
@@ -140,11 +145,16 @@ class SearchReplicaWidget(ipw.VBox):
             plot_energy_frc.append(energy[1])
             plot_colvar.append(colvar_actual)
             
+            if cv_target is None:
+                if ref_en_scf is None:
+                    ref_en_scf = energy[0]*27.2114
+                    ref_en_frc = energy[1]*27.2114
+            
         plot_energy_scf = np.array(plot_energy_scf)*27.2114
-        plot_energy_scf -= plot_energy_scf[0]
+        plot_energy_scf -= ref_en_scf
             
         plot_energy_frc = np.array(plot_energy_frc)*27.2114
-        plot_energy_frc -= plot_energy_frc[0]
+        plot_energy_frc -= ref_en_frc
         
         plt.figure(figsize=(10, 5))
         plt.ylabel('Energy/eV')
@@ -270,6 +280,9 @@ class SearchReplicaWidget(ipw.VBox):
         for wc_qb in wc_list:
             wc = wc_qb[0]
             
+            if wc.is_excepted:
+                continue
+            
             if not wc.is_sealed:
                 print(str(wc.pk) + " is still running, skipping.")
                 continue
@@ -342,10 +355,10 @@ class SearchReplicaWidget(ipw.VBox):
                     replica_sets[name]['replicas'].append(replica)
             
             # Sort entries by cv target (e.g. one could be adding replicas in-between prev calculated ones)
-            if cv_inc:
-                replica_sets[name]['replicas'].sort(key=lambda x:(x[0] is not None, x[0], x[2]))
-            else:
-                replica_sets[name]['replicas'].sort(reverse=True, key=lambda x:(x[0] is None, x[0], x[2]))
+            #if cv_inc:
+            #    replica_sets[name]['replicas'].sort(key=lambda x:(x[0] is not None, x[0], x[2]))
+            #else:
+            #    replica_sets[name]['replicas'].sort(reverse=True, key=lambda x:(x[0] is None, x[0], x[2]))
             
         return replica_sets
             
@@ -369,6 +382,31 @@ class SearchReplicaWidget(ipw.VBox):
         tmp.close()
         return b64encode(raw).decode()
     
+    def order_replicas_by_cv_actual(self, replica_calc):
+        
+        
+        wc_pk_str = str(replica_calc['wcs'][0].pk)
+        
+        cv_actual_list = []
+        
+        for i, rep in enumerate(replica_calc['replicas']):
+            
+            cv_target, energy, struct_pk = rep
+            struct_node = load_node(struct_pk)            
+            struct_rep_info = struct_node.get_extra('replica_calcs')[wc_pk_str]
+            colvar_actual = float(struct_rep_info['colvar_actual'])
+            
+            cv_actual_list.append(colvar_actual)
+        
+        
+        sorted_lists = list(zip(*sorted(zip(cv_actual_list, replica_calc['replicas']),
+                                        reverse=not replica_calc['colvar_inc'])))
+        
+        cv_actual_list = list(sorted_lists[0])
+        replica_calc['replicas'] = list(sorted_lists[1])
+        
+            
+    
     def preprocess(self, replica_calc, overwrite_thumbnails=False):
         
         # Find all PKs of all work-calcs that contributed to this set
@@ -386,15 +424,52 @@ class SearchReplicaWidget(ipw.VBox):
         colvar_type = list(replica_calc['colvar_def'].keys())[0]
         cv_instance = COLVARS[colvar_type].from_cp2k_subsys(replica_calc['colvar_def'])
         
-        last_ase = None
+        # -----------------------------------------------------------
+        # Get the list of ase and actual colvar values for each replica
+        
+        ase_list = []
+        cv_actual_list = []
         
         for i, rep in enumerate(replica_calc['replicas']):
             
             cv_target, energy, struct_pk = rep
             struct = load_node(struct_pk)
             
-            progress.value = (i+1.)/n_rep
-            prepoc_failed = False
+            progress.value += (i+1.)/(2*n_rep)
+            
+            struct_ase = struct.get_ase()
+            colvar_actual = cv_instance.eval_cv(struct_ase)
+            
+            ase_list.append(struct_ase)
+            cv_actual_list.append(colvar_actual)
+        
+        # -----------------------------------------------------------
+        # Sort the order of replicas by colvar actual
+        
+        sorted_lists = zip(*sorted(zip(cv_actual_list, ase_list, replica_calc['replicas']),
+                              reverse=not replica_calc['colvar_inc']))
+        
+        cv_actual_list, ase_list, replica_calc['replicas'] = sorted_lists
+        
+        # -----------------------------------------------------------
+        # calculate the dist to prev and update extras
+        
+        for i, rep in enumerate(replica_calc['replicas']):
+            
+            cv_target, energy, struct_pk = rep
+            struct = load_node(struct_pk)
+            cv_actual = cv_actual_list[i]
+            struct_ase = ase_list[i]
+              
+            progress.value += (i+1.)/(2*n_rep)
+            
+            if i == 0:
+                dist_previous = '-'
+            else:
+                dist_previous = self.get_replica_distance(ase_list[i-1], struct_ase)
+            
+            
+            # Update the extras of the current structure
             
             wc_pk_str = str(replica_calc['wcs'][0].pk)
             
@@ -405,40 +480,25 @@ class SearchReplicaWidget(ipw.VBox):
             
             if wc_pk_str not in rep_calcs:
                 rep_calcs[wc_pk_str] = {}
-            elif rep_calcs[wc_pk_str]['preproc_v'] == self.preprocess_version:
-                last_ase = struct.get_ase()
-                continue
-            
-            struct_ase = struct.get_ase()
-            colvar_actual = cv_instance.eval_cv(struct_ase)
-            
-            if last_ase is not None:
-                dist_previous = self.get_replica_distance(last_ase, struct_ase)
-            else:
-                dist_previous = '-'
-            last_ase = struct_ase
             
             rep_calcs[wc_pk_str]['preproc_v']     = self.preprocess_version
             rep_calcs[wc_pk_str]['dist_previous'] = dist_previous
-            rep_calcs[wc_pk_str]['colvar_actual'] = colvar_actual
+            rep_calcs[wc_pk_str]['colvar_actual'] = cv_actual
             
             if 'thumbnail' not in rep_calcs[wc_pk_str] or overwrite_thumbnails:
                 t = struct_ase
                 vis_list = cv_instance.visualization_list(t)
                 thumbnail = self.render_thumbnail(t, vis_list)
                 rep_calcs[wc_pk_str]['thumbnail'] = thumbnail
-            
-            struct.set_extra('replica_calcs', rep_calcs)
-            
-            if prepoc_failed:
-                wc_preproc_failed = True
-                break
                 
+            struct.set_extra('replica_calcs', rep_calcs)
+        
+        # -----------------------------------------------------------
+        
         for wc in replica_calc['wcs']:
             wc.set_extra('preproc_v', self.preprocess_version)
             wc.set_extra('preproc_failed', wc_preproc_failed)
-            
-    
+           
     def preprocess_replicas(self):
         
         with self.out_preproc:
