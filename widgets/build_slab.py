@@ -28,12 +28,25 @@ class BuildSlab(ipw.VBox):
         self.title = title
         self._molecule = None
         self.drop_surface = ipw.Dropdown(description="Surface",
-                                    options=["Au(111)", "Ag(111)", "Cu(111)", "hBN", "PdGa_A_Pd1", "PdGa_A_Pd3"],
+                                    options=["Au(111)", 
+                                             "Au(110)2x1",
+                                             "Ag(111)", 
+                                             "Cu(111)", 
+                                             "hBN", 
+                                             "PdGa_A_Pd1", 
+                                             "PdGa_A_Pd3"],
                                     value="Au(111)"
                                     )
         self.nx_slider = ipw.IntSlider(description="nx", min=1, max=60, continuous_update=False)
         self.ny_slider = ipw.IntSlider(description="ny", min=1, max=30, continuous_update=False)
         self.nz_slider = ipw.IntSlider(description="nz", min=1, max=10, value=4, continuous_update=False)
+        def on_slab_select(c):
+            if self._molecule:
+                self.nx_slider.value, self.ny_slider.value = slabs.guess_slab_size(self._molecule,self.drop_surface.value)
+            elif self.molecule and self.details and self.details['system_type'] == 'Molecule':
+                self.nx_slider.value, self.ny_slider.value = slabs.guess_slab_size(self.molecule,self.drop_surface.value)
+        self.drop_surface.observe(on_slab_select)    
+        
         self.create_bttn = ipw.Button(description="Add slab")
         self.create_bttn.on_click(self.create_slab)
         self.info = ipw.HTML('')
@@ -71,6 +84,6 @@ class BuildSlab(ipw.VBox):
         """Selected molecule from structure."""
 
         if self.molecule and self.details and self.details['system_type'] == 'Molecule':
-            nx, ny = slabs.guess_slab_size(self.molecule)
+            nx, ny = slabs.guess_slab_size(self.molecule,self.drop_surface.value)
             self.nx_slider.value = nx
             self.ny_slider.value = ny

@@ -266,18 +266,66 @@ PdGa_dict={
     'PdGa_A_Pd3':{'bulk': Pd3_A_unit , 'top' : Pd3_A_top }
 }
 
+## Au(110)2x1
 
-def guess_slab_size(mol):
+Au_110_2x1_Lx = 8.3382
+Au_110_2x1_Ly = 2.9482596
+Au_110_2x1_Lz = 2.9482596
+Au_110_2x1_bulk=[
+    ['Au', 0., 0., 0],
+    ['Au', 4.1691, 0.    , 0    ],
+    ['Au', 2.08455  , 1.474    , 1.4741298],
+    ['Au', 6.25365  , 1.474    , 1.4741298],
+]
+
+Au_110_2x1_top=[['Au', 0.       , 0.       , 2.9482596]]
+#Au_110_2x1_dict={'bulk' : Au_110_2x1_bulk,'top' : Au_110_2x1_top}
+                
+slab_lx_ly={'Au(111)'    : [Au_x,Au_y],
+            'Au(110)2x1' : [Au_110_2x1_Lx,Au_110_2x1_Ly],
+            'Ag(111)'    : [Ag_x,Ag_y],
+            'Cu(111)'    : [Cu_x,Cu_y],
+            'PdGa_A_Pd1' : [PdGa_Lx,PdGa_Ly],
+            'PdGa_A_Pd3' : [PdGa_Lx,PdGa_Ly],
+            'hBN'        : [hBN_x,hBN_y],                        
+           }                
+
+def guess_slab_size(mol,which_surf):
     cx = np.amax(mol.positions[:,0]) - np.amin(mol.positions[:,0]) + 12
     cy = np.amax(mol.positions[:,1]) - np.amin(mol.positions[:,1]) + 12
-    nx = int(round(cx/Au_x))+1
-    ny = int(round(cy/Au_y))+1
+    nx = int(round(cx/slab_lx_ly[which_surf][0]))+1
+    ny = int(round(cy/slab_lx_ly[which_surf][1]))+1
     return nx, ny
 
 def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
+                
+### Au(110)2x1 SECTION
+    if "Au(110)2x1" in which_surf:
+        Au=Atoms()
+        for a in Au_110_2x1_bulk:
+            Au.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) )))
+        Au.cell=(Au_110_2x1_Lx,Au_110_2x1_Ly ,Au_110_2x1_Lz)
+        Au.pbc=(True,True,True)
+        ### build 1x1xnz bulk
+        Au=Au.repeat((1,1,nz))
+
+        ### add top layer
+        for a in Au_110_2x1_top:
+            Au.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) + (nz-1) * Au_110_2x1_Lz )))
+
+        ### add to cell thickness of Pd3 part + vacuum    
+        Au.cell=(Au_110_2x1_Lx,Au_110_2x1_Ly ,nz*Au_110_2x1_Lz + 2.9482596 +40.0 )
+
+        ### replicate by nx and ny
+        Au=Au.repeat((nx,ny,1))
+        the_slab = sort(Au, tags=Au.get_positions()[:,2]*-1)
+        the_slab.positions+=np.array((0,0,10))
+        slab_z_max=np.max(the_slab.positions[:,2])
+        
+        cx,cy,cz=the_slab.cell.diagonal()                
 
 ### PdGa SECTION    
-    if "PdGa_A_Pd" in which_surf:
+    elif "PdGa_A_Pd" in which_surf:
         PdGa=Atoms()
         for a in PdGa_dict[which_surf]['bulk']:
             PdGa.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) )))
