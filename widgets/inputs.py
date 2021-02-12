@@ -451,8 +451,8 @@ class GwWidget(ipw.HBox):
                                 style={'description_width': 'initial'})
         self.hq = ipw.ToggleButton(value=False, description='High precision',style={'description_width': 'initial'})
         self.gw_trait='GW'
-        self.ic_plane_z = ipw.FloatText(description='IC z plane',value=7.2,
-                                        tooltip='e.g. 2.8A below molecule, 1.4A above Au(111)',
+        self.ic_plane_z = ipw.FloatText(description='IC z plane',value=8.22,
+                                        tooltip='e.g. 1.78A below molecule, 1.42A above Au(111)',
                                        style={'description_width': 'initial'}, layout={'width': 'initial'}) #170
         
         super().__init__(children=[])
