@@ -8,21 +8,22 @@ import copy
 import copy
 
 ATOMIC_KINDS = {
-    'H' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q1'   },
-    'Au':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
-    'Ag':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
-    'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  },
-    'Al':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'   },
-    'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'   },
-    'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q7'   },
-    'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q4'   },
-    'Si':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-GTH'    , 'pseudo' : 'GTH-PBE-q4'   },
-    'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13'  },        
-    'N' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q5'   },
-    'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   },
-    'Pd':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q18'  },
-    'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   },
-    'Zn':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q12'  },
+    'H' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q1'   }, #1
+    'B' :{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'   }, #5
+    'C' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q4'   }, #6
+    'N' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q5'   }, #7
+    'O' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   }, #8
+    'Al':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q3'   }, #13
+    'Si':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-GTH'    , 'pseudo' : 'GTH-PBE-q4'   }, #14
+    'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   }, #16
+    'Cl':{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q7'   }, #17
+    'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  }, #29
+    'Zn':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q12'  }, #30
+    'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13'  }, #31
+    'Br':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q7'   }, #35
+    'Pd':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q18'  }, #46
+    'Ag':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  }, #47
+    'Au':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  }, #79    
 }
 
 for element in ATOMIC_KINDS.keys():
@@ -43,6 +44,21 @@ ATOMIC_KINDS['N']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
 ATOMIC_KINDS['O']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
 ATOMIC_KINDS['S']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
 ATOMIC_KINDS['Zn']['GW_BASIS_SET'] = 'aug-cc-pVDZ'
+
+ATOMIC_KINDS['H']['RI_AUX_HQ'] = 'aug-cc-pVTZ-RIFIT'
+ATOMIC_KINDS['B']['RI_AUX_HQ'] = 'aug-cc-pVQZ-RIFIT'
+ATOMIC_KINDS['C']['RI_AUX_HQ'] = 'aug-cc-pVTZ-RIFIT'
+ATOMIC_KINDS['N']['RI_AUX_HQ'] = 'aug-cc-pVQZ-RIFIT'
+ATOMIC_KINDS['O']['RI_AUX_HQ'] = 'aug-cc-pVQZ-RIFIT'
+ATOMIC_KINDS['S']['RI_AUX_HQ'] = 'aug-cc-pVQZ-RIFIT'
+ATOMIC_KINDS['Zn']['RI_AUX_HQ'] = 'aug-cc-pVQZ-RIFIT'
+ATOMIC_KINDS['H']['GW_BASIS_SET_HQ'] = 'aug-cc-pVTZ'
+ATOMIC_KINDS['B']['GW_BASIS_SET_HQ'] = 'aug-cc-pVQZ'
+ATOMIC_KINDS['C']['GW_BASIS_SET_HQ'] = 'aug-cc-pVTZ'
+ATOMIC_KINDS['N']['GW_BASIS_SET_HQ'] = 'aug-cc-pVQZ'
+ATOMIC_KINDS['O']['GW_BASIS_SET_HQ'] = 'aug-cc-pVQZ'
+ATOMIC_KINDS['S']['GW_BASIS_SET_HQ'] = 'aug-cc-pVQZ'
+ATOMIC_KINDS['Zn']['GW_BASIS_SET_HQ'] = 'aug-cc-pVQZ'
 
 # possible metal atoms for empirical substrate
 METAL_ATOMS = ['Au', 'Ag', 'Cu']
@@ -638,8 +654,8 @@ class Get_CP2K_Input():
             basis_set = 'BASIS_MOLOPT'
             potential = 'POTENTIAL'
         else:
-            basis_set = 'GW_BASIS_SET'
             potential = 'ALL_POTENTIALS'
+            basis_set = 'GW_BASIS_SET'               
 
         
 
@@ -695,7 +711,17 @@ class Get_CP2K_Input():
                                            },
                               'CHOLESKY' : 'OFF'      ,
                               'EPS_EIGVAL' : '1.0E-6'
-                             }
+                             },
+                 'GW_HQ'   : {'EPS_SCF'         : '1.0E-6'                   ,
+                              'SCF_GUESS'       : 'RESTART'                  ,
+                              'MAX_SCF'         : '100'                      ,
+                              'OT': {'PRECONDITIONER': 'FULL_SINGLE_INVERSE',
+                                    'MINIMIZER'     : 'CG'
+                                    },
+                              'OUTER_SCF': {'MAX_SCF': '30'     ,
+                                            'EPS_SCF': '1.0E-6' ,
+                                           }
+                             }                 
                               
         }
 
@@ -773,7 +799,11 @@ class Get_CP2K_Input():
             pp = ATOMIC_KINDS[kind]['pseudo']
             bs = ATOMIC_KINDS[kind][basis_set] 
             if  self.inp_dict['gw_type']  in {'GW', 'GW-IC'}:
-                bs = ATOMIC_KINDS[kind]['GW_BASIS_SET']  
+                bs = ATOMIC_KINDS[kind]['GW_BASIS_SET']
+                ba = ATOMIC_KINDS[kind]['RI_AUX']
+                if self.inp_dict['gw_hq']:
+                    bs = ATOMIC_KINDS[kind]['GW_BASIS_SET_HQ']
+                    ba = ATOMIC_KINDS[kind]['RI_AUX_HQ']
                 pp = 'ALL'
             force_eval['SUBSYS']['KIND'].append({
                 '_': kind,
@@ -781,7 +811,6 @@ class Get_CP2K_Input():
                 'POTENTIAL': pp
             })
             if  self.inp_dict['gw_type'] :
-                ba = ATOMIC_KINDS[kind]['RI_AUX']
                 force_eval['SUBSYS']['KIND'][-1]['BASIS_SET RI_AUX'] = ba
             if  self.inp_dict['gw_type']=='GW-IC' :### ADD SECTION FOR GHOST ATOMS
                 force_eval['SUBSYS']['KIND'].append({
@@ -789,7 +818,6 @@ class Get_CP2K_Input():
                 'BASIS_SET': bs,
                 'POTENTIAL': pp
                 })
-                ba = ATOMIC_KINDS[kind]['RI_AUX']
                 force_eval['SUBSYS']['KIND'][-1]['GHOST'] = 'TRUE'
                 force_eval['SUBSYS']['KIND'][-1]['ELEMENT'] = kind
                 force_eval['SUBSYS']['KIND'][-1]['BASIS_SET RI_AUX'] = ba
@@ -809,7 +837,11 @@ class Get_CP2K_Input():
                     pp = ATOMIC_KINDS[element]['pseudo']
                     bs = ATOMIC_KINDS[element][basis_set] 
                     if  self.inp_dict['gw_type']  in {'GW', 'GW-IC'}:
-                        bs = ATOMIC_KINDS[kind]['GW_BASIS_SET']  
+                        bs = ATOMIC_KINDS[kind]['GW_BASIS_SET'] 
+                        ba = ATOMIC_KINDS[element]['RI_AUX']
+                        if self.inp_dict['gw_hq']:
+                            bs = ATOMIC_KINDS[kind]['GW_BASIS_SET_HQ']                            
+                            ba = ATOMIC_KINDS[element]['RI_AUX_HQ']
                         pp = 'ALL'
                     force_eval['SUBSYS']['KIND'].append(
                                                         {
@@ -836,7 +868,6 @@ class Get_CP2K_Input():
                                                         }
                                                        )           
                     if self.inp_dict['gw_type']:
-                        ba = ATOMIC_KINDS[element]['RI_AUX']
                         force_eval['SUBSYS']['KIND'][-1]['BASIS_SET RI_AUX'] = ba                  
             ##### END ADD KINDS
 
