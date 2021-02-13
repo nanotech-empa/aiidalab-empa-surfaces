@@ -46,8 +46,11 @@ class GwWorkChain(WorkChain):
         del submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['C']
         cell = str(cella[0]) +' '+str(cellb[1]) +' '+str(cellc[2]) 
         submit_dict_scf['FORCE_EVAL']['SUBSYS']['CELL']['ABC'] = cell   
-        submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['LEVEL_SHIFT'] = 0.1
-        del(submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['EPS_EIGVAL'])
+        submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['LEVEL_SHIFT'] = 0.2
+        if submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['OT']['MINIMIZER'] == 'CG':
+            submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['CHOLESKY'] = 'OFF'
+        else:
+            del(submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['EPS_EIGVAL'])
         del(submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['OT'])
         del(submit_dict_scf['FORCE_EVAL']['DFT']['SCF']['OUTER_SCF'])
         

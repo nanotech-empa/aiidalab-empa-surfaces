@@ -449,28 +449,35 @@ class GwWidget(ipw.HBox):
         self.gw_type = ipw.ToggleButtons(value = 'GW',
                                 description='GW/GW+IC',options=['GW', 'GW-IC'],
                                 style={'description_width': 'initial'})
+        self.hq = ipw.ToggleButton(value=False, description='High precision',style={'description_width': 'initial'})
         self.gw_trait='GW'
-        self.ic_plane_z = ipw.FloatText(description='IC z plane',value=1.4,
+        self.ic_plane_z = ipw.FloatText(description='IC z plane',value=8.22,
+                                        tooltip='e.g. 1.78A below molecule, 1.42A above Au(111)',
                                        style={'description_width': 'initial'}, layout={'width': 'initial'}) #170
         
-        super().__init__(children=[self.gw_type])
+        super().__init__(children=[])
         
         self.gw_type.observe(self.on_gw, 'value')         
         
     def return_dict(self):
         size = self.details['sys_size'] * 2 +15
         gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))
+        diag_method = 'GW'
+        if self.hq.value:
+            diag_method='GW_HQ'
         if self.gw_type.value == 'GW':
             size = self.details['sys_size'] * 2 +15
-            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))            
+            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))   
+
             return {
                 'ic_plane_z' : None,
                 'gw_type': 'GW',
+                'gw_hq' : self.hq.value,
                 'cell'   : gwcell,
                 'periodic':'NONE',
                 'poisson_solver' : 'MT',
                 'center_coordinates' : True,
-                'diag_method'        : 'GW'
+                'diag_method'        : diag_method
             }
         else:
             size = self.details['sys_size'] * 2 + 30
@@ -478,21 +485,22 @@ class GwWidget(ipw.HBox):
             return {
                 'ic_plane_z' : self.ic_plane_z.value,
                 'gw_type': 'GW-IC',
+                'gw_hq' : self.hq.value,
                 'cell'   : gwcell,
                 'periodic':'NONE',
                 'poisson_solver' : 'MT',
                 'center_coordinates' : True,
-                'diag_method'        : 'GW'
+                'diag_method'        : diag_method
             }                
         
 
-    ## need to simplify this: trick to switch froth and back from GW and DFT    
+    ## need to simplify this: trick to switch forth and back from GW and DFT    
     def on_gw(self,c=None):
         if self.gw_type.value == 'GW':
-            self.children=[self.gw_type]
+            self.children=[self.gw_type,self.hq]
             self.gw_trait='GW'
         else:
-            self.children=[self.gw_type,self.ic_plane_z]
+            self.children=[self.gw_type,self.ic_plane_z,self.hq]
             self.gw_trait='GW-IC'
         
             
@@ -505,13 +513,13 @@ class GwWidget(ipw.HBox):
             link((self.manager, 'gw_trait'), (self, 'gw_trait'))
             if self.details['system_type'] == 'Molecule_GW':
                 self.gw_type.value = 'GW'
-                self.children = [self.gw_type]
+                self.children = [self.gw_type,self.hq]
             elif self.details['system_type'] == 'Molecule_GW-IC':
                 self.gw_type.value = 'GW-IC'   
-                self.children = [self.gw_type,self.ic_plane_z ]
+                self.children = [self.gw_type,self.ic_plane_z,self.hq]
             else:
                 self.gw_type.value = 'DFT'
-                self.children = [self.gw_type]
+                self.children = [self.gw_type,self.hq]
         
 class FixedAtomsWidget(ipw.Text):
     details = Dict()
