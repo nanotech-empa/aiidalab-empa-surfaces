@@ -7,6 +7,13 @@ from traitlets import  Dict, Unicode, observe
 
 ## custom set for visualization
 def default_vis_func(structure):
+    # from struct details['cases'] we receive a list of atom types in the structure:
+    # 'a' adatoms
+    # 'b' bulk
+    # 'm' molecule
+    # 's' surface
+    # 'u' unknown
+    # 'w' wire    
     if structure is None:
         return {},{}
     an=StructureAnalyzer()
@@ -15,55 +22,94 @@ def default_vis_func(structure):
     details=an.details
     if not details:
         return {},{}
-    if details['system_type']=='SlabXY':
-        all_mol = [item for sublist in details['all_molecules'] for item in sublist]
-        the_rest = list(set(range(details['numatoms']))-set(all_mol))
-        vis_dict={ ## rep 0 must be the substrate otherwise in case of no moleucle it crashes
-            0 : {
-                'ids' : list_to_string_range(the_rest,shift=0),
-                'aspectRatio' : 10 , 
-                'highlight_aspectRatio' : 10.1 , 
-                'highlight_color' : 'green',
-                'highlight_opacity' :0.6,
-                'name' : 'substrate',
-                'type' : 'ball+stick'
-            },  
-            1 : {
-                'ids' : list_to_string_range(all_mol,shift=0),
-                'aspectRatio' : 2.5 , 
-                'highlight_aspectRatio' : 2.6 , 
-                'highlight_color' : 'red',
-                'highlight_opacity' : 0.6,
-                'name' : 'molecule',
-                'type' : 'ball+stick'
-            },            
+
+    vis_dict={}
+    std_dict={
+        'a' : {
+            'ids' : 'set_ids',
+            'aspectRatio' : 8 , 
+            'highlight_aspectRatio' : 8.1 , 
+            'highlight_color' : 'red',
+            'highlight_opacity' :0.6,
+            'name' : 'adatoms',
+            'type' : 'ball+stick'
+        },
+        'b' : {
+            'ids' : 'set_ids',
+            'aspectRatio' : 4 , 
+            'highlight_aspectRatio' : 4.1 , 
+            'highlight_color' : 'green',
+            'highlight_opacity' :0.6,
+            'name' : 'bulk',
+            'type' : 'ball+stick'                
+        },
+        'm' : {
+            'ids' : 'set_ids',
+            'aspectRatio' : 3.5 , 
+            'highlight_aspectRatio' : 3.6 , 
+            'highlight_color' : 'red',
+            'highlight_opacity' :0.6,
+            'name' : 'molecule',
+            'type' : 'ball+stick'  
+        },
+        's' : {
+            'ids' : 'set_ids',
+            'aspectRatio' : 10 , 
+            'highlight_aspectRatio' : 10.1 , 
+            'highlight_color' : 'green',
+            'highlight_opacity' :0.6,
+            'name' : 'surface',
+            'type' : 'ball+stick'                
+        },     
+        'u' : {
+            'ids' : 'set_ids',
+            'aspectRatio' : 5 , 
+            'highlight_aspectRatio' : 5.1 , 
+            'highlight_color' : 'red',
+            'highlight_opacity' :0.6,
+            'name' : 'unknown',
+            'type' : 'ball+stick'                
+        }, 
+        'w' : {
+            'ids' : 'set_ids',
+            'aspectRatio' : 3.5 , 
+            'highlight_aspectRatio' : 3.6 , 
+            'highlight_color' : 'red',
+            'highlight_opacity' :0.6,
+            'name' : 'wire',
+            'type' : 'ball+stick'                
         }
-    elif details['system_type']=='Molecule':
-        the_rest = list(range(details['numatoms']))
-        vis_dict={
-            0 : {
-                'ids' : list_to_string_range(the_rest,shift=0),
-                'aspectRatio' : 2.5 , 
-                'highlight_aspectRatio' : 2.6 , 
-                'highlight_color' : 'red',
-                'highlight_opacity' : 0.6,
-                'name' : 'molecule',
-                'type' : 'ball+stick'
-            }
-        }
-    else :
-        the_rest = list(range(details['numatoms']))
-        vis_dict={
-            0 : {
-                'ids' : list_to_string_range(the_rest,shift=0),
-                'aspectRatio' : 3 , 
-                'highlight_aspectRatio' : 3.1 , 
-                'highlight_color' : 'red',
-                'highlight_opacity' : 0.6,
-                'name' : 'molecule',
-                'type' : 'ball+stick'
-            }
-        }
+    }
+    current_rep = 0
+    #['b','w','s','m','a','u'] order matters
+    if 'b' in details['cases']:
+        vis_dict[current_rep] = std_dict['b']
+        ids = [item for item in details['bulkatoms'] ]
+        vis_dict[current_rep]['ids'] = list_to_string_range(ids,shift=0)
+    if 'w' in details['cases']:
+        vis_dict[current_rep] = std_dict['w']
+        ids = [item for item in details['wireatoms'] ]
+        vis_dict[current_rep]['ids'] = list_to_string_range(ids,shift=0) 
+    if 's' in details['cases']:
+        vis_dict[current_rep] = std_dict['s']
+        ids = [item for item in details['slabatoms']+details['bottom_H'] ]
+        vis_dict[current_rep]['ids'] = list_to_string_range(ids,shift=0) 
+        current_rep += 1
+    if 'm' in details['cases']:
+        vis_dict[current_rep] = std_dict['m']
+        ids = [item for sublist in details['all_molecules'] for item in sublist]
+        vis_dict[current_rep]['ids'] = list_to_string_range(ids,shift=0) 
+        current_rep += 1     
+    if 'a' in details['cases']:
+        vis_dict[current_rep] = std_dict['a']
+        ids = [item for item in details['adatoms'] ]
+        vis_dict[current_rep]['ids'] = list_to_string_range(ids,shift=0) 
+        current_rep += 1 
+    if 'u' in details['cases']:
+        vis_dict[current_rep] = std_dict['a']
+        ids = [item for item in details['unclassified'] ]
+        vis_dict[current_rep]['ids'] = list_to_string_range(ids,shift=0)
+
     return vis_dict ,details
 
 
