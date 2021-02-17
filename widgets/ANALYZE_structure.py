@@ -2,10 +2,12 @@ import numpy as np
 from numpy.linalg import norm
 from ase import Atoms
 from ase.data import covalent_radii
-from ase.neighborlist import NeighborList
-import ase.neighborlist
+#from ase.neighborlist import NeighborList
+from  ase import neighborlist
+from ase.geometry.analysis import Analysis
 import scipy.stats
 from scipy.constants import physical_constants
+from scipy import sparse
 import itertools
 from IPython.display import display, clear_output, HTML
 import nglview
@@ -14,6 +16,7 @@ from collections import Counter
 from scipy.signal import find_peaks
 from scipy.spatial import ConvexHull
 from aiidalab_widgets_base.utils import  list_to_string_range
+from copy import deepcopy
 
 from traitlets import HasTraits, Instance, Dict, observe
 
@@ -35,6 +38,23 @@ def mol_ids_range(ismol):
         else:
             range_string+=str(ranges[i][0])+' '
     return range_string
+
+def conne_matrix(atoms):
+    cutOff = neighborlist.natural_cutoffs(atoms)
+    neighborList = neighborlist.NeighborList(cutOff, self_interaction=False, bothways=False)
+    neighborList.update(atoms)
+    
+    return neighborList.get_connectivity_matrix()    
+
+def clusters(matrix):
+    nclusters,idlist = sparse.csgraph.connected_components(matrix)
+    return nclusters,[np.where(idlist==i)[0].tolist() for i in range(nclusters)]
+    
+def molecules(ismol,atoms):
+    if ismol:
+        nmols,ids = clusters(conne_matrix(atoms[ismol]))
+        return [[ismol[i] for i in ids[j] ] for j in range(nmols)]
+    return []
 
 
 class StructureAnalyzer(HasTraits):
@@ -62,6 +82,8 @@ class StructureAnalyzer(HasTraits):
         #frame=ase frame
         #thr=threashold in the histogram for being considered a surface layer
         nat=frame.get_number_of_atoms()
+        
+        #all atom types set to 5 (unknown)
         atype=np.zeros(nat,dtype=np.int16)+5
         area=(frame.cell[0][0]*frame.cell[1][1])
         minz=np.min(frame.positions[:,2])
@@ -101,7 +123,7 @@ class StructureAnalyzer(HasTraits):
         n_tot_layers=len(layersg)
         last_layer=layersg[-1]
 
-        ##check top and bottom layers
+        ##check top and bottom layers should be documented better
 
         found_top_surf = False
         while not found_top_surf:
@@ -167,20 +189,26 @@ class StructureAnalyzer(HasTraits):
         moltypes=('H','N','B','O','C','F','S','Br','I','Cl')
         possible_mol_atoms=[i for i in range(nat) if atype[i]==2 and lbls[i] in moltypes]
         possible_mol_atoms+=[i for i in range(nat) if atype[i]==5]
-
+        #identify separate molecules
+        #all_molecules=self.molecules(mol_atoms,atoms)
+        all_molecules = []
         if len(possible_mol_atoms) > 0:
-            cov_radii = [covalent_radii[a.number] for a in frame[possible_mol_atoms]]  #adatoms that have a neigh adatom are in a mol
-            nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
-            nl.update(frame[possible_mol_atoms])
-            for ia in range(len(possible_mol_atoms)):
-                indices, offsets = nl.get_neighbors(ia)
+            #conne = conne_matrix(frame[possible_mol_atoms])
+            fragments = molecules(possible_mol_atoms,frame)
+            all_molecules=deepcopy(fragments)
+            #remove isolated atoms
+            for frag in fragments:
+                if len(frag)==1:
+                    all_molecules.remove(frag)
+                else:
+                    for atom in frag:
+                        if lbls[atom] in metalatingtypes:
+                            atype[atom]=6
+                        else:
+                            atype[atom]=0  
+            
 
-                if len(indices) > 0:
-                    if lbls[possible_mol_atoms[ia]] in metalatingtypes:
-                        atype[possible_mol_atoms[ia]]=6
-                    else:
-                        atype[possible_mol_atoms[ia]]=0
-        return atype,layersg
+        return atype,layersg,all_molecules
 
     def all_connected_to(self,id_atom,atoms,exclude):
         cov_radii = [covalent_radii[a.number] for a in atoms]
@@ -215,30 +243,6 @@ class StructureAnalyzer(HasTraits):
 
         return isconnected
 
-    def molecules(self,ismol,atoms):
-        all_molecules=[]
-        to_be_checked=[i for i in range(len(ismol))]
-        all_found=[]
-        exclude=['None']
-        while len(to_be_checked) >0:
-            one_mol=self.all_connected_to(to_be_checked[0],atoms[ismol],exclude)
-
-            is_new_molecule = True
-            for ia in one_mol:
-                if ia in all_found:
-                    is_new_molecule=False
-                    break
-
-            if is_new_molecule:
-                all_molecules.append([ismol[ia] for ia in one_mol])
-                for ia in one_mol:
-                    all_found.append(ia)
-                    to_be_checked.remove(ia)
-
-
-        return all_molecules
-
-
     def string_range_to_list(self,a):
         singles=[int(s) -1 for s in a.split() if s.isdigit()]
         ranges = [r for r in a.split() if '..' in r]
@@ -270,7 +274,8 @@ class StructureAnalyzer(HasTraits):
         total_charge=np.sum(atoms.get_atomic_numbers())
         bottom_H=[]
         adatoms=[]
-        remaining=[]
+        bulkatoms=[]
+        wireatoms=[]
         metalatings=[]
         unclassified=[]
         slabatoms=[]
@@ -291,14 +296,15 @@ class StructureAnalyzer(HasTraits):
         # do not use a set in the following line list(set(atoms.get_chemical_symbols())) 
         # need ALL atoms and elements for spin guess and for cost calculation
         all_elements = atoms.get_chemical_symbols()    
-        cov_radii = [covalent_radii[a.number] for a in atoms]
+        #cov_radii = [covalent_radii[a.number] for a in atoms]
 
-        nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
-        nl.update(atoms)
+        #nl = NeighborList(cov_radii, bothways = True, self_interaction = False)
+        #nl.update(atoms)
 
         #metalating_atoms=['Ag','Au','Cu','Co','Ni','Fe']
 
         summary=''
+        cases=[]
         if len(spins_up)>0:
             summary += 'spins_up: '+ list_to_string_range(spins_up)+'\n'
         if len(spins_down)>0:
@@ -308,35 +314,41 @@ class StructureAnalyzer(HasTraits):
         if (not vacuum_z) and (not vacuum_x) and (not vacuum_y):
             is_a_bulk=True
             sys_type='Bulk'
+            cases=['b']
             summary += 'Bulk contains: \n'
             slabatoms=[ia for ia in range(len(atoms))]
+            bulkatoms=slabatoms
 
         if vacuum_x and vacuum_y and vacuum_z:
             is_a_molecule=True
             sys_type='Molecule'
             if not self.only_sys_type:
                 summary += 'Molecule: \n'
-                all_molecules=self.molecules([i for i in range(len(atoms))],atoms)
+                all_molecules=molecules([i for i in range(len(atoms))],atoms)
                 com=np.average(atoms.positions,axis=0)
                 summary += 'COM: '+str(com)+', min z: '+str(np.min(atoms.positions[:,2]))+'\n'
         if vacuum_x and vacuum_y and (not vacuum_z):
             is_a_wire=True
             sys_type='Wire'
+            cases=['w']
             if not self.only_sys_type:
                 summary += 'Wire along z contains: \n'
                 slabatoms=[ia for ia in range(len(atoms))]   
         if vacuum_y and vacuum_z and (not vacuum_x):
             is_a_wire=True
             sys_type='Wire'
+            cases=['w']
             if not self.only_sys_type:
                 summary += 'Wire along x contains: \n'
                 slabatoms=[ia for ia in range(len(atoms))]
         if vacuum_x and vacuum_z and (not vacuum_y):
             is_a_wire=True
             sys_type='Wire'
+            cases=['w']
             if not self.only_sys_type:
                 summary += 'Wire along y contains: \n'
-                slabatoms=[ia for ia in range(len(atoms))]        
+                slabatoms=[ia for ia in range(len(atoms))] 
+                wireatoms=slabatoms
         ####END check
         is_a_slab = not (is_a_bulk or is_a_molecule or is_a_wire)
         if self.only_sys_type:
@@ -346,7 +358,8 @@ class StructureAnalyzer(HasTraits):
                 return {'system_type':sys_type}
             
         elif is_a_slab:
-            tipii,layersg=self.get_types(atoms,0.1)
+            cases=['s']
+            tipii,layersg,all_molecules=self.get_types(atoms,0.1)
             if vacuum_x:
                 slabtype='YZ'
             elif vacuum_y:
@@ -359,9 +372,6 @@ class StructureAnalyzer(HasTraits):
             #mol_atoms=extract_mol_indexes_from_slab(atoms)
             metalatings=np.where(tipii==6)[0].tolist()
             mol_atoms+=metalatings
-
-            #identify separate molecules
-            all_molecules=self.molecules(mol_atoms,atoms)
 
 
             ## bottom_H  
@@ -392,22 +402,23 @@ class StructureAnalyzer(HasTraits):
         if len(bottom_H) >0:
             summary += 'bottom H: ' + mol_ids_range(bottom_H)   + '\n'
         if len(slabatoms) > 0:    
-            summary += 'slab atoms: '   + mol_ids_range(slabatoms)  + '\n' 
+            summary += 'slab atoms: '   + mol_ids_range(slabatoms)  + '\n'
         for nlayer in range(len(slab_layers)):
             summary += 'slab layer '+str(nlayer+1)+': '+ mol_ids_range(slab_layers[nlayer])+'\n'    
         if len(adatoms)>0:
-
+            cases.append('a')
             summary += 'adatoms: '  + mol_ids_range(adatoms)    + '\n'  
         if all_molecules:
-
+            cases.append('m')
             summary += '#'+str(len(all_molecules))   + ' molecules: '
             for nmols in range(len(all_molecules)):
                 summary+=str(nmols+1)+') '+ mol_ids_range(all_molecules[nmols])
 
         summary += ' \n' 
-        if len(mol_ids_range(metalatings))>0:
+        if len(metalatings)>0:
             summary += 'metal atoms inside molecules (already counted): '+ mol_ids_range(metalatings) + '\n'
-        if len(mol_ids_range(unclassified))>0:
+        if len(unclassified)>0:
+            cases.append('u')
             summary += 'unclassified: ' + mol_ids_range(unclassified)
 
         ## INDEXES FROM 0 if mol_ids_range is not called    
@@ -417,6 +428,8 @@ class StructureAnalyzer(HasTraits):
                 'cell'          : " ".join([str(i) for i in itertools.chain(*atoms.cell.tolist())]),
                 'slab_layers'   : slab_layers,
                 'bottom_H'      : sorted(bottom_H),
+                'bulkatoms'     : sorted(bulkatoms),
+                'wireatoms'     : sorted(wireatoms),
                 'slabatoms'     : sorted(slabatoms),
                 'adatoms'       : sorted(adatoms),
                 'all_molecules' : all_molecules,   
@@ -429,6 +442,7 @@ class StructureAnalyzer(HasTraits):
                 'spins_down'    : spins_down,
                 'other_tags'    : other_tags,
                 'sys_size'      : sys_size,
+                'cases'         : cases,
                 'summary'       : summary
                }
 
