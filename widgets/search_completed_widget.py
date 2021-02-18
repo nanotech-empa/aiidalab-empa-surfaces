@@ -170,7 +170,7 @@ class SearchCompletedWidget(ipw.VBox):
 
             # append table row
             html += '<tr>'
-            html += '<td>%d</td>' % node.pk
+            html += '<td>%d<br><a target="_blank" href="../comments.ipynb?pk=%s">Comments</a></td>' % (node.pk,node.pk)
             html += '<td>%s</td>' % node.ctime.strftime("%Y-%m-%d %H:%M")
             html += '<td>%s</td>' % node.extras['formula']
             html += '<td>%s</td>' % node.description
@@ -233,7 +233,9 @@ class SearchCompletedWidget(ipw.VBox):
             calc = qb.all()[0][0]
             return calc
 
-
+        # check if handler stopped workchain after 5 steps
+        if workcalc.exit_status == 401:
+            raise(Exception("The wrokchain reached the maximum step number. Check and resubmit manually"))
         
         # optimized structure
         calc = get_calc_by_label(workcalc, self.clabel) # TODO deal with restarts, check final state
