@@ -17,6 +17,9 @@ FIELDS_DISABLE_DEFAULT={
     'volume' : True,
     'extras' : True,
 }
+
+AU_TO_EV = 27.211386245988
+
 class SearchCompletedWidget(ipw.VBox):
     
     def __init__(self,version=0.0, wlabel='',clabel='', fields_disable = {}):
@@ -68,7 +71,16 @@ class SearchCompletedWidget(ipw.VBox):
                 self.search() 
                 
         button.on_click(on_click)
-        app = ipw.VBox(children=search_crit + [button, self.results, self.info_out])
+        
+        self.show_comments_check = ipw.Checkbox(
+            value=False,
+            description='show comments',
+            indent=False
+        )
+        
+        buttons_hbox = ipw.HBox([button, self.show_comments_check])
+        
+        app = ipw.VBox(children=search_crit + [buttons_hbox, self.results, self.info_out])
         
        
         
@@ -97,19 +109,21 @@ class SearchCompletedWidget(ipw.VBox):
 
         # html table header
         html  = '<style>#aiida_results td,th {padding: 2px}</style>' 
-        html += '<table border=1 id="aiida_results" style="margin:10px;"><tr>'
+        html += '<table border=1 id="aiida_results" style="margin:0px"><tr>'
         html += '<th>PK</th>'
         html += '<th>Creation Time</th>'
-        html += '<th>Formula</th>'
-        html += '<th>CalcName</th>'
-        html += '<th>Energy</th>'
+        html += '<th >Formula</th>'
+        html += '<th>Calculation name</th>'
+        html += '<th>Energy(eV)</th>'
         if not self.fields_disable['cell'] :
             html += '<th>Cell</th>'
         if not self.fields_disable['volume'] :
             html += '<th>Volume</th>'
-        html += '<th>Structure</th>'
+        html += '<th style="width: 100px">Structure</th>'
+        if self.show_comments_check.value:
+            html += '<th>Comments</th>'
         if not self.fields_disable['extras'] :
-            html += '<th>Extra calculations</th>'
+            html += '<th style="width: 10%">Extras</th>'
         html += '</tr>'
 
         # query AiiDA database
@@ -167,20 +181,32 @@ class SearchCompletedWidget(ipw.VBox):
             ### --------------------------------------------------
 
             extra_calc_area = "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> %s </div>" % extra_calc_links
-
+            
+                
             # append table row
             html += '<tr>'
-            html += '<td>%d<br><a target="_blank" href="../comments.ipynb?pk=%s">Comments</a></td>' % (node.pk,node.pk)
+            html += '<td>%d</td>' % node.pk
             html += '<td>%s</td>' % node.ctime.strftime("%Y-%m-%d %H:%M")
             html += '<td>%s</td>' % node.extras['formula']
             html += '<td>%s</td>' % node.description
-            html += '<td>%f</td>' % node.extras['energy']
+            html += '<td>%.4f</td>' % node.extras['energy_ev']
             if not self.fields_disable['cell'] :
                 html += '<td>%s</td>' % node.extras['cell']
             if not self.fields_disable['volume'] :
-                html += '<td>%f</td>' % node.extras['volume']                
-            html += '<td><a target="_blank" href="../export_structure.ipynb?uuid=%s">'%opt_structure_uuid
-            html += '<img width="100px" src="data:image/png;base64,%s" title="PK%d: %s"></a></td>' % (thumbnail, opt_structure.pk, description)
+                html += '<td>%f</td>' % node.extras['volume']
+            # image with a link to structure export
+            html += '<td><a target="_blank" href="../export_structure.ipynb?uuid=%s">' % opt_structure_uuid
+            html += '<img width="100px" src="data:image/png;base64,%s" title="PK%d: %s">' % (thumbnail, opt_structure.pk, description)
+            html += '</a></td>'
+            
+            if self.show_comments_check.value:
+                comment_area = "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'>"
+                comment_area += '<a target="_blank" href="../comments.ipynb?pk=%s">add/view</a><br>' % node.pk
+                for comment in node.get_comments():
+                    comment_area += "<hr style='padding:0px; margin:0px;' />" + comment.content.replace("\n", "<br>");
+                comment_area += '</div>'
+                html += '<td>%s</td>' % (comment_area)
+            
             if not self.fields_disable['extras'] :
                 html += '<td>%s</td>' % extra_calc_area
             html += '</td>'
@@ -235,7 +261,7 @@ class SearchCompletedWidget(ipw.VBox):
 
         # check if handler stopped workchain after 5 steps
         if workcalc.exit_status == 401:
-            raise(Exception("The wrokchain reached the maximum step number. Check and resubmit manually"))
+            raise(Exception("The workchain reached the maximum step number. Check and resubmit manually"))
         
         # optimized structure
         calc = get_calc_by_label(workcalc, self.clabel) # TODO deal with restarts, check final state
@@ -274,6 +300,7 @@ class SearchCompletedWidget(ipw.VBox):
 
         workcalc.set_extra('opt_structure_uuid', calc.outputs.output_structure.uuid)
         workcalc.set_extra('energy', calc.res.energy)
+        workcalc.set_extra('energy_ev', calc.res.energy * AU_TO_EV)
         workcalc.set_extra('cell', calc.outputs.output_structure.get_ase().get_cell_lengths_and_angles())
         workcalc.set_extra('volume', calc.outputs.output_structure.get_ase().get_volume())        
         

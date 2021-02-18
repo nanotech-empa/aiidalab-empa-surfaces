@@ -6,7 +6,6 @@ from aiida.orm import  load_node
 class CommentsWidget(ipw.VBox):
     def __init__(self,workchain=None):
         
-        
         if not workchain:
             return
         self.node=load_node(workchain)
@@ -19,7 +18,8 @@ class CommentsWidget(ipw.VBox):
         with self.old_comments:
             clear_output()
             for comment in self.node.get_comments():
-                print(comment.ctime.strftime("%Y-%m-%d %H:%M"),comment.content)
+                print(comment.ctime.strftime("%Y-%m-%d %H:%M"))
+                print(comment.content)
                 
         btn_add_comment.on_click(self.on_add_click)       
         
@@ -32,4 +32,4 @@ class CommentsWidget(ipw.VBox):
         with self.old_comments:
             clear_output()
             for comment in self.node.get_comments():
-                print(comment.ctime.strftime("%Y-%m-%d %H:%M"),comment.content)        
+                print(comment.ctime.strftime("%Y-%m-%d %H:%M"),comment.content)
