@@ -62,10 +62,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         """Scaling factor to correct the bond length."""
 
         # Set bounding box as cell.
-        c_x = 1.5 * (np.amax(atoms.positions[:, 0]) - np.amin(atoms.positions[:, 0]))
-        c_y = 1.5 * (np.amax(atoms.positions[:, 1]) - np.amin(atoms.positions[:, 1]))
-        c_z = 15.0
-        atoms.cell = (c_x, c_y, c_z)
+        atoms.cell = np.ptp(atoms.positions, axis=0) + 15
         atoms.pbc = (True, True, True)
 
         # Calculate all atom-atom distances.
@@ -92,6 +89,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         """Scale atomic positions by the `factor`."""
         c_x, c_y, c_z = atoms.cell
         atoms.set_cell((s * c_x, s * c_y, c_z), scale_atoms=True)
+        atoms.cell = np.ptp(atoms.positions, axis=0)+15
         atoms.center()
         return atoms
  
