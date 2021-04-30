@@ -273,7 +273,7 @@ class Get_CP2K_Input():
             'GLOBAL': {
                 'RUN_TYPE': self.sections_dict[self.workchain]['run_type'],
                 'WALLTIME': '%d' % (int(self.inp_dict['walltime'])*0.97),
-                'PRINT_LEVEL': 'LOW',
+                'PRINT_LEVEL': 'MEDIUM',
                 'EXTENDED_FFT_LENGTHS': ''
             },
             'FORCE_EVAL': [],
