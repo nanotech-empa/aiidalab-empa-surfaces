@@ -253,7 +253,7 @@ class SearchCompletedWidget(ipw.VBox):
             qb = QueryBuilder()
             qb.append(WorkChainNode, filters={'uuid':workcalc.uuid})
             qb.append(CalcJobNode, with_incoming=WorkChainNode, filters={'label':label})
-            #qb.order_by({'calc':[{'id':{'order':'desc'}}]})
+            qb.order_by({'CalcJobNode_1':[{'id':{'order':'desc'}}]})
             if qb.count() == 0:
                 raise(Exception("Could not find %s calculation."%label))
             calc = qb.all()[0][0]
@@ -262,6 +262,8 @@ class SearchCompletedWidget(ipw.VBox):
         # check if handler stopped workchain after 5 steps
         if workcalc.exit_status == 401:
             raise(Exception("The workchain reached the maximum step number. Check and resubmit manually"))
+        if workcalc.exit_status != 0:
+            raise(Exception("The workchain excepted. Check and resubmit manually"))            
         
         # optimized structure
         calc = get_calc_by_label(workcalc, self.clabel) # TODO deal with restarts, check final state
