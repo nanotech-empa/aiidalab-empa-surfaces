@@ -252,8 +252,8 @@ class SearchCompletedWidget(ipw.VBox):
         def get_calc_by_label(workcalc,label):
             qb = QueryBuilder()
             qb.append(WorkChainNode, filters={'uuid':workcalc.uuid})
-            qb.append(CalcJobNode, with_incoming=WorkChainNode, filters={'label':label})
-            qb.order_by({'CalcJobNode_1':[{'id':{'order':'desc'}}]})
+            qb.append(CalcJobNode, tag='node', with_incoming=WorkChainNode, filters={'label':label})
+            qb.order_by({'node':[{'id':{'order':'desc'}}]})
             if qb.count() == 0:
                 raise(Exception("Could not find %s calculation."%label))
             calc = qb.all()[0][0]
