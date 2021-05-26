@@ -17,6 +17,7 @@ ATOMIC_KINDS = {
     'Si':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-GTH'    , 'pseudo' : 'GTH-PBE-q4'   }, #14
     'S' :{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q6'   }, #16
     'Cl':{'BASIS_MOLOPT' : 'TZV2P-MOLOPT-GTH'   , 'pseudo' : 'GTH-PBE-q7'   }, #17
+    'Co':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q17'  }, #27
     'Cu':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q11'  }, #29
     'Zn':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q12'  }, #30
     'Ga':{'BASIS_MOLOPT' : 'DZVP-MOLOPT-SR-GTH' , 'pseudo' : 'GTH-PBE-q13'  }, #31
@@ -671,7 +672,7 @@ class Get_CP2K_Input():
                   }
         
         ### DIAGONALIZATION AND OT
-        scf_opt={'OT'   : {'MAX_SCF'   : '20',
+        scf_opt={'OT'   : {'MAX_SCF'   : '40',
                            'SCF_GUESS' : 'RESTART',
                            'EPS_SCF'   : '1.0E-7',
                            'OT': {'PRECONDITIONER': 'FULL_SINGLE_INVERSE',
@@ -752,6 +753,15 @@ class Get_CP2K_Input():
                 },
                 'SCF': scf_opt[self.inp_dict['diag_method']],
                 'XC': self.sections_dict[self.workchain]['xc'],
+                # Always generate density/spin cube
+                'PRINT': {
+                    'E_DENSITY_CUBE': {
+                        'FILENAME': 'RHO',
+                        'EACH': {'QS_SCF': 0, 'GEO_OPT': 0},
+                        'ADD_LAST': 'NUMERIC',
+                        'STRIDE': "2 2 2",
+                    },
+                },
             },
             'SUBSYS': {
                 'CELL': {'A': '%f %f %f' % (self.cell[0],self.cell[1],self.cell[2]),
@@ -787,6 +797,8 @@ class Get_CP2K_Input():
                     'R_CUTOFF': '15',
                 }
             }
+        
+        
             
         ### CENTER COORDINATES
         if self.inp_dict['center_coordinates']:
