@@ -759,7 +759,7 @@ class Get_CP2K_Input():
                         'FILENAME': 'RHO',
                         'EACH': {'QS_SCF': 0, 'GEO_OPT': 0},
                         'ADD_LAST': 'NUMERIC',
-                        'STRIDE': "4 4 4",
+                        'STRIDE': "2 2 2",
                     },
                 },
             },
