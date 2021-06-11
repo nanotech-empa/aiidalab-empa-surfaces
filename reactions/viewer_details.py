@@ -7,6 +7,7 @@ from IPython.display import display, clear_output
 
 from ase import Atoms
 
+import numbers
 import numpy as np
 
 MOL_ASPECT  = 3.0
@@ -240,11 +241,10 @@ class ViewerDetails(ipw.VBox):
         
         if len(vis_list) > 0:
 
-            vis_atoms  = [x for x in vis_list if isinstance(x, int)]
-            vis_points = [x for x in vis_list if not isinstance(x, int)]
+            vis_atoms  = [x for x in vis_list if isinstance(x, numbers.Integral)]
+            vis_points = [x for x in vis_list if not isinstance(x, numbers.Integral)]
             
             if len(vis_atoms) != 0:
-                
                 self.highlight_atoms(vis_atoms, color='red', size=0.2, opacity=0.6)
                 
             if len(vis_points) != 0:
