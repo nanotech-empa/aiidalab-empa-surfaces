@@ -753,15 +753,6 @@ class Get_CP2K_Input():
                 },
                 'SCF': scf_opt[self.inp_dict['diag_method']],
                 'XC': self.sections_dict[self.workchain]['xc'],
-                # Always generate density/spin cube
-                'PRINT': {
-                    'E_DENSITY_CUBE': {
-                        'FILENAME': 'RHO',
-                        'EACH': {'QS_SCF': 0, 'GEO_OPT': 0},
-                        'ADD_LAST': 'NUMERIC',
-                        'STRIDE': "2 2 2",
-                    },
-                },
             },
             'SUBSYS': {
                 'CELL': {'A': '%f %f %f' % (self.cell[0],self.cell[1],self.cell[2]),
@@ -776,6 +767,20 @@ class Get_CP2K_Input():
                 'KIND': [],
             }
         }
+        
+        # Generate density/spin cube
+        if self.workchain in ('SlabGeoOptWorkChain', 'MoleculeOptWorkChain', 'GWWorkChain', 'MoleculeKSWorkChain'):
+            force_eval['DFT']['PRINT'] = {
+                'E_DENSITY_CUBE': {
+                    'FILENAME': 'RHO',
+                    'EACH': {'QS_SCF': 0, 'GEO_OPT': 0},
+                    'ADD_LAST': 'NUMERIC',
+                    'STRIDE': "2 2 2",
+                }
+            }
+                
+        
+        
         if self.inp_dict['multiplicity'] > 0:
             force_eval['DFT']['UKS']=''
             force_eval['DFT']['MULTIPLICITY']=self.inp_dict['multiplicity']
@@ -797,8 +802,7 @@ class Get_CP2K_Input():
                     'R_CUTOFF': '15',
                 }
             }
-        
-        
+
             
         ### CENTER COORDINATES
         if self.inp_dict['center_coordinates']:
