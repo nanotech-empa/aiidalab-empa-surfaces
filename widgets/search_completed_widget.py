@@ -179,6 +179,20 @@ class SearchCompletedWidget(ipw.VBox):
             except Exception as e:
                 pass
             ### --------------------------------------------------
+            
+            ### --------------------------------------------------
+            ### add links to GW calcs
+            if 'Cp2kAdsorbedGwIcWorkChain_pks' in st_extras:
+                calc_links_str = ""
+                nr = 0
+                for gw_pk in st_extras['Cp2kAdsorbedGwIcWorkChain_pks']:
+                    nr += 1
+                    calc_links_str += "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />" % (
+                    '../widgets/' + 'view_gw.ipynb', gw_pk, 'GW', nr)
+
+                extra_calc_links += calc_links_str
+                
+            ### --------------------------------------------------
 
             extra_calc_area = "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> %s </div>" % extra_calc_links
             
