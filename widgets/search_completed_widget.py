@@ -188,7 +188,7 @@ class SearchCompletedWidget(ipw.VBox):
                 for gw_pk in st_extras['Cp2kAdsorbedGwIcWorkChain_pks']:
                     nr += 1
                     calc_links_str += "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />" % (
-                    '../widgets/' + 'view_gw.ipynb', gw_pk, 'GW', nr)
+                    '../gw/view_gw.ipynb', gw_pk, 'GW', nr)
 
                 extra_calc_links += calc_links_str
                 
