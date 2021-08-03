@@ -22,15 +22,13 @@ AU_TO_EV = 27.211386245988
 
 class SearchCompletedWidget(ipw.VBox):
     
-    def __init__(self,version=0.0, wlabel='',clabel='', fields_disable = {}):
+    def __init__(self,wlabel='', fields_disable = {}):
         
         self.fields_disable = FIELDS_DISABLE_DEFAULT
         for fd in fields_disable:
             self.fields_disable[fd] = fields_disable[fd]
         # search UI
         self.wlabel=wlabel
-        self.clabel=clabel
-        self.version=version
         style = {"description_width":"150px"}
         layout = ipw.Layout(width="600px")
         self.inp_pks = ipw.Text(description='PKs', placeholder='e.g. 4062 4753 (space separated)', layout=layout, style=style)
@@ -207,10 +205,10 @@ class SearchCompletedWidget(ipw.VBox):
             if not self.fields_disable['cell'] :
                 cell=''
                 for cellpar in ['cell_a_angs','cell_b_angs','cell_c_angs','cell_alp_deg','cell_bet_deg','cell_gam_deg']:
-                    cell += ' ' + str(node.outputs.output_parameters[cellpar][-1])
+                    cell += ' ' + str(node.outputs.output_parameters['motion_step_info'][cellpar][-1])
                 html += '<td>%s</td>' % cell
             if not self.fields_disable['volume'] :
-                html += '<td>%f</td>' % node.outputs.output_parameters['cell_vol_angs3'][-1]
+                html += '<td>%f</td>' % node.outputs.output_parameters['motion_step_info']['cell_vol_angs3'][-1]
             # image with a link to structure export
             html += '<td><a target="_blank" href="../export_structure.ipynb?uuid=%s">' % opt_structure.uuid
             html += '<img width="100px" src="data:image/png;base64,%s" title="PK%d: %s">' % (thumbnail, opt_structure.pk, description)
