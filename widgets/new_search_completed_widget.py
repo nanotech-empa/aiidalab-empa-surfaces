@@ -203,7 +203,7 @@ class SearchCompletedWidget(ipw.VBox):
             html += '<td>%s</td>' % node.ctime.strftime("%Y-%m-%d %H:%M")
             html += '<td>%s</td>' % opt_structure.get_formula()
             html += '<td>%s</td>' % node.description
-            html += '<td>%.4f</td>' % node.outputs.ooutput_parameters['energy']*AU_TO_EV
+            html += '<td>%.4f</td>' % node.outputs.output_parameters['energy']*AU_TO_EV
             if not self.fields_disable['cell'] :
                 cell=''
                 for cellpar in ['cell_a_angs','cell_b_angs','cell_c_angs','cell_alp_deg','cell_bet_deg','cell_gam_deg']:
