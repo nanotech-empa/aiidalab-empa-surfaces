@@ -203,12 +203,12 @@ class SearchCompletedWidget(ipw.VBox):
             html += '<td>%s</td>' % node.ctime.strftime("%Y-%m-%d %H:%M")
             html += '<td>%s</td>' % opt_structure.get_formula()
             html += '<td>%s</td>' % node.description
-            html += '<td>%.4f</td>' % node.outputs.output_parameters['energy']*AU_TO_EV
+            html += '<td>%.4f</td>' % (float(node.outputs.output_parameters['energy'])*AU_TO_EV)
             if not self.fields_disable['cell'] :
                 cell=''
                 for cellpar in ['cell_a_angs','cell_b_angs','cell_c_angs','cell_alp_deg','cell_bet_deg','cell_gam_deg']:
                     cell += ' ' + str(node.outputs.output_parameters[cellpar][-1])
-                html += '<td>%s</td>' % node.extras['cell']
+                html += '<td>%s</td>' % cell
             if not self.fields_disable['volume'] :
                 html += '<td>%f</td>' % node.outputs.output_parameters['cell_vol_angs3'][-1]
             # image with a link to structure export
