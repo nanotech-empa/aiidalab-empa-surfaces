@@ -51,7 +51,7 @@ class InputDetails(ipw.VBox):
     do_cell_opt = Bool()
     uks = Bool()
     calc_type = Unicode()
-    gw_trait = Unicode()
+#    gw_trait = Unicode()
     net_charge = Int()
 
     def __init__(self,):
@@ -65,9 +65,9 @@ class InputDetails(ipw.VBox):
         # Displaying input sections.
         self.output = ipw.Output()
         self.displayed_sections = []
-        self.gw = ipw.ToggleButton(value=False, description='Activate GW',
-                                                    tooltip='Activate GW', style={'description_width': '80px'})
-        self.gw.observe(self.on_gw_toggle,'value')
+#        self.gw = ipw.ToggleButton(value=False, description='Activate GW',
+#                                                    tooltip='Activate GW', style={'description_width': '80px'})
+#        self.gw.observe(self.on_gw_toggle,'value')
             
         super().__init__(children=[self.output])
 
@@ -96,27 +96,26 @@ class InputDetails(ipw.VBox):
              
             self.displayed_sections = []
             add_children = []
-            if  'Molecule' in sys_type:
-                supported_all_elements = all(elem in ['C','H','B','N','S','Zn','O',]  for elem in list(set(self.details['all_elements'])))
-                if supported_all_elements :
-                    add_children=[self.gw]
+#            if  'Molecule' in sys_type:
+#                supported_all_elements = all(elem in ['C','H','B','N','S','Zn','O',]  for elem in list(set(self.details['all_elements'])))
+#                if supported_all_elements :
+#                    add_children=[self.gw]
             for sec in SECTIONS_TO_DISPLAY[sys_type]:
                 section = sec()
                 section.manager = self
                 self.displayed_sections.append(section)    
             display(ipw.VBox(add_children + self.displayed_sections + [self.plain_input_accordion]))
             
- 
-    def on_gw_toggle(self,c=None):
-        tmp_details = self.details.copy()
-        if self.gw.value:
-            tmp_details['system_type'] = 'Molecule_GW'
-            self.details = tmp_details
-            self.gw_trait='GW'
-        else:
-            tmp_details['system_type'] = 'Molecule'
-            self.details = tmp_details
-            self.gw_trait='None'
+#    def on_gw_toggle(self,c=None):
+#        tmp_details = self.details.copy()
+#        if self.gw.value:
+#            tmp_details['system_type'] = 'Molecule_GW'
+#            self.details = tmp_details
+#            self.gw_trait='GW'
+#        else:
+#            tmp_details['system_type'] = 'Molecule'
+#            self.details = tmp_details
+#            self.gw_trait='None'
 
     def create_plain_input(self):
         inp_dict = Get_CP2K_Input(input_dict = self.final_dictionary).inp
@@ -150,8 +149,8 @@ class InputDetails(ipw.VBox):
         ## MOLECULE   
         elif self.details['system_type'] == 'Molecule' :
             tmp_dict.update({'workchain' : 'MoleculeOptWorkChain'})
-        elif self.details['system_type'] == 'Molecule_GW' :    
-            tmp_dict.update({'workchain' : 'GWWorkChain'})
+#        elif self.details['system_type'] == 'Molecule_GW' :    
+#            tmp_dict.update({'workchain' : 'GWWorkChain'})
             
         ## BULK
         elif self.details['system_type'] == 'Bulk' :
@@ -440,87 +439,87 @@ class MixedDftWidget(ipw.ToggleButtons):
             self.update_list_fixed()
         #print('m obmanager',self.value,mol_ids_range(self.to_fix),datetime.now().strftime("%H:%M:%S"))
 
-class GwWidget(ipw.HBox):
-    details = Dict()
-    gw_trait = Unicode()
-    manager = Instance(InputDetails, allow_none=True)
-    
-    def __init__(self,):
-        self.gw_type = ipw.ToggleButtons(value = 'GW',
-                                description='GW/GW+IC',options=['GW', 'GW-IC'],
-                                style={'description_width': 'initial'})
-        self.hq = ipw.ToggleButton(value=False, description='High precision',style={'description_width': 'initial'})
-        self.gw_trait='GW'
-        self.ic_plane_z = ipw.FloatText(description='IC z plane',value=8.22,
-                                        tooltip='e.g. 1.78A below molecule, 1.42A above Au(111)',
-                                       style={'description_width': 'initial'}, layout={'width': 'initial'}) #170
-        
-        super().__init__(children=[])
-        
-        self.gw_type.observe(self.on_gw, 'value')         
-        
-    def return_dict(self):
-        size = self.details['sys_size'] * 2 +15
-        gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))
-        diag_method = 'GW'
-        if self.hq.value:
-            diag_method='GW_HQ'
-        if self.gw_type.value == 'GW':
-            size = self.details['sys_size'] * 2 +15
-            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))   
-
-            return {
-                'ic_plane_z' : None,
-                'gw_type': 'GW',
-                'gw_hq' : self.hq.value,
-                'cell'   : gwcell,
-                'periodic':'NONE',
-                'poisson_solver' : 'MT',
-                'center_coordinates' : True,
-                'diag_method'        : diag_method
-            }
-        else:
-            size = self.details['sys_size'] * 2 + 30
-            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))            
-            return {
-                'ic_plane_z' : self.ic_plane_z.value,
-                'gw_type': 'GW-IC',
-                'gw_hq' : self.hq.value,
-                'cell'   : gwcell,
-                'periodic':'NONE',
-                'poisson_solver' : 'MT',
-                'center_coordinates' : True,
-                'diag_method'        : diag_method
-            }                
-        
-
-    ## need to simplify this: trick to switch forth and back from GW and DFT    
-    def on_gw(self,c=None):
-        if self.gw_type.value == 'GW':
-            self.children=[self.gw_type,self.hq]
-            self.gw_trait='GW'
-        else:
-            self.children=[self.gw_type,self.ic_plane_z,self.hq]
-            self.gw_trait='GW-IC'
-        
-            
-    @observe('manager')
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, 'details'), (self, 'details'))  
-            link((self.manager, 'gw_trait'), (self, 'gw_trait'))
-            if self.details['system_type'] == 'Molecule_GW':
-                self.gw_type.value = 'GW'
-                self.children = [self.gw_type,self.hq]
-            elif self.details['system_type'] == 'Molecule_GW-IC':
-                self.gw_type.value = 'GW-IC'   
-                self.children = [self.gw_type,self.ic_plane_z,self.hq]
-            else:
-                self.gw_type.value = 'DFT'
-                self.children = [self.gw_type,self.hq]
-        
+#class GwWidget(ipw.HBox):
+#    details = Dict()
+#    gw_trait = Unicode()
+#    manager = Instance(InputDetails, allow_none=True)
+#    
+#    def __init__(self,):
+#        self.gw_type = ipw.ToggleButtons(value = 'GW',
+#                                description='GW/GW+IC',options=['GW', 'GW-IC'],
+#                                style={'description_width': 'initial'})
+#        self.hq = ipw.ToggleButton(value=False, description='High precision',style={'description_width': 'initial'})
+#        self.gw_trait='GW'
+#        self.ic_plane_z = ipw.FloatText(description='IC z plane',value=8.22,
+#                                        tooltip='e.g. 1.78A below molecule, 1.42A above Au(111)',
+#                                       style={'description_width': 'initial'}, layout={'width': 'initial'}) #170
+#        
+#        super().__init__(children=[])
+#        
+#        self.gw_type.observe(self.on_gw, 'value')         
+#        
+#    def return_dict(self):
+#        size = self.details['sys_size'] * 2 +15
+#        gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))
+#        diag_method = 'GW'
+#        if self.hq.value:
+#            diag_method='GW_HQ'
+#        if self.gw_type.value == 'GW':
+#            size = self.details['sys_size'] * 2 +15
+#            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))   
+#
+#            return {
+#                'ic_plane_z' : None,
+#                'gw_type': 'GW',
+#                'gw_hq' : self.hq.value,
+#                'cell'   : gwcell,
+#                'periodic':'NONE',
+#                'poisson_solver' : 'MT',
+#                'center_coordinates' : True,
+#                'diag_method'        : diag_method
+#            }
+#        else:
+#            size = self.details['sys_size'] * 2 + 30
+#            gwcell = " ".join(map(str, [int(i) for i in size.tolist()]))            
+#            return {
+#                'ic_plane_z' : self.ic_plane_z.value,
+#                'gw_type': 'GW-IC',
+#                'gw_hq' : self.hq.value,
+#                'cell'   : gwcell,
+#                'periodic':'NONE',
+#                'poisson_solver' : 'MT',
+#                'center_coordinates' : True,
+#                'diag_method'        : diag_method
+#            }                
+#        
+#
+#    ## need to simplify this: trick to switch forth and back from GW and DFT    
+#    def on_gw(self,c=None):
+#        if self.gw_type.value == 'GW':
+#            self.children=[self.gw_type,self.hq]
+#            self.gw_trait='GW'
+#        else:
+#            self.children=[self.gw_type,self.ic_plane_z,self.hq]
+#            self.gw_trait='GW-IC'
+#        
+#            
+#    @observe('manager')
+#    def _observe_manager(self, _=None):
+#        if self.manager is None:
+#            return
+#        else:
+#            link((self.manager, 'details'), (self, 'details'))  
+#            link((self.manager, 'gw_trait'), (self, 'gw_trait'))
+#            if self.details['system_type'] == 'Molecule_GW':
+#                self.gw_type.value = 'GW'
+#                self.children = [self.gw_type,self.hq]
+#            elif self.details['system_type'] == 'Molecule_GW-IC':
+#                self.gw_type.value = 'GW-IC'   
+#                self.children = [self.gw_type,self.ic_plane_z,self.hq]
+#            else:
+#                self.gw_type.value = 'DFT'
+#                self.children = [self.gw_type,self.hq]
+#        
 class FixedAtomsWidget(ipw.Text):
     details = Dict()
     to_fix = List()
@@ -702,7 +701,7 @@ class MetadataWidget(ipw.VBox):
     """Setup metadata for an AiiDA process."""
     
     details = Dict()
-    gw_trait = Unicode()
+#    gw_trait = Unicode()
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
     manager = Instance(InputDetails, allow_none=True)    
 
@@ -746,49 +745,50 @@ class MetadataWidget(ipw.VBox):
         mpi_tasks = self.num_machines.value * self.num_mpiprocs_per_machine.value
         walltime = int(self.walltime_d.value * 3600 * 24 + self.walltime_h.value * 3600 + 
                        self.walltime_m.value * 60)
-        if self.details['system_type'] == 'Molecule_GW':
-            return {
-                    'num_machines_scf' : self.num_machines_scf.value,
-                    'num_mpiprocs_per_machine_scf' : self.selected_code.computer.get_default_mpiprocs_per_machine(),
-                    'mpi_tasks' : mpi_tasks,
-                    'walltime'  : walltime , 
-                    'metadata'  : {
-                        'options' : {
-                            'resources' : {
-                                'num_machines' : self.num_machines.value,
-                                'num_mpiprocs_per_machine' : self.num_mpiprocs_per_machine.value,
-                                'num_cores_per_mpiproc' : self.num_cores_per_mpiproc.value
-                                          },
-                            'max_wallclock_seconds' : walltime,
-                            'withmpi': True
-                        }
+#        if self.details['system_type'] == 'Molecule_GW':
+#            return {
+#                    'num_machines_scf' : self.num_machines_scf.value,
+#                    'num_mpiprocs_per_machine_scf' : self.selected_code.computer.get_default_mpiprocs_per_machine(),
+#                    'mpi_tasks' : mpi_tasks,
+#                    'walltime'  : walltime , 
+#                    'metadata'  : {
+#                        'options' : {
+#                            'resources' : {
+#                                'num_machines' : self.num_machines.value,
+#                                'num_mpiprocs_per_machine' : self.num_mpiprocs_per_machine.value,
+#                                'num_cores_per_mpiproc' : self.num_cores_per_mpiproc.value
+#                                          },
+#                            'max_wallclock_seconds' : walltime,
+#                            'withmpi': True
+#                        }
+#                    }
+#            }            
+#        else:
+        return {
+                'mpi_tasks' : mpi_tasks,
+                'walltime'  : walltime , 
+                'metadata'  : {
+                    'options' : {
+                        'resources' : {
+                            'num_machines' : self.num_machines.value,
+                            'num_mpiprocs_per_machine' : self.num_mpiprocs_per_machine.value,
+                            'num_cores_per_mpiproc' : self.num_cores_per_mpiproc.value
+                                      },
+                        'max_wallclock_seconds' : walltime,
+                        'withmpi': True
                     }
-            }            
-        else:
-            return {
-                    'mpi_tasks' : mpi_tasks,
-                    'walltime'  : walltime , 
-                    'metadata'  : {
-                        'options' : {
-                            'resources' : {
-                                'num_machines' : self.num_machines.value,
-                                'num_mpiprocs_per_machine' : self.num_mpiprocs_per_machine.value,
-                                'num_cores_per_mpiproc' : self.num_cores_per_mpiproc.value
-                                          },
-                            'max_wallclock_seconds' : walltime,
-                            'withmpi': True
-                        }
-                    }
-            }
+                }
+        }
 
     def guess_nodes(self,c=None):
-        if self.gw_trait == 'GW':
-            self.num_machines.value = (max(int(self.details['numatoms']/25),1))**3
-            self.num_machines_scf.value = max(int(self.details['numatoms']/30),1)
-        elif self.gw_trait == 'GW-IC':
-            self.num_machines.value = (max(int(self.details['numatoms']/20),1))**3
-            self.num_machines_scf.value = max(int(self.details['numatoms']/15),1)
-        elif self.details and 'all_elements' in self.details.keys():
+#        if self.gw_trait == 'GW':
+#            self.num_machines.value = (max(int(self.details['numatoms']/25),1))**3
+#            self.num_machines_scf.value = max(int(self.details['numatoms']/30),1)
+#        elif self.gw_trait == 'GW-IC':
+#            self.num_machines.value = (max(int(self.details['numatoms']/20),1))**3
+#            self.num_machines_scf.value = max(int(self.details['numatoms']/15),1)
+#        elif self.details and 'all_elements' in self.details.keys():
+        if self.details and 'all_elements' in self.details.keys():
             cost=compute_cost(self.details['all_elements'])
             self.num_machines.value = compute_nodes(cost,self.num_mpiprocs_per_machine.value)    
     
@@ -797,9 +797,9 @@ class MetadataWidget(ipw.VBox):
         if self.selected_code:
             self.num_mpiprocs_per_machine.value = self.selected_code.computer.get_default_mpiprocs_per_machine()
             
-    @observe('gw_trait')
-    def _observe_gw_trit(self, _=None):   
-        self.guess_nodes()
+#    @observe('gw_trait')
+#    def _observe_gw_trit(self, _=None):   
+#        self.guess_nodes()
             
     @observe('manager')
     def _observe_manager(self, _=None):
@@ -807,19 +807,19 @@ class MetadataWidget(ipw.VBox):
             return
         else:
             link((self.manager, 'details'), (self, 'details'))
-            link((self.manager, 'gw_trait'), (self, 'gw_trait'))
+#            link((self.manager, 'gw_trait'), (self, 'gw_trait'))
             link((self.manager, 'selected_code'), (self, 'selected_code'))
-            if self.details['system_type'] == 'Molecule_GW':
-                    self.children = [
-                        self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
-                        self.num_machines_scf,
-                        ipw.HBox([ipw.HTML("walltime:"), self.walltime_d, self.walltime_h, self.walltime_m])
-                    ]
-            else:
-                    self.children = [
-                        self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
-                        ipw.HBox([ipw.HTML("walltime:"), self.walltime_d, self.walltime_h, self.walltime_m])
-                    ]  
+#            if self.details['system_type'] == 'Molecule_GW':
+#                    self.children = [
+#                        self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
+#                        self.num_machines_scf,
+#                        ipw.HBox([ipw.HTML("walltime:"), self.walltime_d, self.walltime_h, self.walltime_m])
+#                    ]
+#            else:
+            self.children = [
+                self.num_machines, self.num_mpiprocs_per_machine, self.num_cores_per_mpiproc,
+                ipw.HBox([ipw.HTML("walltime:"), self.walltime_d, self.walltime_h, self.walltime_m])
+            ]  
             self.guess_nodes()
 
             
@@ -851,9 +851,9 @@ SECTIONS_TO_DISPLAY = {
                   ConvergenceDetailsWidget,
                   CellSectionWidget, 
                   MetadataWidget],
-    'Molecule_GW' : [DescriptionWidget,
-                     GwWidget,
-                     UksSectionWidget,
-                     StructureInfoWidget,
-                     MetadataWidget],
+#    'Molecule_GW' : [DescriptionWidget,
+#                     GwWidget,
+#                     UksSectionWidget,
+#                     StructureInfoWidget,
+#                     MetadataWidget],
     }
