@@ -116,7 +116,7 @@ class InputDetails(ipw.VBox):
             if tmp_dict['opt_cell']:
                 tmp_dict.update({'workchain' : 'CellOptWorkChain'})
             else:
-                tmp_dict.update({'workchain' : 'BulkOptWorkChain'})
+                tmp_dict.update({'workchain' : 'Cp2kBulkOptWorkChain'})
                 
         ## CHECK input validity
         can_submit,error_msg=validate_input(self.details,tmp_dict)
