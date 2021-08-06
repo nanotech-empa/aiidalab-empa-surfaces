@@ -114,7 +114,7 @@ class InputDetails(ipw.VBox):
         ## BULK
         elif self.details['system_type'] == 'Bulk' :
             if tmp_dict['opt_cell']:
-                tmp_dict.update({'workchain' : 'CellOptWorkChain'})
+                tmp_dict.update({'workchain' : 'Cp2kCellOptWorkChain'})
             else:
                 tmp_dict.update({'workchain' : 'Cp2kBulkOptWorkChain'})
                 
