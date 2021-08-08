@@ -113,10 +113,7 @@ class InputDetails(ipw.VBox):
             
         ## BULK
         elif self.details['system_type'] == 'Bulk' :
-            if tmp_dict['opt_cell']:
-                tmp_dict.update({'workchain' : 'Cp2kCellOptWorkChain'})
-            else:
-                tmp_dict.update({'workchain' : 'Cp2kBulkOptWorkChain'})
+            tmp_dict.update({'workchain' : 'Cp2kBulkOptWorkChain'})
                 
         ## CHECK input validity
         can_submit,error_msg=validate_input(self.details,tmp_dict)

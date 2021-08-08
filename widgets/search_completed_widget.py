@@ -13,9 +13,10 @@ from aiida.orm import CalcFunctionNode, CalcJobNode, Node, QueryBuilder, WorkCha
 import datetime
 
 FIELDS_DISABLE_DEFAULT={
-    'cell'   : True,
-    'volume' : True,
-    'extras' : True,
+    'cell'    : True,
+    'cell_opt': True,
+    'volume'  : True,
+    'extras'  : True,
 }
 
 AU_TO_EV = 27.211386245988
@@ -114,6 +115,8 @@ class SearchCompletedWidget(ipw.VBox):
         html += '<th>Energy(eV)</th>'
         if not self.fields_disable['cell'] :
             html += '<th>Cell</th>'
+        if not self.fields_disable['cell_opt'] :
+            html += '<th>Cell optimized</th>'
         if not self.fields_disable['volume'] :
             html += '<th>Volume</th>'
         html += '<th style="width: 100px">Structure</th>'
@@ -199,7 +202,10 @@ class SearchCompletedWidget(ipw.VBox):
             html += '<tr>'
             html += '<td>%d</td>' % node.pk
             html += '<td>%s</td>' % node.ctime.strftime("%Y-%m-%d %H:%M")
-            html += '<td>%s</td>' % node.extras['formula'] #opt_structure.get_formula()
+            try:
+                html += '<td>%s</td>' % node.extras['formula'] #opt_structure.get_formula()
+            except KeyError:
+                html += '<td>%s</td>' % opt_structure.get_formula()
             html += '<td>%s</td>' % node.description
             html += '<td>%.4f</td>' % (float(node.outputs.output_parameters['energy'])*AU_TO_EV)
             if not self.fields_disable['cell'] :
@@ -207,6 +213,8 @@ class SearchCompletedWidget(ipw.VBox):
                 for cellpar in ['cell_a_angs','cell_b_angs','cell_c_angs','cell_alp_deg','cell_bet_deg','cell_gam_deg']:
                     cell += ' ' + str(node.outputs.output_parameters['motion_step_info'][cellpar][-1])
                 html += '<td>%s</td>' % cell
+            if not self.fields_disable['cell_opt'] :
+                html += '<td>%s</td>' % node.outputs.output_parameters['run_type']
             if not self.fields_disable['volume'] :
                 html += '<td>%f</td>' % node.outputs.output_parameters['motion_step_info']['cell_vol_angs3'][-1]
             # image with a link to structure export
