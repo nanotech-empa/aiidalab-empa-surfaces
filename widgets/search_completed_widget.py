@@ -113,6 +113,7 @@ class SearchCompletedWidget(ipw.VBox):
         html += '<th >Formula</th>'
         html += '<th>Calculation name</th>'
         html += '<th>Energy(eV)</th>'
+        html += '<th>Abs. mag.</th>'
         if not self.fields_disable['cell'] :
             html += '<th>Cell</th>'
         if not self.fields_disable['cell_opt'] :
@@ -197,6 +198,10 @@ class SearchCompletedWidget(ipw.VBox):
 
             extra_calc_area = "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> %s </div>" % extra_calc_links
             
+            out_params = node.outputs.output_parameters
+            abs_mag = "-"
+            if 'integrated_abs_spin_dens' in dict(out_params):
+                abs_mag = f"{out_params['integrated_abs_spin_dens'][-1]:.2f}"
                 
             # append table row
             html += '<tr>'
@@ -207,7 +212,8 @@ class SearchCompletedWidget(ipw.VBox):
             except KeyError:
                 html += '<td>%s</td>' % opt_structure.get_formula()
             html += '<td>%s</td>' % node.description
-            html += '<td>%.4f</td>' % (float(node.outputs.output_parameters['energy'])*AU_TO_EV)
+            html += '<td>%.4f</td>' % (float(out_params['energy'])*AU_TO_EV)
+            html += f'<td>{abs_mag}</td>'
             if not self.fields_disable['cell'] :
                 cell=''
                 for cellpar in ['cell_a_angs','cell_b_angs','cell_c_angs','cell_alp_deg','cell_bet_deg','cell_gam_deg']:
@@ -218,7 +224,7 @@ class SearchCompletedWidget(ipw.VBox):
             if not self.fields_disable['volume'] :
                 html += '<td>%f</td>' % node.outputs.output_parameters['motion_step_info']['cell_vol_angs3'][-1]
             # image with a link to structure export
-            html += '<td><a target="_blank" href="../export_structure.ipynb?uuid=%s">' % opt_structure.uuid
+            html += '<td><a target="_blank" href="./export_structure.ipynb?uuid=%s">' % opt_structure.uuid
             html += '<img width="100px" src="data:image/png;base64,%s" title="PK%d: %s">' % (thumbnail, opt_structure.pk, description)
             html += '</a></td>'
             
