@@ -306,11 +306,35 @@ Au_110_3x1_top=[
     ['Au', 0., 0., 5.8965192],
 ]
                 
+## Au(110)4x1
 
+Au_110_4x1_Lx = 8.3382 *2
+Au_110_4x1_Ly = 2.9482596
+Au_110_4x1_Lz = 2.9482596
+Au_110_4x1_bulk=[
+    ['Au', 0., 0., 0],
+    ['Au', 4.1691, 0.    , 0    ],
+    ['Au', 8.3382, 0.    , 0    ],
+    ['Au', 12.5073, 0.    , 0    ],
+    ['Au', 2.08455  ,  1.474    , 1.4741298],
+    ['Au', 6.25365  ,  1.474    , 1.4741298],
+    ['Au', 10.42275  , 1.474    , 1.4741298],
+    ['Au', 14.59185  , 1.474    , 1.4741298],
+]
+
+Au_110_4x1_top=[
+    ['Au', 0., 0., 2.9482596],
+    ['Au', 4.1691, 0.    , 2.9482596    ],
+    ['Au', 12.5073, 0.    ,2.9482596    ],    
+    ['Au', 2.08455  ,  1.474    , 4.4223894],
+    ['Au', 14.59185  , 1.474    , 4.4223894],    
+    ['Au', 0., 0.,5.8965192],    
+]
     
 slab_lx_ly={'Au(111)'    : [Au_x,Au_y],
             'Au(110)2x1' : [Au_110_2x1_Lx,Au_110_2x1_Ly],
             'Au(110)3x1' : [Au_110_3x1_Lx,Au_110_3x1_Ly],
+            'Au(110)4x1' : [Au_110_4x1_Lx,Au_110_4x1_Ly],            
             'Ag(111)'    : [Ag_x,Ag_y],
             'Cu(111)'    : [Cu_x,Cu_y],
             'PdGa_A_Pd1' : [PdGa_Lx,PdGa_Ly],
@@ -342,7 +366,7 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
         for a in Au_110_2x1_top:
             Au.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) + (nz-1) * Au_110_2x1_Lz )))
 
-        ### add to cell thickness of Pd3 part + vacuum    
+        ### add to cell thickness of bulk part + vacuum    
         Au.cell=(Au_110_2x1_Lx,Au_110_2x1_Ly ,nz*Au_110_2x1_Lz + 2.9482596 +40.0 )
 
         ### replicate by nx and ny
@@ -367,7 +391,7 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
         for a in Au_110_3x1_top:
             Au.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) + (nz-1) * Au_110_3x1_Lz )))
 
-        ### add to cell thickness of Pd3 part + vacuum    
+        ### add to cell thickness of bulk part + vacuum    
         Au.cell=(Au_110_3x1_Lx,Au_110_3x1_Ly ,nz*Au_110_3x1_Lz + 2.9482596 +40.0 )
 
         ### replicate by nx and ny
@@ -376,7 +400,32 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
         the_slab.positions+=np.array((0,0,10))
         slab_z_max=np.max(the_slab.positions[:,2])
         
-        cx,cy,cz=the_slab.cell.diagonal()        
+        cx,cy,cz=the_slab.cell.diagonal()   
+        
+### Au(110)4x1 SECTION
+    if "Au(110)4x1" in which_surf:
+        Au=Atoms()
+        for a in Au_110_4x1_bulk:
+            Au.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) )))
+        Au.cell=(Au_110_4x1_Lx,Au_110_4x1_Ly ,Au_110_4x1_Lz)
+        Au.pbc=(True,True,True)
+        ### build 1x1xnz bulk
+        Au=Au.repeat((1,1,nz))
+
+        ### add top layer
+        for a in Au_110_4x1_top:
+            Au.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) + (nz-1) * Au_110_4x1_Lz )))
+
+        ### add to cell thickness of bulk part + vacuum    
+        Au.cell=(Au_110_4x1_Lx,Au_110_4x1_Ly ,nz*Au_110_4x1_Lz + 2.9482596 +40.0 )
+
+        ### replicate by nx and ny
+        Au=Au.repeat((nx,ny,1))
+        the_slab = sort(Au, tags=Au.get_positions()[:,2]*-1)
+        the_slab.positions+=np.array((0,0,10))
+        slab_z_max=np.max(the_slab.positions[:,2])
+        
+        cx,cy,cz=the_slab.cell.diagonal()         
 
 ### PdGa SECTION    
     elif "PdGa_A_Pd" in which_surf:

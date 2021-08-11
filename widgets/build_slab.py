@@ -31,6 +31,7 @@ class BuildSlab(ipw.VBox):
                                     options=["Au(111)", 
                                              "Au(110)2x1",
                                              "Au(110)3x1",
+                                             "Au(110)4x1",
                                              "Ag(111)", 
                                              "Cu(111)", 
                                              "hBN", 
