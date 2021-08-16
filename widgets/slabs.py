@@ -378,7 +378,7 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
         cx,cy,cz=the_slab.cell.diagonal()
         
 ### Au(110)3x1 SECTION
-    if "Au(110)3x1" in which_surf:
+    elif "Au(110)3x1" in which_surf:
         Au=Atoms()
         for a in Au_110_3x1_bulk:
             Au.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) )))
@@ -403,7 +403,7 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
         cx,cy,cz=the_slab.cell.diagonal()   
         
 ### Au(110)4x1 SECTION
-    if "Au(110)4x1" in which_surf:
+    elif "Au(110)4x1" in which_surf:
         Au=Atoms()
         for a in Au_110_4x1_bulk:
             Au.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) )))
