@@ -15,11 +15,10 @@ def get_start_widget(appbase, jupbase):
     <tr>
     
     <td valign="top"><ul>
-        <li><a href="{appbase}/submit_calculations.ipynb" target="_blank">Submit optimizatons and GW</a>
+        <li><a href="{appbase}/submit_calculations.ipynb" target="_blank">Submit optimizatons</a>
+        <li><a href="{appbase}/gw/submit_gw.ipynb" target="_blank">Submit GW</a>
         <li><a href="{appbase}/slab/build_slab.ipynb" target="_blank">Build slab</a>
-        <li><a href="{appbase}/slab/search.ipynb" target="_blank">Search opt. slabs</a>
-        <li><a href="{appbase}/molecules/search.ipynb" target="_blank">Search opt. molecules</a>
-        <li><a href="{appbase}/bulks/search.ipynb" target="_blank">Search opt. bulks</a>
+        <li><a href="{appbase}/search.ipynb" target="_blank">Search</a>
     </ul></td>
     
     <td valign="top"><ul>
