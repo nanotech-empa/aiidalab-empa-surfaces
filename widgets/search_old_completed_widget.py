@@ -175,7 +175,7 @@ class SearchCompletedWidget(ipw.VBox):
             ### add links to SPM calcs
             try:
                 import apps.scanning_probe.common
-                extra_calc_links += apps.scanning_probe.common.create_viewer_link_html(st_extras, "../../")
+                extra_calc_links += apps.scanning_probe.common.create_viewer_link_html(st_extras, "../")
             except Exception as e:
                 pass
             ### --------------------------------------------------
