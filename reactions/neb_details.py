@@ -15,6 +15,8 @@ from apps.surfaces.reactions import analyze_structure
 
 import subprocess
 
+import numpy as np
+
 
 style = {'description_width': '120px'}
 layout = {'width': '70%'}
