@@ -266,6 +266,24 @@ PdGa_dict={
     'PdGa_A_Pd3':{'bulk': Pd3_A_unit , 'top' : Pd3_A_top }
 }
 
+
+## Cu(110)O-2x1
+Cu_110_O_2x1_Lx = 2.54631563 * 2
+Cu_110_O_2x1_Ly = 3.60103411
+Cu_110_O_2x1_Lz = 2.54631563
+Cu_110_O_2x1_bulk=[
+    ['Cu', 0., 0., 0],
+    ['Cu', 2.54631563, 0.    , 0    ],
+    ['Cu', 1.273157815  , 1.800517055    , 1.273157815],
+    ['Cu', 3.819473445  , 1.800517055    , 1.273157815],
+]
+
+Cu_110_O_2x1_top=[['Cu', 0.         , 0.       , 2.54631563],
+                ['Cu', 2.54631563 , 0.       , 2.54631563],
+                ['Cu', 1.273157815  , 1.800517055    , 3.81947344500],
+                ['O', 1.273157815  , 0    , 3.81947344500]
+               ]
+
 ## Au(110)2x1
 
 Au_110_2x1_Lx = 8.3382
@@ -334,7 +352,8 @@ Au_110_4x1_top=[
 slab_lx_ly={'Au(111)'    : [Au_x,Au_y],
             'Au(110)2x1' : [Au_110_2x1_Lx,Au_110_2x1_Ly],
             'Au(110)3x1' : [Au_110_3x1_Lx,Au_110_3x1_Ly],
-            'Au(110)4x1' : [Au_110_4x1_Lx,Au_110_4x1_Ly],            
+            'Au(110)4x1' : [Au_110_4x1_Lx,Au_110_4x1_Ly],
+            'Cu(110)O-2x1' : [Cu_110_O_2x1_Lx,Cu_110_O_2x1_Ly],
             'Ag(111)'    : [Ag_x,Ag_y],
             'Cu(111)'    : [Cu_x,Cu_y],
             'PdGa_A_Pd1' : [PdGa_Lx,PdGa_Ly],
@@ -425,7 +444,32 @@ def prepare_slab(mol,dx,dy,dz,phi, nx, ny, nz, which_surf):
         the_slab.positions+=np.array((0,0,10))
         slab_z_max=np.max(the_slab.positions[:,2])
         
-        cx,cy,cz=the_slab.cell.diagonal()         
+        cx,cy,cz=the_slab.cell.diagonal() 
+        
+### Cu(110)O-2x1 SECTION
+    elif "Cu(110)O-2x1" in which_surf:
+        Cu=Atoms()
+        for a in Cu_110_O_2x1_bulk:
+            Cu.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) )))
+        Cu.cell=(Cu_110_O_2x1_Lx,Cu_110_O_2x1_Ly ,Cu_110_O_2x1_Lz)
+        Cu.pbc=(True,True,True)
+        ### build 1x1xnz bulk
+        Cu=Cu.repeat((1,1,nz))
+
+        ### add top layer
+        for a in Cu_110_O_2x1_top:
+            Cu.append(Atom(a[0],(float(a[1]), float(a[2]), float(a[3]) + (nz-1) * Cu_110_O_2x1_Lz )))
+
+        ### add to cell thickness of bulk part + vacuum    
+        Cu.cell=(Cu_110_O_2x1_Lx,Cu_110_O_2x1_Ly ,nz*Cu_110_O_2x1_Lz + 2.54631563 +40.0 )
+
+        ### replicate by nx and ny
+        Cu=Cu.repeat((nx,ny,1))
+        the_slab = sort(Cu, tags=Cu.get_positions()[:,2]*-1)
+        the_slab.positions+=np.array((0,0,10))
+        slab_z_max=np.max(the_slab.positions[:,2])
+        
+        cx,cy,cz=the_slab.cell.diagonal()
 
 ### PdGa SECTION    
     elif "PdGa_A_Pd" in which_surf:
