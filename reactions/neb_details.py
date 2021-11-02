@@ -159,10 +159,14 @@ class NebDetails(ipw.VBox):
         struct_node = load_node(struct_pk)
 
         if struct_node.creator is None:
-            print("Struct %d .wfn not avail: no parent calc." % struct_pk)
+            print("Struct %d .wfn not avail: no creator." % struct_pk)
             return None
 
         parent_calc = struct_node.creator
+        
+        if parent_calc.computer is None:
+            print("Struct %d .wfn not avail: creator has no computer." % struct_pk)
+            return None
 
         hostname = parent_calc.computer.hostname
 
