@@ -190,7 +190,7 @@ class SearchCompletedWidget(ipw.VBox):
                 for gw_pk in st_extras['Cp2kAdsorbedGwIcWorkChain_pks']:
                     nr += 1
                     calc_links_str += "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />" % (
-                    '../gw/view_gw.ipynb', gw_pk, 'GW', nr)
+                    './gw/view_gw.ipynb', gw_pk, 'GW', nr)
 
                 extra_calc_links += calc_links_str
                 
@@ -230,7 +230,7 @@ class SearchCompletedWidget(ipw.VBox):
             
             if self.show_comments_check.value:
                 comment_area = "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'>"
-                comment_area += '<a target="_blank" href="../comments.ipynb?pk=%s">add/view</a><br>' % node.pk
+                comment_area += '<a target="_blank" href="./comments.ipynb?pk=%s">add/view</a><br>' % node.pk
                 for comment in node.get_comments():
                     comment_area += "<hr style='padding:0px; margin:0px;' />" + comment.content.replace("\n", "<br>");
                 comment_area += '</div>'

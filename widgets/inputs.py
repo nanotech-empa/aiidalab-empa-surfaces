@@ -576,7 +576,7 @@ class MetadataWidget(ipw.VBox):
     def __init__(self):
         """ Metadata widget to generate metadata"""
 
-        self.walltime_s = ipw.IntText(value=3600,
+        self.walltime_s = ipw.IntText(value=86400,
                                       description='seconds:',
                                       style={'description_width': 'initial'},
                                       layout={'width': 'initial'})
