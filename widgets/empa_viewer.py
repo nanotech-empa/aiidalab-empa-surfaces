@@ -317,8 +317,8 @@ class EmpaStructureViewer(StructureDataViewer):
             return
 
     @observe('structure')
-    def _update_displayed_structure(self, change):
-        super()._update_displayed_structure(change=change)
+    def _observe_structure(self, change):
+        super()._observe_structure(change=change)
         with self.hold_trait_notifications():
             if(self.vis_func) : self.custom_vis()
         self.orient_z_up()
