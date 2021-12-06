@@ -106,7 +106,7 @@ def default_vis_func(structure):
         vis_dict[current_rep]['ids'] = list_to_string_range(ids,shift=0) 
         current_rep += 1 
     if 'u' in details['cases']:
-        vis_dict[current_rep] = std_dict['a']
+        vis_dict[current_rep] = std_dict['u']
         ids = [item for item in details['unclassified'] ]
         vis_dict[current_rep]['ids'] = list_to_string_range(ids,shift=0)
 
