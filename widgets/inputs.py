@@ -8,7 +8,7 @@ from ase import Atom, Atoms
 
 from aiida.orm import Code
 
-#from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
+# from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
 from apps.surfaces.widgets.cp2k2dict import CP2K2DICT
 from apps.surfaces.widgets.number_of_nodes import compute_cost,compute_nodes
@@ -128,7 +128,7 @@ class InputDetails(ipw.VBox):
 
 
 class DescriptionWidget(ipw.Text):    
-    
+
 ## DESCRIPTION OF CALCULATION
     def __init__(self):
         
@@ -139,7 +139,7 @@ class DescriptionWidget(ipw.Text):
         
     def return_dict(self):
         return {'description' : self.value }     
-    
+
 class StructureInfoWidget(ipw.Accordion): 
     details = Dict()  
     manager = Instance(InputDetails, allow_none=True)
@@ -169,7 +169,7 @@ class StructureInfoWidget(ipw.Accordion):
                 
     def return_dict(self):
         return {}        
-    
+
 class ConvergenceDetailsWidget(ipw.Accordion):
     details = Dict()
     calc_type = Unicode()
@@ -210,8 +210,26 @@ class ConvergenceDetailsWidget(ipw.Accordion):
             link((self.manager, 'details'), (self, 'details'))
             link((self.manager, 'calc_type'), (self, 'calc_type'))
             self.widgets_to_show()
-            
-            
+
+
+class LowAccuracyWidget(ipw.Checkbox):
+    details = Dict()
+    manager = Instance(InputDetails, allow_none=True)
+    def __init__(self):
+        super().__init__(value=False, description='Low accuracy',
+                         style={'description_width': '120px'})
+    
+    def return_dict(self):
+        return {'low_accuracy': self.value}
+
+    @observe('manager')
+    def _observe_manager(self, _=None):
+        if self.manager is None:
+            return
+        else:
+            link((self.manager, 'details'), (self, 'details'))
+
+
 class VdwSelectorWidget(ipw.ToggleButton):
     details = Dict()
     manager = Instance(InputDetails, allow_none=True)
@@ -228,7 +246,7 @@ class VdwSelectorWidget(ipw.ToggleButton):
             return
         else:
             link((self.manager, 'details'), (self, 'details'))
-    
+
 
 class UksSectionWidget(ipw.Accordion):
     details = Dict()
@@ -344,7 +362,7 @@ class UksSectionWidget(ipw.Accordion):
             link((self.manager, 'uks'), (self, 'uks'))
             link((self.manager, 'net_charge'), (self, 'net_charge'))
             self.widgets_to_show()
-    
+
 class MixedDftWidget(ipw.ToggleButtons):
     details = Dict()
     to_fix = List()
@@ -389,10 +407,10 @@ class MixedDftWidget(ipw.ToggleButtons):
             link((self.manager, 'to_fix'), (self, 'to_fix'))
             link((self.manager, 'calc_type'), (self, 'calc_type'))
             self.update_list_fixed()
-            
+
   
 
-   
+
 class FixedAtomsWidget(ipw.Text):
     details = Dict()
     to_fix = List()
@@ -420,7 +438,7 @@ class FixedAtomsWidget(ipw.Text):
             link((self.manager, 'details'), (self, 'details'))
             link((self.manager, 'to_fix'), (self, 'to_fix'))
             self.value = mol_ids_range(self.to_fix)
-            
+
 class CellSectionWidget(ipw.Accordion):
     details = Dict()
     do_cell_opt = Bool()
@@ -492,7 +510,7 @@ class CellSectionWidget(ipw.Accordion):
                                        description='Cell freedom',
                                        value='KEEP_SYMMETRY',
                                        style=STYLE, layout=LAYOUT)
-        
+
 #'cell_free'
         self.cell_cases = {
             'Cell_true'            : [
@@ -563,7 +581,7 @@ class CellSectionWidget(ipw.Accordion):
             link((self.manager, 'net_charge'), (self, 'net_charge'))
             self.cell.value = self.details['cell']
             self.widgets_to_show()
-            
+
 
 class MetadataWidget(ipw.VBox):
     """Setup metadata for an AiiDA process."""
@@ -611,7 +629,7 @@ class MetadataWidget(ipw.VBox):
                 ipw.HBox([ipw.HTML("walltime, "), self.walltime_s])
             ] 
 
-            
+
 SECTIONS_TO_DISPLAY = {
     'None'     : [],
     'Wire'     : [],
@@ -628,6 +646,7 @@ SECTIONS_TO_DISPLAY = {
                   MixedDftWidget,
                   StructureInfoWidget,
                   FixedAtomsWidget, 
+                  LowAccuracyWidget,
                   MetadataWidget],
     'Molecule' : [
         StructureInfoWidget,
