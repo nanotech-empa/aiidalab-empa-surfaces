@@ -212,15 +212,16 @@ class ConvergenceDetailsWidget(ipw.Accordion):
             self.widgets_to_show()
 
 
-class LowAccuracyWidget(ipw.Checkbox):
+class ProtocolSelectionWidget(ipw.Dropdown):
     details = Dict()
     manager = Instance(InputDetails, allow_none=True)
     def __init__(self):
-        super().__init__(value=False, description='Low accuracy',
+        options = [("Standard", "standard"), ("Low accuracy", "low_accuracy") ]
+        super().__init__(value="standard", options=options, description='Protocol:',
                          style={'description_width': '120px'})
     
     def return_dict(self):
-        return {'low_accuracy': self.value}
+        return {'protocol': self.value}
 
     @observe('manager')
     def _observe_manager(self, _=None):
@@ -646,7 +647,7 @@ SECTIONS_TO_DISPLAY = {
                   MixedDftWidget,
                   StructureInfoWidget,
                   FixedAtomsWidget, 
-                  LowAccuracyWidget,
+                  ProtocolSelectionWidget,
                   MetadataWidget],
     'Molecule' : [
         StructureInfoWidget,
