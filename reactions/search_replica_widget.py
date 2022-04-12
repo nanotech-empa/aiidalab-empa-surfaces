@@ -33,6 +33,7 @@ layout = {'width': '70%'}
 class SearchReplicaWidget(ipw.VBox):
     
     def __init__(self, **kwargs):
+
         
         self.preprocess_version = 0.16
         
@@ -268,6 +269,7 @@ class SearchReplicaWidget(ipw.VBox):
     
     def parse_rep_wcs(self, wc_list, existing_rep_sets=OrderedDict()):
         
+        
         replica_sets = OrderedDict()
         
         rep_set_template = {
@@ -277,7 +279,12 @@ class SearchReplicaWidget(ipw.VBox):
             'colvar_inc'  : None, # colvar increasing or decreasing ?
         }
         
+        #time00 = time.time()
+        
         for wc_qb in wc_list:
+            
+            #time0 = time.time()
+
             wc = wc_qb[0]
             
             # we also want to potentially recover replicas from an excepted calculation
@@ -288,7 +295,12 @@ class SearchReplicaWidget(ipw.VBox):
                 print(str(wc.pk) + " is still running, skipping.")
                 continue
             
-            wc_out_names = list(wc.outputs)
+            # Parse wc.outputs only once, as every access is very slow!
+            wc_outputs_dict = {}
+            for o in wc.outputs:
+                wc_outputs_dict[o] = wc.outputs[o]
+            
+            wc_out_names = list(wc_outputs_dict)
             
             if 'replica_0' not in wc_out_names and 'replica_00' not in wc_out_names:
                 continue
@@ -302,8 +314,8 @@ class SearchReplicaWidget(ipw.VBox):
             cv_targets = [None] + cv_targets
             cv_inc = cv_targets[2] > cv_targets[1]
             
-            energies = [(wc.outputs[o]['energy_scf'], wc.outputs[o]['energy_force'])
-                         for o in sorted(wc.outputs) if o.startswith('params_')]
+            energies = [(wc_outputs_dict[o]['energy_scf'], wc_outputs_dict[o]['energy_force'])
+                         for o in sorted(wc_outputs_dict) if o.startswith('params_')]
             
             num_replicas = len([n for n in wc_out_names if n.startswith('replica')])
             
@@ -319,8 +331,9 @@ class SearchReplicaWidget(ipw.VBox):
                     replica_sets[name] = copy.deepcopy(rep_set_template)
                     replica_sets[name]['colvar_def'] = cv_def
                     replica_sets[name]['colvar_inc'] = cv_inc
-                    
+            
             # Does the current wc match with the replica set?
+            #if  replica_sets[name]['colvar_inc'] != cv_inc:
             if replica_sets[name]['colvar_def'] != cv_def or replica_sets[name]['colvar_inc'] != cv_inc:
                 print("----")
                 print("Warning! Replica calc CV definition doesn't match with previous ones.")
@@ -336,16 +349,16 @@ class SearchReplicaWidget(ipw.VBox):
             replica_sets[name]['wcs'].append(wc)
             
             wc_replica_list = []
-            for wc_o in sorted(list(wc.outputs)):
+            for wc_o in sorted(list(wc_outputs_dict)):
                 if wc_o.startswith("replica_"):
-                    struct = wc.outputs[wc_o]
+                    struct = wc_outputs_dict[wc_o]
                     # add description, if it doesn't exist already
                     if struct.description == "":
                         if struct.creator is None:
                             struct.description = "-"
                         else:
                             struct.description = struct.creator.description
-                    wc_replica_list.append(wc.outputs[wc_o])
+                    wc_replica_list.append(wc_outputs_dict[wc_o])
                     
             
             # Add the replicas of this wc to the set if it doesn't exist there already
@@ -355,12 +368,14 @@ class SearchReplicaWidget(ipw.VBox):
                     replica = (cv_targets[i_rep], energies[i_rep], wc_replica_list[i_rep].pk)
                     replica_sets[name]['replicas'].append(replica)
             
+            #print("Block:", time.time() - time0)
             # Sort entries by cv target (e.g. one could be adding replicas in-between prev calculated ones)
             #if cv_inc:
             #    replica_sets[name]['replicas'].sort(key=lambda x:(x[0] is not None, x[0], x[2]))
             #else:
             #    replica_sets[name]['replicas'].sort(reverse=True, key=lambda x:(x[0] is None, x[0], x[2]))
-            
+        
+        #print("all:", time.time() - time00)
         return replica_sets
             
 
@@ -518,9 +533,9 @@ class SearchReplicaWidget(ipw.VBox):
         self.parse_preprocessed_replica_calcs()
 
         
+
         
+
         
-        
-        
-    
+
 
