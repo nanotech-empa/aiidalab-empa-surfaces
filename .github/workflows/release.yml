@@ -11,3 +11,5 @@ jobs:
         steps:
             - uses: softprops/action-gh-release@v0.1.14
               name: Create release.
+              with:
+                  generate_release_notes: true
