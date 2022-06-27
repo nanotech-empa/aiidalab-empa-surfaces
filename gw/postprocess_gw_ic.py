@@ -22,14 +22,12 @@ def select_orbitals(node, ref_i, n_occ=5, n_virt=5):
     nspin = len(mos)
 
     scf_levels = gw["g0w0_e_scf"]
-    gw_levels = gw["gw_eval"]
     gw_ic_levels = gw_ic["gw_ic_levels"]
 
     i_start_mo = ref_i - n_occ + 1
     i_end_mo = ref_i + n_virt + 1
 
     sel_scf_levels = []
-    sel_gw_levels = []
     sel_gw_ic_levels = []
     sel_occs = []
 
@@ -46,7 +44,6 @@ def select_orbitals(node, ref_i, n_occ=5, n_virt=5):
             i_end = None
 
         sel_scf_levels.append(scf_levels[i_spin][i_start:i_end])
-        sel_gw_levels.append(gw_levels[i_spin][i_start:i_end])
         sel_gw_ic_levels.append(gw_ic_levels[i_spin][i_start:i_end])
         sel_occs.append(occs[i_spin][i_start:i_end])
 
@@ -54,7 +51,6 @@ def select_orbitals(node, ref_i, n_occ=5, n_virt=5):
 
     selected = {
         "scf": np.array(sel_scf_levels),
-        "gw": np.array(sel_gw_levels),
         "gw+ic": np.array(sel_gw_ic_levels),
         "occ": np.array(sel_occs),
         "homo": np.array(homos),
@@ -63,7 +59,46 @@ def select_orbitals(node, ref_i, n_occ=5, n_virt=5):
     return selected
 
 
-def table(node_list, n_occ=4, n_virt=4, energy_ref_i=0, mode="gw+ic"):
+def table(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
+    ref_i = find_ref_i(node_list[0].outputs.gw_ic_parameters)
+
+    header = " MO |"
+    templ = "%3d |"
+
+    # Count starts from 1!
+    mo_indexes = np.arange(ref_i - n_occ + 1, ref_i + n_virt + 1) + 1
+
+    cols = [mo_indexes]
+
+    for node in node_list:
+
+        sel = select_orbitals(node, ref_i, n_occ, n_virt)
+
+        nspin = len(sel["occ"])
+
+        evals = sel["gw+ic"]
+
+        evals -= evals[0][sel["homo"][0] + energy_ref_i]
+
+        cols += [evals[0], sel["occ"][0]]
+        label = "{}_gw+ic".format(node.pk)
+        if nspin == 1:
+            header += "{:^11s}|".format(label)
+            templ += " %6.2f  %d |"
+        else:
+            header += "{:^20s}|".format(label)
+            templ += " %6.2f %d %7.2f %d |"
+            cols += [evals[1], sel["occ"][1]]
+
+    for i in range(len(cols)):
+        cols[i] = cols[i][::-1]
+
+    print(header)
+    for row in zip(*cols):
+        print(templ % row)
+
+
+def table_scf(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
     # mode = 'gw' or 'gw+ic'
 
     ref_i = find_ref_i(node_list[0].outputs.gw_ic_parameters)
@@ -82,12 +117,12 @@ def table(node_list, n_occ=4, n_virt=4, energy_ref_i=0, mode="gw+ic"):
 
         nspin = len(sel["occ"])
 
-        evals = sel[mode]
+        evals = sel["scf"]
 
         evals -= evals[0][sel["homo"][0] + energy_ref_i]
 
         cols += [evals[0], sel["occ"][0]]
-        label = "{}_{}".format(node.pk, mode)
+        label = "{}_scf".format(node.pk)
         if nspin == 1:
             header += "{:^11s}|".format(label)
             templ += " %6.2f  %d |"
@@ -105,7 +140,7 @@ def table(node_list, n_occ=4, n_virt=4, energy_ref_i=0, mode="gw+ic"):
 
 
 def make_levels_plot(
-    node_list, n_occ=4, n_virt=4, energy_ref_i=0, mode="gw+ic", ylim=None
+    node_list, n_occ=4, n_virt=4, energy_ref_i=0, ylim=None
 ):
     plt.figure(figsize=(1.5 * len(node_list), 6))
 
@@ -119,7 +154,7 @@ def make_levels_plot(
         occs = sel["occ"]
         nspin = len(occs)
 
-        ens = sel[mode]
+        ens = sel["gw+ic"]
 
         ens -= ens[0][sel["homo"][0] + energy_ref_i]
 
@@ -139,10 +174,10 @@ def make_levels_plot(
 
     labels = [f"{n.pk}" for n in node_list]
 
-    plt.title(mode)
+    plt.title("gw+ic")
     plt.ylabel("Energy [eV]")
     plt.xlim([-0.5, len(labels) - 0.5])
     plt.ylim(ylim)
     plt.xticks(np.arange(0, len(labels)), labels)
-    # plt.savefig(f"{mode}.png", dpi=200, bbox_inches='tight')
+    # plt.savefig(f"gw+ic.png", dpi=200, bbox_inches='tight')
     plt.show()

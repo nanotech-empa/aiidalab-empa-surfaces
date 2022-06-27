@@ -219,11 +219,26 @@ class SearchCompletedWidget(ipw.VBox):
             ### --------------------------------------------------
 
             ### --------------------------------------------------
-            ### add links to GW calcs
+            ### add links to GW-IC calcs
             if "Cp2kAdsorbedGwIcWorkChain_pks" in st_extras:
                 calc_links_str = ""
                 nr = 0
                 for gw_pk in st_extras["Cp2kAdsorbedGwIcWorkChain_pks"]:
+                    nr += 1
+                    calc_links_str += (
+                        "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />"
+                        % ("./gw/view_gw-ic.ipynb", gw_pk, "GW-IC", nr)
+                    )
+
+                extra_calc_links += calc_links_str
+
+            ### --------------------------------------------------
+
+            ### add links to GW calcs
+            if "Cp2kMoleculeOptGwWorkChain_pks" in st_extras:
+                calc_links_str = ""
+                nr = 0
+                for gw_pk in st_extras["Cp2kMoleculeOptGwWorkChain_pks"]:
                     nr += 1
                     calc_links_str += (
                         "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />"
