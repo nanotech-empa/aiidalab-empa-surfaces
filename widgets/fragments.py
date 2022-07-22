@@ -13,8 +13,8 @@ class Fragment(ipw.VBox):
         self.label = ipw.HTML("<b>Fragment</b>")
         self.name = ipw.Text(description="Name", value=name, style=STYLE)
         self.indices = ipw.Text(value=indices, description='Indices', disabled=False, style=STYLE)
-        self.charge = ipw.IntText(description="Charge", style=STYLE)
-        self.multiplicity = ipw.IntText(description="Multiplicity", style=STYLE)
+        self.charge = ipw.IntText(description="Charge", value=0, style=STYLE)
+        self.multiplicity = ipw.IntText(description="Multiplicity", value=1, style=STYLE)
 
         ipw.dlink((self.name, "value"), (self.label, "value"), transform=lambda x: f"<b>Fragment: {x}</b>")
 
@@ -26,7 +26,13 @@ class Fragment(ipw.VBox):
 
         # Resources.
         self.nodes_widget = ipw.IntText(
-            description="# Nodes tasks",
+            description="# Nodes",
+            value=1,
+            min=1,
+            style=STYLE
+            )
+        self.cpus_per_node_widget = ipw.IntText(
+            description="# CPUs per node",
             value=1,
             min=1,
             style=STYLE
@@ -46,6 +52,7 @@ class Fragment(ipw.VBox):
                 self.indices,
                 self.output,
                 self.nodes_widget,
+                self.cpus_per_node_widget,
                 self.run_time_widget,
                 self.delete_button,
             ]
@@ -80,8 +87,7 @@ class FragmentList(ipw.VBox):
         self.fragment_output = ipw.Box(layout=BOX_LAYOUT)
         super().__init__(children=[ipw.HBox([self.new_fragment_name, self.new_fragment_indices, self.add_new_fragment_button]), self.fragment_add_message, self.fragment_output])
 
-        # Add default "total" fragment.
-#        self.fragments = [Fragment(indices="all", name="total")]
+
         self.fragment_output.children = self.fragments
 
     def add_fragment(self, _):
