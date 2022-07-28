@@ -50,6 +50,7 @@ class Fragment(ipw.VBox):
                 ipw.HTML("<hr>"),
                 self.name,
                 self.indices,
+                self.charge,
                 self.output,
                 self.nodes_widget,
                 self.cpus_per_node_widget,
@@ -63,7 +64,7 @@ class Fragment(ipw.VBox):
         with self.output:
             clear_output()
             if change['new']:
-                display(ipw.VBox([self.charge, self.multiplicity]))
+                display(ipw.VBox([self.multiplicity]))
     
     def delete_myself(self, _):
         self.master_class.delete_fragment(self)
