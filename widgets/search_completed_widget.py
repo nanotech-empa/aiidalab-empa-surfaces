@@ -279,7 +279,7 @@ class SearchCompletedWidget(ipw.VBox):
 
             # append table row
             html += "<tr>"
-            html += "<td>%d</td>" % node.pk
+            html += f"""<td><a target="_blank" href="../aiidalab-widgets-base/notebooks/process.ipynb?id={node.pk}">{node.pk}</a></td>"""
             html += "<td>%s</td>" % node.ctime.strftime("%Y-%m-%d %H:%M")
             try:
                 html += (
