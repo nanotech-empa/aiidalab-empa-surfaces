@@ -14,8 +14,7 @@ from aiida.orm import (
 )
 from aiidalab_widgets_base import viewer
 
-# from apps.surfaces.widgets import analyze_structure
-from apps.surfaces.widgets.ANALYZE_structure import StructureAnalyzer
+from .ANALYZE_structure import StructureAnalyzer
 from IPython.display import clear_output, display
 
 FIELDS_DISABLE_DEFAULT = {

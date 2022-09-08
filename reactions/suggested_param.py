@@ -1,5 +1,5 @@
 import numpy as np
-from apps.surfaces.reactions.analyze_structure import mol_ids_range
+from reactions.analyze_structure import mol_ids_range
 
 
 def suggested_parameters(slab_analyzed, dft_type):

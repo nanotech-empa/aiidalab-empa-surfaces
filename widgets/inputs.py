@@ -5,11 +5,11 @@ import ipywidgets as ipw
 from aiida.orm import Code
 from aiida_cp2k.utils import Cp2kInput
 from aiidalab_widgets_base.utils import list_to_string_range, string_range_to_list
-from apps.surfaces.widgets.ANALYZE_structure import mol_ids_range
-from apps.surfaces.widgets.cp2k2dict import CP2K2DICT
-from apps.surfaces.widgets.cp2k_input_validity import validate_input
-from apps.surfaces.widgets.get_cp2k_input import Get_CP2K_Input
-from apps.surfaces.widgets.number_of_nodes import compute_cost, compute_nodes
+from .ANALYZE_structure import mol_ids_range
+from .cp2k2dict import CP2K2DICT
+from .cp2k_input_validity import validate_input
+from .get_cp2k_input import Get_CP2K_Input
+from .number_of_nodes import compute_cost, compute_nodes
 from ase import Atom, Atoms
 from IPython.display import clear_output, display
 from traitlets import (
