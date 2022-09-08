@@ -7,7 +7,7 @@ import tempfile
 import ipywidgets as ipw
 import numpy as np
 from aiida.orm import Code, Computer, FolderData, load_node
-from apps.surfaces.reactions import analyze_structure
+from . import analyze_structure
 from IPython.display import clear_output, display
 
 from .neb_utils import mk_coord_files, mk_wfn_cp_commands
