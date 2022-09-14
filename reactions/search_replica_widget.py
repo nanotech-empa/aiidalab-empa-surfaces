@@ -250,7 +250,7 @@ class SearchReplicaWidget(ipw.VBox):
             )
 
             # ... and the download link.
-            html += '<tr><td align="left"><a target="_blank" href="../export_structure.ipynb?uuid={}">View & export</a></td></tr>'.format(
+            html += '<tr><td align="left"><a target="_blank" href="export_structure.ipynb?uuid={}">View & export</a></td></tr>'.format(
                 struct_node.uuid
             )
 

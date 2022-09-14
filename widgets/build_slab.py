@@ -6,8 +6,8 @@ import nglview
 import numpy as np
 import scipy.stats
 from aiidalab_widgets_base import StructureManagerWidget
-from apps.surfaces.widgets import slabs
-from apps.surfaces.widgets.ANALYZE_structure import StructureAnalyzer
+from . import slabs
+from .ANALYZE_structure import StructureAnalyzer
 from ase import Atoms
 from ase.data import covalent_radii
 from ase.neighborlist import NeighborList

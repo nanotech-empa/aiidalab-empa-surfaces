@@ -18,19 +18,19 @@ def get_start_widget(appbase, jupbase):
     <td valign="top"><ul>
         <li><a href="{appbase}/submit_calculations.ipynb" target="_blank">Submit optimizatons</a>
         <li><a href="{appbase}/submit_adsorption_energy.ipynb" target="_blank">Compute adsorption energy</a>
-        <li><a href="{appbase}/gw/submit_gw.ipynb" target="_blank">Submit GW</a>
-        <li><a href="{appbase}/gw/submit_gw-ic.ipynb" target="_blank">Submit GW-IC</a>
+        <li><a href="{appbase}/submit_gw.ipynb" target="_blank">Submit GW</a>
+        <li><a href="{appbase}/submit_gw-ic.ipynb" target="_blank">Submit GW-IC</a>
         <li><a href="{appbase}/search.ipynb" target="_blank">Search</a>
     </ul></td>
 
     <td valign="top"><ul>
-        <li><a href="{appbase}/reactions/submit_replicas.ipynb" target="_blank">Generate replicas</a>
-        <li><a href="{appbase}/reactions/search_replicas.ipynb" target="_blank">Search replica chains</a>
+        <li><a href="{appbase}/submit_replicas.ipynb" target="_blank">Generate replicas</a>
+        <li><a href="{appbase}/search_replicas.ipynb" target="_blank">Search replica chains</a>
     </ul></td>
 
     <td valign="top"><ul>
-        <li><a href="{appbase}/reactions/submit_neb.ipynb" target="_blank">Submit NEB</a>
-        <li><a href="{appbase}/reactions/search_neb.ipynb" target="_blank">Search NEBs</a>
+        <li><a href="{appbase}/submit_neb.ipynb" target="_blank">Submit NEB</a>
+        <li><a href="{appbase}/search_neb.ipynb" target="_blank">Search NEBs</a>
     </ul></td>
 
     </tr></table>

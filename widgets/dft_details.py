@@ -3,7 +3,7 @@ from __future__ import absolute_import, print_function
 from collections import OrderedDict
 
 import ipywidgets as ipw
-from apps.surfaces.widgets.analyze_structure import mol_ids_range
+from .analyze_structure import mol_ids_range
 from IPython.display import clear_output, display
 
 ###The widgets defined here assign value to the following input keywords

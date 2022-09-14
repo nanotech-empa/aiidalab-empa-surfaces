@@ -22,8 +22,8 @@ import shutil
 import tempfile
 
 import numpy as np
-from apps.surfaces.reactions import analyze_structure
-from apps.surfaces.widgets.get_cp2k_input import Get_CP2K_Input
+from . import analyze_structure
+from .get_cp2k_input import Get_CP2K_Input
 
 ATOMIC_KINDS = {
     "H": ("TZV2P-MOLOPT-GTH", "GTH-PBE-q1"),

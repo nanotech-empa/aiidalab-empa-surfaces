@@ -23,8 +23,8 @@ Cp2kCalculation = CalculationFactory("cp2k")
 import os
 
 import numpy as np
-from apps.surfaces.reactions import analyze_structure
-from apps.surfaces.widgets.get_cp2k_input import Get_CP2K_Input
+from . import analyze_structure
+from .get_cp2k_input import Get_CP2K_Input
 
 # import find_mol
 
