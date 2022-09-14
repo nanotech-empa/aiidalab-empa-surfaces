@@ -1,6 +1,8 @@
 from __future__ import absolute_import, print_function
 
 import datetime
+import pathlib
+import importlib
 
 import ipywidgets as ipw
 from aiida.orm import (
@@ -116,10 +118,14 @@ class SearchCompletedWidget(ipw.VBox):
 
         self.results.value = "preprocessing..."
         self.preprocess_newbies()
-        try:
-            import apps.scanning_probe.common
 
-            apps.scanning_probe.common.preprocess_spm_calcs(
+        scanning_probe_common = pathlib.Path.home() / 'apps' / 'scanning_probe' / 'common.py'
+        if scanning_probe_common.exists():
+            loader = importlib.machinery.SourceFileLoader('common', str(scanning_probe_common))
+            spec = importlib.util.spec_from_loader('common', loader)
+            common = importlib.util.module_from_spec(spec)
+            loader.exec_module(common)
+            common.preprocess_spm_calcs(
                 workchain_list=[
                     "STMWorkChain",
                     "PdosWorkChain",
@@ -129,7 +135,7 @@ class SearchCompletedWidget(ipw.VBox):
                 ]
             )
             self.fields_disable["extras"] = False
-        except Exception as e:
+        else:
             print("Warning: scanning_probe app not found, skipping spm preprocess.")
             self.fields_disable["extras"] = True
 
