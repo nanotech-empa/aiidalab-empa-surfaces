@@ -10,6 +10,7 @@ from .cp2k2dict import CP2K2DICT
 from .cp2k_input_validity import validate_input
 from .get_cp2k_input import Get_CP2K_Input
 from .number_of_nodes import compute_cost, compute_nodes
+from aiida_nanotech_empa.workflows.cp2k.cp2k_utils import compute_colvars
 from ase import Atom, Atoms
 from IPython.display import clear_output, display
 from traitlets import (
@@ -38,10 +39,10 @@ class InputDetails(ipw.VBox):
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
     details = Dict()
     final_dictionary = Dict()
-    to_fix = List()
     do_cell_opt = Bool()
     uks = Bool()
     net_charge = Int()
+    structure = Instance(Atoms, allow_none=True)
 
     def __init__(
         self,
@@ -60,7 +61,6 @@ class InputDetails(ipw.VBox):
 
     @observe("details")
     def _observe_details(self, _=None):
-        self.to_fix = []
         self.net_charge = 0
         self.do_cell_opt = False
         self.uks = False
@@ -309,32 +309,80 @@ class UksSectionWidget(ipw.Accordion):
     def traits_to_link(self):
         return ["details", "uks", "net_charge"]
 
+class ConstraintsWidget(ipw.Accordion):
+    details = Dict()
+    structure = Instance(Atoms, allow_none=True)
+    manager = Instance(InputDetails, allow_none=True)
 
-
-
-class FixedAtomsWidget(ipw.Text):
-    to_fix = List()
-
-    def __init__(
-        self,
-    ):
-        super().__init__(
-            placeholder="1..10",
-            value=mol_ids_range(self.to_fix),
-            description="Fixed Atoms",
+    def __init__(self,):
+        self.info = ipw.HTML()
+        self.set_title(0, "Constraints")
+        self.constraints = ipw.Text(placeholder="fixed xy 1..10 , collective 1 [ev/angstom^2] 30 [angstrom] 1",
+            description="Constraints",
             style=STYLE,
             layout={"width": "60%"},
         )
+        self.colvars = ipw.Text(placeholder="distance atoms 1 2", value='',
+            description="Collective Variables",
+            style=STYLE,
+            layout={"width": "60%"},
+        )
+        self.check_colvars = ipw.Button(description="Compute CVs",)
+        def check_colvasr_on_click(c=None):
+            html=''
+            for cv in compute_colvars(self.colvars.value, self.structure):
+                html += '<p><b>{}: </b>'.format(cv[0]) + '{}</p>'.format(round(cv[1],2))
+            self.info.value = html
+        self.check_colvars.on_click(check_colvasr_on_click)
+        self.help = ipw.Button(description="Help",)
+        def help_on_click(c=None):
+            html=''
+            html += '<p><b>Collective Variables: </b></p>'
+            html += '<p>distance atoms 1 2</p>'
+            html += '<p>distance point fix_point 1.1 2.2 3.3 point atoms 1..6   axis xy</p>'
+            html += '<p>angle atoms 1 2 3</p>'
+            html += '<p>angle point atoms 2 3  point fix_point 8.36 6.78 5.0 point atoms 3 4</p>'
+            html += '<p>angle_plane_plane point fix_point 12.1 7.5  5.  point atoms 1..6 point fix_point 7.1 7.5   7. plane atoms 1 2 3 plane vector 0 0 1</p>'
+            html += '<p>bond_rotation point fix_point 8.36 6.78 5.8 point fix_point 0 0 1 point atoms 3 point atoms 9</p>'
+            self.info.value = html
+        self.help.on_click(help_on_click)
+        #self.constraints.observe(self.update_constraints, "value")
+        #self.colvars.observe(self.update_colvars, "value")
+
+        super().__init__(selected_index=None)
+
+    
+
+    @observe("details")
+    def _observe_details(self, _=None):
+        if self.details is None:
+            return
+        else:
+            self.children = [ipw.VBox([self.constraints, self.colvars,self.help,self.check_colvars, self.info])]
+
 
     def return_dict(self):
-        return {"fixed_atoms": self.value}
+        return {"constraints": self.constraints.value,"colvars": self.colvars.value}
 
-    @observe("to_fix")
-    def _observe_to_fix(self, _=None):
-        self.value = mol_ids_range(self.to_fix)
+    @observe("manager")
+    def _observe_manager(self, _=None):
+        if self.manager is None:
+            return
+        else:
+            link((self.manager, "details"), (self, "details"))
+            link((self.manager, "structure"), (self, "structure"))
+            self.colvars.value = ''
+            self.info.value = ''
+            if self.details:
+                if "Slab" in self.details["system_type"]:
+                    to_fix = [
+                        i
+                        for i in self.details["bottom_H"]
+                        + self.details["slab_layers"][0]
+                        + self.details["slab_layers"][1]
+                    ]            
+                    self.constraints.value = 'fixed ' + mol_ids_range(to_fix)
 
-    def traits_to_link(self):
-        return ["to_fix"]
 
 
 class CellSectionWidget(ipw.Accordion):
@@ -494,7 +542,6 @@ class CellSectionWidget(ipw.Accordion):
             self.children = [
                 ipw.VBox([i[1] for i in self.cell_cases[self.details["system_type"]]])
             ]
-        self.cell.value = self.details["cell"]
 
         if self.net_charge and self.details["system_type"] == "Molecule":
                 self.periodic.value = "NONE"
@@ -545,7 +592,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        FixedAtomsWidget,
+        ConstraintsWidget,
         CellSectionWidget,
         MetadataWidget,
     ],
@@ -554,7 +601,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        FixedAtomsWidget,
+        ConstraintsWidget,
         ProtocolSelectionWidget,
         MetadataWidget,
     ],
@@ -563,6 +610,7 @@ SECTIONS_TO_DISPLAY = {
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
+        ConstraintsWidget,
         MetadataWidget,
     ],
 }
