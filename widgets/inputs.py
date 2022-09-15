@@ -42,7 +42,6 @@ class InputDetails(ipw.VBox):
     to_fix = List()
     do_cell_opt = Bool()
     uks = Bool()
-    calc_type = Unicode()
     net_charge = Int()
 
     def __init__(
@@ -101,12 +100,6 @@ class InputDetails(ipw.VBox):
         ## SLAB
         if self.details["system_type"] == "SlabXY":
             tmp_dict.update({"workchain": "Cp2kSlabOptWorkChain"})
-        # ## IN CASE MIXED DFT FOR SLAB IDENTIFY MOLECULE
-        # if tmp_dict['calc_type'] != 'Full DFT':
-        #     tmp_dict['first_slab_atom'] = min(self.details['bottom_H'] +
-        #                                                    self.details['slabatoms']) + 1
-        #     tmp_dict['last_slab_atom']  = max(self.details['bottom_H'] +
-        #                                                    self.details['slabatoms']) + 1
 
         ## MOLECULE
         elif self.details["system_type"] == "Molecule":
@@ -179,7 +172,6 @@ class StructureInfoWidget(ipw.Accordion):
 
 class ConvergenceDetailsWidget(ipw.Accordion):
     details = Dict()
-    calc_type = Unicode()
     manager = Instance(InputDetails, allow_none=True)
 
     def __init__(self):
@@ -201,23 +193,13 @@ class ConvergenceDetailsWidget(ipw.Accordion):
         super().__init__(selected_index=None)
 
     def return_dict(self):
-        if self.calc_type == "Mixed DFTB":
-            return {"max_force": self.max_force.value}
-        else:
-            return {
-                "max_force": self.max_force.value,
-                "mgrid_cutoff": self.mgrid_cutoff.value,
-            }
+        return {
+            "max_force": self.max_force.value,
+            "mgrid_cutoff": self.mgrid_cutoff.value,
+        }
 
     def widgets_to_show(self):
-        if self.calc_type == "Mixed DFTB":
-            self.children = [ipw.VBox([self.max_force])]
-        else:
-            self.children = [ipw.VBox([self.max_force, self.mgrid_cutoff])]
-
-    @observe("calc_type")
-    def _observe_calc_type(self, _=None):
-        self.widgets_to_show()
+        self.children = [ipw.VBox([self.max_force, self.mgrid_cutoff])]
 
     @observe("manager")
     def _observe_manager(self, _=None):
@@ -225,7 +207,6 @@ class ConvergenceDetailsWidget(ipw.Accordion):
             return
         else:
             link((self.manager, "details"), (self, "details"))
-            link((self.manager, "calc_type"), (self, "calc_type"))
             self.widgets_to_show()
 
 
@@ -280,7 +261,6 @@ class UksSectionWidget(ipw.Accordion):
     details = Dict()
     uks = Bool()
     net_charge = Int()
-    calc_type = Unicode()
     manager = Instance(InputDetails, allow_none=True)
 
     def __init__(self):
@@ -349,9 +329,7 @@ class UksSectionWidget(ipw.Accordion):
         super().__init__(selected_index=None)
 
     def return_dict(self):
-        if self.calc_type == "Mixed DFTB":
-            return {"multiplicity": 0, "spin_u": "", "spin_d": "", "charge": 0}
-        elif self.uks:
+        if self.uks:
             return {
                 "multiplicity": self.multiplicity.value,
                 "spin_u": self.spin_u.value,
@@ -368,10 +346,7 @@ class UksSectionWidget(ipw.Accordion):
 
     def widgets_to_show(self):
         self.set_title(0, "RKS/UKS")
-        if self.calc_type == "Mixed DFTB":
-            self.uks_toggle.value = False
-            self.children = []
-        elif self.uks:
+        if self.uks:
             self.children = [
                 ipw.VBox(
                     [
@@ -394,69 +369,17 @@ class UksSectionWidget(ipw.Accordion):
     def _observe_uks(self, _=None):
         self.widgets_to_show()
 
-    @observe("calc_type")
-    def _observe_calc_type(self, _=None):
-        self.widgets_to_show()
-
     @observe("manager")
     def _observe_manager(self, _=None):
         if self.manager is None:
             return
         else:
             link((self.manager, "details"), (self, "details"))
-            link((self.manager, "calc_type"), (self, "calc_type"))
             link((self.manager, "uks"), (self, "uks"))
             link((self.manager, "net_charge"), (self, "net_charge"))
             self.widgets_to_show()
 
 
-class MixedDftWidget(ipw.ToggleButtons):
-    details = Dict()
-    to_fix = List()
-    calc_type = Unicode()
-    manager = Instance(InputDetails, allow_none=True)
-
-    def __init__(
-        self,
-    ):
-
-        super().__init__(
-            options=["Full DFT"],  # ['Mixed DFTB', 'Mixed DFT', 'Full DFT'],
-            description="Calculation Type",
-            value="Full DFT",
-            tooltip="Active: DFT, Inactive: DFTB",
-            style={"description_width": "120px"},
-        )
-
-        self.observe(self.update_list_fixed, "value")
-
-    def return_dict(self):
-        return {"calc_type": self.value}
-
-    # self.observe()
-    def update_list_fixed(self, c=None):
-        self.calc_type = self.value
-        if self.details:
-            if "Slab" in self.details["system_type"]:
-                if self.value == "Full DFT":
-                    self.to_fix = [
-                        i
-                        for i in self.details["bottom_H"]
-                        + self.details["slab_layers"][0]
-                        + self.details["slab_layers"][1]
-                    ]
-                else:
-                    self.to_fix = self.details["bottom_H"] + self.details["slabatoms"]
-
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
-            link((self.manager, "to_fix"), (self, "to_fix"))
-            link((self.manager, "calc_type"), (self, "calc_type"))
-            self.update_list_fixed()
 
 
 class FixedAtomsWidget(ipw.Text):
@@ -467,7 +390,6 @@ class FixedAtomsWidget(ipw.Text):
     def __init__(
         self,
     ):
-        # self.value = mol_ids_range(self.to_fix)
         super().__init__(
             placeholder="1..10",
             value=mol_ids_range(self.to_fix),
@@ -721,7 +643,6 @@ SECTIONS_TO_DISPLAY = {
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
-        MixedDftWidget,
         StructureInfoWidget,
         FixedAtomsWidget,
         ProtocolSelectionWidget,
