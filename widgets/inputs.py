@@ -34,7 +34,6 @@ STYLE = {"description_width": "120px"}
 LAYOUT = {"width": "70%"}
 LAYOUT2 = {"width": "35%"}
 
-
 class InputDetails(ipw.VBox):
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
     details = Dict()
@@ -53,7 +52,6 @@ class InputDetails(ipw.VBox):
                 section object. Each object should containt 'structure' trait pointing to the imported
                 structure. The trait will be linked to 'structure' trait of this class.
         """
-
         # Displaying input sections.
         self.output = ipw.Output()
         self.displayed_sections = []
@@ -79,7 +77,9 @@ class InputDetails(ipw.VBox):
 
             for sec in SECTIONS_TO_DISPLAY[sys_type]:
                 section = sec()
-                section.manager = self
+                if hasattr(section, "traits_to_link"):
+                    for trait in section.traits_to_link():
+                        link((self, trait), (section, trait))
                 self.displayed_sections.append(section)
             display(ipw.VBox(add_children + self.displayed_sections))
 
@@ -120,7 +120,6 @@ class InputDetails(ipw.VBox):
         ## RETURN DICT of widgets details
         return can_submit, error_msg, self.final_dictionary
 
-
 class DescriptionWidget(ipw.Text):
 
     ## DESCRIPTION OF CALCULATION
@@ -140,7 +139,6 @@ class DescriptionWidget(ipw.Text):
 
 class StructureInfoWidget(ipw.Accordion):
     details = Dict()
-    manager = Instance(InputDetails, allow_none=True)
 
     def __init__(self):
 
@@ -158,62 +156,15 @@ class StructureInfoWidget(ipw.Accordion):
             with self.info:
                 clear_output()
                 print(self.details["summary"])
-
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
+    
+    def traits_to_link(self):
+        return ["details"]
 
     def return_dict(self):
         return {}
 
 
-class ConvergenceDetailsWidget(ipw.Accordion):
-    details = Dict()
-    manager = Instance(InputDetails, allow_none=True)
-
-    def __init__(self):
-
-        self.max_force = ipw.FloatText(
-            description="MAX FORCE",
-            value=1e-4,
-            style={"description_width": "initial"},
-            layout={"width": "170"},
-        )
-        self.mgrid_cutoff = ipw.IntText(
-            description="MGRID CUTOFF",
-            value=600,
-            style={"description_width": "initial"},
-            layout={"width": "170"},
-        )
-
-        self.set_title(0, "Convergence parameters")
-        super().__init__(selected_index=None)
-
-    def return_dict(self):
-        return {
-            "max_force": self.max_force.value,
-            "mgrid_cutoff": self.mgrid_cutoff.value,
-        }
-
-    def widgets_to_show(self):
-        self.children = [ipw.VBox([self.max_force, self.mgrid_cutoff])]
-
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
-            self.widgets_to_show()
-
-
 class ProtocolSelectionWidget(ipw.Dropdown):
-    details = Dict()
-    manager = Instance(InputDetails, allow_none=True)
-
     def __init__(self):
         options = [("Standard", "standard"), ("Low accuracy", "low_accuracy")]
         super().__init__(
@@ -222,22 +173,12 @@ class ProtocolSelectionWidget(ipw.Dropdown):
             description="Protocol:",
             style={"description_width": "120px"},
         )
-
     def return_dict(self):
         return {"protocol": self.value}
 
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
 
 
 class VdwSelectorWidget(ipw.ToggleButton):
-    details = Dict()
-    manager = Instance(InputDetails, allow_none=True)
-
     def __init__(self):
         super().__init__(
             value=True,
@@ -249,23 +190,17 @@ class VdwSelectorWidget(ipw.ToggleButton):
     def return_dict(self):
         return {"vdw_switch": self.value}
 
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
+    def traits_to_link(self):
+        return []
 
 
 class UksSectionWidget(ipw.Accordion):
     details = Dict()
     uks = Bool()
     net_charge = Int()
-    manager = Instance(InputDetails, allow_none=True)
 
     def __init__(self):
         #### UKS
-
         self.uks_toggle = ipw.ToggleButton(
             value=False,
             description="UKS",
@@ -273,10 +208,8 @@ class UksSectionWidget(ipw.Accordion):
             style={"description_width": "80px"},
         )
 
-        def on_uks(c=None):
-            self.uks = self.uks_toggle.value
+        link((self, "uks"), (self.uks_toggle, "value"))
 
-        self.uks_toggle.observe(on_uks, "value")
 
         self.multiplicity = ipw.IntText(
             value=0,
@@ -344,7 +277,15 @@ class UksSectionWidget(ipw.Accordion):
                 "charge": self.charge.value,
             }
 
-    def widgets_to_show(self):
+    @observe("details")
+    def _observe_details(self, _=None):
+        self._widgets_to_show()
+
+    @observe("uks")
+    def _observe_uks(self, _=None):
+        self._widgets_to_show()
+
+    def _widgets_to_show(self):
         self.set_title(0, "RKS/UKS")
         if self.uks:
             self.children = [
@@ -365,27 +306,14 @@ class UksSectionWidget(ipw.Accordion):
         else:
             self.children = [ipw.VBox([self.uks_toggle, self.charge])]
 
-    @observe("uks")
-    def _observe_uks(self, _=None):
-        self.widgets_to_show()
-
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
-            link((self.manager, "uks"), (self, "uks"))
-            link((self.manager, "net_charge"), (self, "net_charge"))
-            self.widgets_to_show()
+    def traits_to_link(self):
+        return ["details", "uks", "net_charge"]
 
 
 
 
 class FixedAtomsWidget(ipw.Text):
-    details = Dict()
     to_fix = List()
-    manager = Instance(InputDetails, allow_none=True)
 
     def __init__(
         self,
@@ -405,21 +333,14 @@ class FixedAtomsWidget(ipw.Text):
     def _observe_to_fix(self, _=None):
         self.value = mol_ids_range(self.to_fix)
 
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
-            link((self.manager, "to_fix"), (self, "to_fix"))
-            self.value = mol_ids_range(self.to_fix)
+    def traits_to_link(self):
+        return ["to_fix"]
 
 
 class CellSectionWidget(ipw.Accordion):
     details = Dict()
     do_cell_opt = Bool()
     net_charge = Int()
-    manager = Instance(InputDetails, allow_none=True)
 
     def __init__(self):
 
@@ -552,7 +473,19 @@ class CellSectionWidget(ipw.Accordion):
             to_return.update({i[0]: i[1].value})
         return to_return
 
-    def widgets_to_show(self):
+    @observe("details")
+    def _observe_details(self, _=None):
+        self._widgets_to_show()
+
+    @observe("net_charge")
+    def _observe_net_charge(self, _=None):
+        self._widgets_to_show()
+
+    @observe("do_cell_opt")
+    def _observe_do_cell_opt(self, _=None):
+        self._widgets_to_show()
+    
+    def _widgets_to_show(self):
         if self.opt_cell.value:
             self.set_title(0, "CELL/PBC details")
             self.children = [ipw.VBox([i[1] for i in self.cell_cases["Cell_true"]])]
@@ -561,26 +494,13 @@ class CellSectionWidget(ipw.Accordion):
             self.children = [
                 ipw.VBox([i[1] for i in self.cell_cases[self.details["system_type"]]])
             ]
+        self.cell.value = self.details["cell"]
 
-    @observe("do_cell_opt")
-    def _observe_do_cell_opt(self, _=None):
-        self.widgets_to_show()
-
-    @observe("net_charge")
-    def _observe_net_charge(self, _=None):
         if self.net_charge and self.details["system_type"] == "Molecule":
-            self.periodic.value = "NONE"
-
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
-            link((self.manager, "do_cell_opt"), (self, "do_cell_opt"))
-            link((self.manager, "net_charge"), (self, "net_charge"))
-            self.cell.value = self.details["cell"]
-            self.widgets_to_show()
+                self.periodic.value = "NONE"
+    
+    def traits_to_link(self):
+        return ["details", "do_cell_opt", "net_charge"]
 
 
 class MetadataWidget(ipw.VBox):
@@ -589,7 +509,6 @@ class MetadataWidget(ipw.VBox):
     details = Dict()
     #    gw_trait = Unicode()
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
-    manager = Instance(InputDetails, allow_none=True)
 
     def __init__(self):
         """Metadata widget to generate metadata"""
@@ -614,17 +533,8 @@ class MetadataWidget(ipw.VBox):
 
         return {"max_nodes": self.max_nodes.value, "walltime": self.walltime_s.value}
 
-    @observe("manager")
-    def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
-            link((self.manager, "selected_code"), (self, "selected_code"))
-            self.children = [
-                self.max_nodes,
-                ipw.HBox([ipw.HTML("walltime, "), self.walltime_s]),
-            ]
+    def traits_to_link(self):
+        return ["details", "selected_code"]
 
 
 SECTIONS_TO_DISPLAY = {
