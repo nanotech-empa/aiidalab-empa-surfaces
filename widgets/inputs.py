@@ -312,7 +312,6 @@ class UksSectionWidget(ipw.Accordion):
 class ConstraintsWidget(ipw.Accordion):
     details = Dict()
     structure = Instance(Atoms, allow_none=True)
-    manager = Instance(InputDetails, allow_none=True)
 
     def __init__(self,):
         self.info = ipw.HTML()
@@ -349,40 +348,28 @@ class ConstraintsWidget(ipw.Accordion):
         #self.constraints.observe(self.update_constraints, "value")
         #self.colvars.observe(self.update_colvars, "value")
 
-        super().__init__(selected_index=None)
-
-    
-
-    @observe("details")
-    def _observe_details(self, _=None):
-        if self.details is None:
-            return
-        else:
-            self.children = [ipw.VBox([self.constraints, self.colvars,self.help,self.check_colvars, self.info])]
+        super().__init__(selected_index=None, children=[ipw.VBox([self.constraints, self.colvars,self.help,self.check_colvars, self.info])])
 
 
     def return_dict(self):
         return {"constraints": self.constraints.value,"colvars": self.colvars.value}
 
-    @observe("manager")
+    @observe("details")
     def _observe_manager(self, _=None):
-        if self.manager is None:
-            return
-        else:
-            link((self.manager, "details"), (self, "details"))
-            link((self.manager, "structure"), (self, "structure"))
-            self.colvars.value = ''
-            self.info.value = ''
-            if self.details:
-                if "Slab" in self.details["system_type"]:
-                    to_fix = [
-                        i
-                        for i in self.details["bottom_H"]
-                        + self.details["slab_layers"][0]
-                        + self.details["slab_layers"][1]
-                    ]            
-                    self.constraints.value = 'fixed ' + mol_ids_range(to_fix)
+        self.colvars.value = ''
+        self.info.value = ''
+        if self.details:
+            if "Slab" in self.details["system_type"]:
+                to_fix = [
+                    i
+                    for i in self.details["bottom_H"]
+                    + self.details["slab_layers"][0]
+                    + self.details["slab_layers"][1]
+                ]            
+                self.constraints.value = 'fixed ' + mol_ids_range(to_fix)
 
+    def traits_to_link(self):
+        return ["details", "structure"]
 
 
 class CellSectionWidget(ipw.Accordion):
@@ -542,6 +529,7 @@ class CellSectionWidget(ipw.Accordion):
             self.children = [
                 ipw.VBox([i[1] for i in self.cell_cases[self.details["system_type"]]])
             ]
+        self.cell.value = self.details["cell"]
 
         if self.net_charge and self.details["system_type"] == "Molecule":
                 self.periodic.value = "NONE"
