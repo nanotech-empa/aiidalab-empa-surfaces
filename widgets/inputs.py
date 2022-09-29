@@ -507,7 +507,7 @@ class MetadataWidget(ipw.VBox):
     """Setup metadata for an AiiDA process."""
 
     details = Dict()
-    #    gw_trait = Unicode()
+    uks = Bool()
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
 
     def __init__(self):
@@ -520,21 +520,214 @@ class MetadataWidget(ipw.VBox):
             layout={"width": "initial"},
         )
 
-        self.max_nodes = ipw.IntText(
-            value=48, description="Max # Nodes", style=STYLE, layout=LAYOUT2
+        self.nodes = ipw.IntText(
+            value=48, description="# Nodes", style=STYLE, layout=LAYOUT2
         )
+        self.tasks_per_node = ipw.IntText(value=12, description="tasks/node", style=STYLE)
+        self.threads_per_task = ipw.IntText(value=1, description="threads/task", style=STYLE)
 
-        children = [self.max_nodes, ipw.HBox([ipw.HTML("walltime, "), self.walltime_s])]
+        children = [ipw.HBox([self.nodes,self.tasks_per_node,self.threads_per_task]) , ipw.HBox([ipw.HTML("walltime, "), self.walltime_s])]
 
         super().__init__(children=children)
         ### ---------------------------------------------------------
 
     def return_dict(self):
 
-        return {"max_nodes": self.max_nodes.value, "walltime": self.walltime_s.value}
+        return {"nodes": self.nodes.value,
+                "tasks_per_node": self.tasks_per_node.value,
+                "threads_per_task": self.threads_per_task.value,
+         "walltime": self.walltime_s.value}
+    
+    @observe("details")
+    def _observe_details(self, _=None):
+        self._suggest_resources()
+
+    @observe("selected_code")
+    def _observe_selected_code(self, _=None):
+        self._suggest_resources()
+    
+    @observe("uks")
+    def _observe_uks(self, _=None):
+        self._suggest_resources()
+
+    def _compute_cost(element_list=[],
+                            systype='Slab',
+                            uks=False):
+        """Compute cost of the calculation."""
+        cost = {
+        'H': 1,
+        'C': 4,
+        'Si': 4,
+        'N': 5,
+        'O': 6,
+        'Au': 11,
+        'Cu': 11,
+        'Ag': 11,
+        'Pt': 18,
+        'Tb': 19,
+        'Co': 11,
+        'Zn': 10,
+        'Pd': 18,
+        'Ga': 10
+        }
+        the_cost = 0
+        for element in element_list:
+            s = ''.join(i for i in element if not i.isdigit())
+            if isinstance(s[-1], type(1)):
+                s = s[:-1]
+            if s in cost.keys():
+                the_cost += cost[s]
+            else:
+                the_cost += 4
+        if 'Slab' in systype or 'Bulk' in systype:
+            the_cost = int(the_cost / 11)
+        else:
+            the_cost = int(the_cost / 4)
+        if uks:
+            the_cost = the_cost * 1.26
+        return the_cost    
+
+    def _suggest_resources(self):
+        """"Determine the resources needed for the calculation."""
+        threads = 1
+        if self.selected_code is not None:
+            max_tasks_per_node = self.selected_code.computer.get_default_mpiprocs_per_machine()
+        if max_tasks_per_node is None:
+            max_tasks_per_node = 1
+
+        if atoms is None or self.selected_code is None:
+            return 1, 1 , 1
+
+        resources = {
+            'Slab': {
+                50: {
+                    'nodes': 4,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                200: {
+                    'nodes': 12,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                1400: {
+                    'nodes': 27,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                3000: {
+                    'nodes': 48,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                4000: {
+                    'nodes': 75,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                10000: {
+                    'nodes': 108,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                }
+            },
+            'Bulk': {
+                50: {
+                    'nodes': 4,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                200: {
+                    'nodes': 12,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                1400: {
+                    'nodes': 27,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                3000: {
+                    'nodes': 48,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                4000: {
+                    'nodes': 75,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                10000: {
+                    'nodes': 108,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                }
+            },            
+            'Molecule': {
+                50: {
+                    'nodes': 4,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                100: {
+                    'nodes': 12,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                180: {
+                    'nodes': 27,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                400: {
+                    'nodes': 48,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+            },
+            'Default': {
+                50: {
+                    'nodes': 4,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                100: {
+                    'nodes': 12,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                180: {
+                    'nodes': 27,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+                400: {
+                    'nodes': 48,
+                    'tasks_per_node': max_tasks_per_node,
+                    'threads': 1
+                },
+            }
+        }
+        cost = _compute_cost(element_list=self.details['all_elements'],
+                            systype=self.details['calculation_type'],
+                            uks=self.uks)
+        calctype = self.details['calculation_type']
+        #Slab_XY,....,Bulk,Molecule,Wire
+        if 'Slab' in self.details['calculation_type']:
+            calctype='Slab'
+                
+        theone = min(resources[calctype], key=lambda x: abs(x - cost))
+        nodes = resources[calctype][theone]['nodes']
+        tasks_per_node = resources[calctype][theone]['tasks_per_node']
+        threads = resources[calctype][theone]['threads']
+        self.nodes = nodes
+        self.tasks_per_node = tasks_per_node
+        self.threads_per_task = threads
+    
+
 
     def traits_to_link(self):
-        return ["details", "selected_code"]
+        return ["details","uks", "selected_code"]
 
 
 SECTIONS_TO_DISPLAY = {
