@@ -550,9 +550,7 @@ class MetadataWidget(ipw.VBox):
     def _observe_uks(self, _=None):
         self._suggest_resources()
 
-    def _compute_cost(element_list=[],
-                            systype='Slab',
-                            uks=False):
+    def _compute_cost(self):
         """Compute cost of the calculation."""
         cost = {
         'H': 1,
@@ -571,7 +569,7 @@ class MetadataWidget(ipw.VBox):
         'Ga': 10
         }
         the_cost = 0
-        for element in element_list:
+        for element in self.details['all_elements']:
             s = ''.join(i for i in element if not i.isdigit())
             if isinstance(s[-1], type(1)):
                 s = s[:-1]
@@ -579,23 +577,25 @@ class MetadataWidget(ipw.VBox):
                 the_cost += cost[s]
             else:
                 the_cost += 4
-        if 'Slab' in systype or 'Bulk' in systype:
+        if 'Slab' in self.details['calculation_type'] or 'Bulk' in self.details['calculation_type']:
             the_cost = int(the_cost / 11)
         else:
             the_cost = int(the_cost / 4)
-        if uks:
+        if self.uks:
             the_cost = the_cost * 1.26
         return the_cost    
 
     def _suggest_resources(self):
         """"Determine the resources needed for the calculation."""
         threads = 1
-        if self.selected_code is not None:
+        try:
             max_tasks_per_node = self.selected_code.computer.get_default_mpiprocs_per_machine()
+        except:
+            max_tasks_per_node = None
         if max_tasks_per_node is None:
             max_tasks_per_node = 1
 
-        if atoms is None or self.selected_code is None:
+        if not self.details['all_elements']  or self.selected_code is None:
             return 1, 1 , 1
 
         resources = {
@@ -708,9 +708,7 @@ class MetadataWidget(ipw.VBox):
                 },
             }
         }
-        cost = _compute_cost(element_list=self.details['all_elements'],
-                            systype=self.details['calculation_type'],
-                            uks=self.uks)
+        cost = _compute_cost()
         calctype = self.details['calculation_type']
         #Slab_XY,....,Bulk,Molecule,Wire
         if 'Slab' in self.details['calculation_type']:
@@ -722,9 +720,7 @@ class MetadataWidget(ipw.VBox):
         threads = resources[calctype][theone]['threads']
         self.nodes = nodes
         self.tasks_per_node = tasks_per_node
-        self.threads_per_task = threads
-    
-
+        self.threads_per_task = threads    
 
     def traits_to_link(self):
         return ["details","uks", "selected_code"]
