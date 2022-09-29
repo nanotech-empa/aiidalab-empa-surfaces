@@ -708,7 +708,7 @@ class MetadataWidget(ipw.VBox):
                 },
             }
         }
-        cost = _compute_cost()
+        cost = self._compute_cost()
         calctype = self.details['calculation_type']
         #Slab_XY,....,Bulk,Molecule,Wire
         if 'Slab' in self.details['calculation_type']:
