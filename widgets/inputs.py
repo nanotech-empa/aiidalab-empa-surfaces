@@ -577,7 +577,7 @@ class MetadataWidget(ipw.VBox):
                 the_cost += cost[s]
             else:
                 the_cost += 4
-        if 'Slab' in self.details['calculation_type'] or 'Bulk' in self.details['calculation_type']:
+        if 'Slab' in self.details['system_type'] or 'Bulk' in self.details['system_type']:
             the_cost = int(the_cost / 11)
         else:
             the_cost = int(the_cost / 4)
@@ -709,18 +709,18 @@ class MetadataWidget(ipw.VBox):
             }
         }
         cost = self._compute_cost()
-        calctype = self.details['calculation_type']
+        calctype = self.details['system_type']
         #Slab_XY,....,Bulk,Molecule,Wire
-        if 'Slab' in self.details['calculation_type']:
+        if 'Slab' in self.details['system_type']:
             calctype='Slab'
                 
         theone = min(resources[calctype], key=lambda x: abs(x - cost))
         nodes = resources[calctype][theone]['nodes']
         tasks_per_node = resources[calctype][theone]['tasks_per_node']
         threads = resources[calctype][theone]['threads']
-        self.nodes = nodes
-        self.tasks_per_node = tasks_per_node
-        self.threads_per_task = threads    
+        self.nodes.value = nodes
+        self.tasks_per_node.value = tasks_per_node
+        self.threads_per_task.value = threads    
 
     def traits_to_link(self):
         return ["details","uks", "selected_code"]
