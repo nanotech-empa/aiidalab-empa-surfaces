@@ -1,31 +1,11 @@
-from collections import OrderedDict
-from datetime import datetime
-
 import ipywidgets as ipw
 from aiida.orm import Code
-from aiida_cp2k.utils import Cp2kInput
-from aiidalab_widgets_base.utils import list_to_string_range, string_range_to_list
-from .ANALYZE_structure import mol_ids_range
-from .cp2k2dict import CP2K2DICT
-from .cp2k_input_validity import validate_input
-from .get_cp2k_input import Get_CP2K_Input
-from .number_of_nodes import compute_cost, compute_nodes
-from ase import Atom, Atoms
+from aiidalab_widgets_base.utils import string_range_to_list
 from IPython.display import clear_output, display
-from traitlets import (
-    Bool,
-    Dict,
-    Instance,
-    Int,
-    List,
-    Set,
-    Unicode,
-    Union,
-    default,
-    link,
-    observe,
-    validate,
-)
+from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, observe
+
+from .ANALYZE_structure import mol_ids_range
+from .cp2k_input_validity import validate_input
 
 # from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
@@ -33,6 +13,7 @@ from traitlets import (
 STYLE = {"description_width": "120px"}
 LAYOUT = {"width": "70%"}
 LAYOUT2 = {"width": "35%"}
+
 
 class InputDetails(ipw.VBox):
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
@@ -86,43 +67,44 @@ class InputDetails(ipw.VBox):
     def return_final_dictionary(self):
         tmp_dict = {}
 
-        ## PUT LIST OF ELEMENTS IN DICTIONARY
+        # PUT LIST OF ELEMENTS IN DICTIONARY
         tmp_dict["elements"] = self.details["all_elements"]
 
-        ## RETRIEVE ALL WIDGET VALUES
+        # RETRIEVE ALL WIDGET VALUES
         for section in self.displayed_sections:
             to_add = section.return_dict()
             if to_add:
                 tmp_dict.update(to_add)
 
-        ## DECIDE WHICH KIND OF WORKCHAIN
+        # DECIDE WHICH KIND OF WORKCHAIN
 
-        ## SLAB
+        # SLAB
         if self.details["system_type"] == "SlabXY":
             tmp_dict.update({"workchain": "Cp2kSlabOptWorkChain"})
 
-        ## MOLECULE
+        # MOLECULE
         elif self.details["system_type"] == "Molecule":
             tmp_dict.update({"workchain": "Cp2kMoleculeOptWorkChain"})
 
-        ## BULK
+        # BULK
         elif self.details["system_type"] == "Bulk":
             tmp_dict.update({"workchain": "Cp2kBulkOptWorkChain"})
 
-        ## CHECK input validity
+        # CHECK input validity
         can_submit, error_msg = validate_input(self.details, tmp_dict)
 
-        ## CREATE PLAIN INPUT
+        # CREATE PLAIN INPUT
         if can_submit:
             self.final_dictionary = tmp_dict
 
         # print(self.final_dictionary)
-        ## RETURN DICT of widgets details
+        # RETURN DICT of widgets details
         return can_submit, error_msg, self.final_dictionary
+
 
 class DescriptionWidget(ipw.Text):
 
-    ## DESCRIPTION OF CALCULATION
+    # DESCRIPTION OF CALCULATION
     def __init__(self):
 
         super().__init__(
@@ -156,7 +138,7 @@ class StructureInfoWidget(ipw.Accordion):
             with self.info:
                 clear_output()
                 print(self.details["summary"])
-    
+
     def traits_to_link(self):
         return ["details"]
 
@@ -166,16 +148,20 @@ class StructureInfoWidget(ipw.Accordion):
 
 class ProtocolSelectionWidget(ipw.Dropdown):
     def __init__(self):
-        options = [("Standard", "standard"), ("Low accuracy", "low_accuracy")]
+        options = [
+            ("Standard", "standard"),
+            ("Low accuracy", "low_accuracy"),
+            ("Debug", "debug"),
+        ]
         super().__init__(
             value="standard",
             options=options,
             description="Protocol:",
             style={"description_width": "120px"},
         )
+
     def return_dict(self):
         return {"protocol": self.value}
-
 
 
 class VdwSelectorWidget(ipw.ToggleButton):
@@ -200,7 +186,7 @@ class UksSectionWidget(ipw.Accordion):
     net_charge = Int()
 
     def __init__(self):
-        #### UKS
+        # UKS
         self.uks_toggle = ipw.ToggleButton(
             value=False,
             description="UKS",
@@ -209,7 +195,6 @@ class UksSectionWidget(ipw.Accordion):
         )
 
         link((self, "uks"), (self.uks_toggle, "value"))
-
 
         self.multiplicity = ipw.IntText(
             value=0,
@@ -236,13 +221,13 @@ class UksSectionWidget(ipw.Accordion):
             layout={"width": "120px"},
         )
 
-        ## guess multiplicity
+        # guess multiplicity
         def multiplicity_guess(c=None):
             self.net_charge = self.charge.value
             system_charge = self.details["total_charge"] - self.net_charge
             setu = set(string_range_to_list(self.spin_u.value)[0])
             setd = set(string_range_to_list(self.spin_d.value)[0])
-            ## check if same atom entered in two different spins
+            # check if same atom entered in two different spins
             if bool(setu & setd):
                 self.multiplicity.value = 1
                 self.spin_u.value = ""
@@ -308,8 +293,6 @@ class UksSectionWidget(ipw.Accordion):
 
     def traits_to_link(self):
         return ["details", "uks", "net_charge"]
-
-
 
 
 class FixedAtomsWidget(ipw.Text):
@@ -435,7 +418,7 @@ class CellSectionWidget(ipw.Accordion):
             layout=LAYOUT,
         )
 
-        #'cell_free'
+        # 'cell_free'
         self.cell_cases = {
             "Cell_true": [
                 ("cell", self.cell),
@@ -484,7 +467,7 @@ class CellSectionWidget(ipw.Accordion):
     @observe("do_cell_opt")
     def _observe_do_cell_opt(self, _=None):
         self._widgets_to_show()
-    
+
     def _widgets_to_show(self):
         if self.opt_cell.value:
             self.set_title(0, "CELL/PBC details")
@@ -497,8 +480,8 @@ class CellSectionWidget(ipw.Accordion):
         self.cell.value = self.details["cell"]
 
         if self.net_charge and self.details["system_type"] == "Molecule":
-                self.periodic.value = "NONE"
-    
+            self.periodic.value = "NONE"
+
     def traits_to_link(self):
         return ["details", "do_cell_opt", "net_charge"]
 
@@ -523,21 +506,30 @@ class MetadataWidget(ipw.VBox):
         self.nodes = ipw.IntText(
             value=48, description="# Nodes", style=STYLE, layout=LAYOUT2
         )
-        self.tasks_per_node = ipw.IntText(value=12, description="tasks/node", style=STYLE)
-        self.threads_per_task = ipw.IntText(value=1, description="threads/task", style=STYLE)
+        self.tasks_per_node = ipw.IntText(
+            value=12, description="tasks/node", style=STYLE
+        )
+        self.threads_per_task = ipw.IntText(
+            value=1, description="threads/task", style=STYLE
+        )
 
-        children = [ipw.HBox([self.nodes,self.tasks_per_node,self.threads_per_task]) , ipw.HBox([ipw.HTML("walltime, "), self.walltime_s])]
+        children = [
+            ipw.HBox([self.nodes, self.tasks_per_node, self.threads_per_task]),
+            ipw.HBox([ipw.HTML("walltime, "), self.walltime_s]),
+        ]
 
         super().__init__(children=children)
-        ### ---------------------------------------------------------
+        # ---------------------------------------------------------
 
     def return_dict(self):
 
-        return {"nodes": self.nodes.value,
-                "tasks_per_node": self.tasks_per_node.value,
-                "threads_per_task": self.threads_per_task.value,
-         "walltime": self.walltime_s.value}
-    
+        return {
+            "nodes": self.nodes.value,
+            "tasks_per_node": self.tasks_per_node.value,
+            "threads_per_task": self.threads_per_task.value,
+            "walltime": self.walltime_s.value,
+        }
+
     @observe("details")
     def _observe_details(self, _=None):
         self._suggest_resources()
@@ -545,185 +537,119 @@ class MetadataWidget(ipw.VBox):
     @observe("selected_code")
     def _observe_selected_code(self, _=None):
         self._suggest_resources()
-    
+
     @observe("uks")
     def _observe_uks(self, _=None):
         self._suggest_resources()
 
     def _compute_cost(self):
         """Compute cost of the calculation."""
+
         cost = {
-        'H': 1,
-        'C': 4,
-        'Si': 4,
-        'N': 5,
-        'O': 6,
-        'Au': 11,
-        'Cu': 11,
-        'Ag': 11,
-        'Pt': 18,
-        'Tb': 19,
-        'Co': 11,
-        'Zn': 10,
-        'Pd': 18,
-        'Ga': 10
+            "H": 1,
+            "C": 4,
+            "Si": 4,
+            "N": 5,
+            "O": 6,
+            "Au": 11,
+            "Cu": 11,
+            "Ag": 11,
+            "Pt": 18,
+            "Tb": 19,
+            "Co": 11,
+            "Zn": 10,
+            "Pd": 18,
+            "Ga": 10,
         }
         the_cost = 0
-        for element in self.details['all_elements']:
-            s = ''.join(i for i in element if not i.isdigit())
+        for element in self.details["all_elements"]:
+            s = "".join(i for i in element if not i.isdigit())
             if isinstance(s[-1], type(1)):
                 s = s[:-1]
             if s in cost.keys():
                 the_cost += cost[s]
             else:
                 the_cost += 4
-        if 'Slab' in self.details['system_type'] or 'Bulk' in self.details['system_type']:
+        if (
+            "Slab" in self.details["system_type"]
+            or "Bulk" in self.details["system_type"]
+        ):
             the_cost = int(the_cost / 11)
         else:
             the_cost = int(the_cost / 4)
         if self.uks:
             the_cost = the_cost * 1.26
-        return the_cost    
+        return the_cost
 
     def _suggest_resources(self):
-        """"Determine the resources needed for the calculation."""
+        """ "Determine the resources needed for the calculation."""
         threads = 1
         try:
-            max_tasks_per_node = self.selected_code.computer.get_default_mpiprocs_per_machine()
-        except:
+            max_tasks_per_node = (
+                self.selected_code.computer.get_default_mpiprocs_per_machine()
+            )
+        except AttributeError:
             max_tasks_per_node = None
         if max_tasks_per_node is None:
             max_tasks_per_node = 1
 
-        if not self.details['all_elements']  or self.selected_code is None:
-            return 1, 1 , 1
+        if not self.details["all_elements"] or self.selected_code is None:
+            return 1, 1, 1
 
         resources = {
-            'Slab': {
-                50: {
-                    'nodes': 4,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                200: {
-                    'nodes': 12,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                1400: {
-                    'nodes': 27,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                3000: {
-                    'nodes': 48,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                4000: {
-                    'nodes': 75,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
+            "Slab": {
+                50: {"nodes": 4, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                200: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                1400: {"nodes": 27, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                3000: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                4000: {"nodes": 75, "tasks_per_node": max_tasks_per_node, "threads": 1},
                 10000: {
-                    'nodes': 108,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                }
-            },
-            'Bulk': {
-                50: {
-                    'nodes': 4,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                200: {
-                    'nodes': 12,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                1400: {
-                    'nodes': 27,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                3000: {
-                    'nodes': 48,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                4000: {
-                    'nodes': 75,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                10000: {
-                    'nodes': 108,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                }
-            },            
-            'Molecule': {
-                50: {
-                    'nodes': 4,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                100: {
-                    'nodes': 12,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                180: {
-                    'nodes': 27,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                400: {
-                    'nodes': 48,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
+                    "nodes": 108,
+                    "tasks_per_node": max_tasks_per_node,
+                    "threads": 1,
                 },
             },
-            'Default': {
-                50: {
-                    'nodes': 4,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
+            "Bulk": {
+                50: {"nodes": 4, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                200: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                1400: {"nodes": 27, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                3000: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                4000: {"nodes": 75, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                10000: {
+                    "nodes": 108,
+                    "tasks_per_node": max_tasks_per_node,
+                    "threads": 1,
                 },
-                100: {
-                    'nodes': 12,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                180: {
-                    'nodes': 27,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-                400: {
-                    'nodes': 48,
-                    'tasks_per_node': max_tasks_per_node,
-                    'threads': 1
-                },
-            }
+            },
+            "Molecule": {
+                50: {"nodes": 4, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                100: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                180: {"nodes": 27, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                400: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
+            },
+            "Default": {
+                50: {"nodes": 4, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                100: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                180: {"nodes": 27, "tasks_per_node": max_tasks_per_node, "threads": 1},
+                400: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
+            },
         }
         cost = self._compute_cost()
-        calctype = self.details['system_type']
-        #Slab_XY,....,Bulk,Molecule,Wire
-        if 'Slab' in self.details['system_type']:
-            calctype='Slab'
-                
+        calctype = self.details["system_type"]
+        # Slab_XY,....,Bulk,Molecule,Wire
+        if "Slab" in self.details["system_type"]:
+            calctype = "Slab"
+
         theone = min(resources[calctype], key=lambda x: abs(x - cost))
-        nodes = resources[calctype][theone]['nodes']
-        tasks_per_node = resources[calctype][theone]['tasks_per_node']
-        threads = resources[calctype][theone]['threads']
+        nodes = resources[calctype][theone]["nodes"]
+        tasks_per_node = resources[calctype][theone]["tasks_per_node"]
+        threads = resources[calctype][theone]["threads"]
         self.nodes.value = nodes
         self.tasks_per_node.value = tasks_per_node
-        self.threads_per_task.value = threads    
+        self.threads_per_task.value = threads
 
     def traits_to_link(self):
-        return ["details","uks", "selected_code"]
+        return ["details", "uks", "selected_code"]
 
 
 SECTIONS_TO_DISPLAY = {
@@ -736,6 +662,7 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         FixedAtomsWidget,
         CellSectionWidget,
+        ProtocolSelectionWidget,
         MetadataWidget,
     ],
     "SlabXY": [
@@ -752,6 +679,7 @@ SECTIONS_TO_DISPLAY = {
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
+        ProtocolSelectionWidget,
         MetadataWidget,
     ],
 }
