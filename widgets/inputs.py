@@ -6,6 +6,7 @@ from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, obs
 
 from .ANALYZE_structure import mol_ids_range
 from .cp2k_input_validity import validate_input
+from .number_of_nodes import get_nodes
 
 # from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
@@ -512,10 +513,15 @@ class MetadataWidget(ipw.VBox):
         self.threads_per_task = ipw.IntText(
             value=1, description="threads/task", style=STYLE
         )
+        self.estimate_nodes_button = ipw.Button(
+            description="Estimate resources", button_style="warning"
+        )
+        self.estimate_nodes_button.on_click(self._suggest_res)
 
         children = [
             ipw.HBox([self.nodes, self.tasks_per_node, self.threads_per_task]),
             ipw.HBox([ipw.HTML("walltime, "), self.walltime_s]),
+            self.estimate_nodes_button,
         ]
 
         super().__init__(children=children)
@@ -530,17 +536,17 @@ class MetadataWidget(ipw.VBox):
             "walltime": self.walltime_s.value,
         }
 
-    @observe("details")
-    def _observe_details(self, _=None):
-        self._suggest_resources()
-
-    @observe("selected_code")
-    def _observe_selected_code(self, _=None):
-        self._suggest_resources()
-
-    @observe("uks")
-    def _observe_uks(self, _=None):
-        self._suggest_resources()
+    # @observe("details")
+    # def _observe_details(self, _=None):
+    #    self._suggest_resources()
+    #
+    # @observe("selected_code")
+    # def _observe_selected_code(self, _=None):
+    #    self._suggest_resources()
+    #
+    # @observe("uks")
+    # def _observe_uks(self, _=None):
+    #    self._suggest_resources()
 
     def _compute_cost(self):
         """Compute cost of the calculation."""
@@ -581,9 +587,9 @@ class MetadataWidget(ipw.VBox):
             the_cost = the_cost * 1.26
         return the_cost
 
-    def _suggest_resources(self):
+    def _suggest_resources(self, _=None):
         """ "Determine the resources needed for the calculation."""
-        threads = 1
+        skip = False
         try:
             max_tasks_per_node = (
                 self.selected_code.computer.get_default_mpiprocs_per_machine()
@@ -593,8 +599,17 @@ class MetadataWidget(ipw.VBox):
         if max_tasks_per_node is None:
             max_tasks_per_node = 1
 
-        if not self.details["all_elements"] or self.selected_code is None:
-            return 1, 1, 1
+        try:
+            if not self.details["all_elements"] or self.selected_code is None:
+                self.nodes.value = 1
+                self.tasks_per_node.value = 1
+                self.threads_per_task.value = 1
+                skip = True
+        except KeyError:
+            self.nodes.value = 1
+            self.tasks_per_node.value = 1
+            self.threads_per_task.value = 1
+            skip = True
 
         resources = {
             "Slab": {
@@ -634,19 +649,53 @@ class MetadataWidget(ipw.VBox):
                 400: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
             },
         }
-        cost = self._compute_cost()
-        calctype = self.details["system_type"]
-        # Slab_XY,....,Bulk,Molecule,Wire
-        if "Slab" in self.details["system_type"]:
-            calctype = "Slab"
+        if not skip:
+            cost = self._compute_cost()
+            calctype = self.details["system_type"]
+            # Slab_XY,....,Bulk,Molecule,Wire
+            if "Slab" in self.details["system_type"]:
+                calctype = "Slab"
 
-        theone = min(resources[calctype], key=lambda x: abs(x - cost))
-        nodes = resources[calctype][theone]["nodes"]
-        tasks_per_node = resources[calctype][theone]["tasks_per_node"]
-        threads = resources[calctype][theone]["threads"]
-        self.nodes.value = nodes
-        self.tasks_per_node.value = tasks_per_node
-        self.threads_per_task.value = threads
+            theone = min(resources[calctype], key=lambda x: abs(x - cost))
+            nodes = resources[calctype][theone]["nodes"]
+            tasks_per_node = resources[calctype][theone]["tasks_per_node"]
+            threads = resources[calctype][theone]["threads"]
+            self.nodes.value = nodes
+            self.tasks_per_node.value = tasks_per_node
+            self.threads_per_task.value = threads
+
+    def _suggest_res(self, _=None):
+        try:
+            max_tasks_per_node = (
+                self.selected_code.computer.get_default_mpiprocs_per_machine()
+            )
+        except AttributeError:
+            max_tasks_per_node = None
+        if max_tasks_per_node is None:
+            max_tasks_per_node = 1
+
+        try:
+            systype = self.details["system_type"]
+            element_list = self.details["all_elements"]
+        except KeyError:
+            systype = "Other"
+            element_list = []
+
+        if "Slab" in systype:
+            systype = "Slab"
+        calctype = systype + "-DFT"
+
+        (
+            self.nodes.value,
+            self.tasks_per_node.value,
+            self.threads_per_task.value,
+        ) = get_nodes(
+            element_list=element_list,
+            calctype=calctype,
+            systype=systype,
+            max_tasks_per_node=max_tasks_per_node,
+            uks=False,
+        )
 
     def traits_to_link(self):
         return ["details", "uks", "selected_code"]
