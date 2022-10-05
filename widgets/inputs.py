@@ -516,7 +516,7 @@ class MetadataWidget(ipw.VBox):
         self.estimate_nodes_button = ipw.Button(
             description="Estimate resources", button_style="warning"
         )
-        self.estimate_nodes_button.on_click(self._suggest_res)
+        self.estimate_nodes_button.on_click(self._suggest_resources)
 
         children = [
             ipw.HBox([self.nodes, self.tasks_per_node, self.threads_per_task]),
@@ -536,135 +536,7 @@ class MetadataWidget(ipw.VBox):
             "walltime": self.walltime_s.value,
         }
 
-    # @observe("details")
-    # def _observe_details(self, _=None):
-    #    self._suggest_resources()
-    #
-    # @observe("selected_code")
-    # def _observe_selected_code(self, _=None):
-    #    self._suggest_resources()
-    #
-    # @observe("uks")
-    # def _observe_uks(self, _=None):
-    #    self._suggest_resources()
-
-    def _compute_cost(self):
-        """Compute cost of the calculation."""
-
-        cost = {
-            "H": 1,
-            "C": 4,
-            "Si": 4,
-            "N": 5,
-            "O": 6,
-            "Au": 11,
-            "Cu": 11,
-            "Ag": 11,
-            "Pt": 18,
-            "Tb": 19,
-            "Co": 11,
-            "Zn": 10,
-            "Pd": 18,
-            "Ga": 10,
-        }
-        the_cost = 0
-        for element in self.details["all_elements"]:
-            s = "".join(i for i in element if not i.isdigit())
-            if isinstance(s[-1], type(1)):
-                s = s[:-1]
-            if s in cost.keys():
-                the_cost += cost[s]
-            else:
-                the_cost += 4
-        if (
-            "Slab" in self.details["system_type"]
-            or "Bulk" in self.details["system_type"]
-        ):
-            the_cost = int(the_cost / 11)
-        else:
-            the_cost = int(the_cost / 4)
-        if self.uks:
-            the_cost = the_cost * 1.26
-        return the_cost
-
     def _suggest_resources(self, _=None):
-        """ "Determine the resources needed for the calculation."""
-        skip = False
-        try:
-            max_tasks_per_node = (
-                self.selected_code.computer.get_default_mpiprocs_per_machine()
-            )
-        except AttributeError:
-            max_tasks_per_node = None
-        if max_tasks_per_node is None:
-            max_tasks_per_node = 1
-
-        try:
-            if not self.details["all_elements"] or self.selected_code is None:
-                self.nodes.value = 1
-                self.tasks_per_node.value = 1
-                self.threads_per_task.value = 1
-                skip = True
-        except KeyError:
-            self.nodes.value = 1
-            self.tasks_per_node.value = 1
-            self.threads_per_task.value = 1
-            skip = True
-
-        resources = {
-            "Slab": {
-                50: {"nodes": 4, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                200: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                1400: {"nodes": 27, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                3000: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                4000: {"nodes": 75, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                10000: {
-                    "nodes": 108,
-                    "tasks_per_node": max_tasks_per_node,
-                    "threads": 1,
-                },
-            },
-            "Bulk": {
-                50: {"nodes": 4, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                200: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                1400: {"nodes": 27, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                3000: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                4000: {"nodes": 75, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                10000: {
-                    "nodes": 108,
-                    "tasks_per_node": max_tasks_per_node,
-                    "threads": 1,
-                },
-            },
-            "Molecule": {
-                50: {"nodes": 4, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                100: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                180: {"nodes": 27, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                400: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
-            },
-            "Default": {
-                50: {"nodes": 4, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                100: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                180: {"nodes": 27, "tasks_per_node": max_tasks_per_node, "threads": 1},
-                400: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
-            },
-        }
-        if not skip:
-            cost = self._compute_cost()
-            calctype = self.details["system_type"]
-            # Slab_XY,....,Bulk,Molecule,Wire
-            if "Slab" in self.details["system_type"]:
-                calctype = "Slab"
-
-            theone = min(resources[calctype], key=lambda x: abs(x - cost))
-            nodes = resources[calctype][theone]["nodes"]
-            tasks_per_node = resources[calctype][theone]["tasks_per_node"]
-            threads = resources[calctype][theone]["threads"]
-            self.nodes.value = nodes
-            self.tasks_per_node.value = tasks_per_node
-            self.threads_per_task.value = threads
-
-    def _suggest_res(self, _=None):
         try:
             max_tasks_per_node = (
                 self.selected_code.computer.get_default_mpiprocs_per_machine()
