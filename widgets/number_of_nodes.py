@@ -73,24 +73,60 @@ def get_nodes(
             400: {"nodes": 48, "tasks_per_node": max_tasks_per_node, "threads": 1},
         },
         "gw": {
+            10: {
+                "nodes": 2,
+                "tasks_per_node": max(max_tasks_per_node / 4, 1),
+                "threads": 1,
+            },
+            20: {
+                "nodes": 6,
+                "tasks_per_node": max(max_tasks_per_node / 4, 1),
+                "threads": 1,
+            },
             50: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
             100: {
                 "nodes": 256,
                 "tasks_per_node": int(max(max_tasks_per_node / 3, 1)),
                 "threads": 1,
             },
-            180: {"nodes": 512, "tasks_per_node": max_tasks_per_node, "threads": 1},
-            400: {"nodes": 1024, "tasks_per_node": max_tasks_per_node, "threads": 1},
+            180: {
+                "nodes": 512,
+                "tasks_per_node": int(max(max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
+            400: {
+                "nodes": 1024,
+                "tasks_per_node": int(max(max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
         },
         "gw_ic": {
+            10: {
+                "nodes": 2,
+                "tasks_per_node": max(max_tasks_per_node / 4, 1),
+                "threads": 1,
+            },
+            20: {
+                "nodes": 6,
+                "tasks_per_node": max(max_tasks_per_node / 4, 1),
+                "threads": 1,
+            },
             50: {"nodes": 12, "tasks_per_node": max_tasks_per_node, "threads": 1},
             100: {
                 "nodes": 256,
                 "tasks_per_node": int(max(max_tasks_per_node / 3, 1)),
                 "threads": 1,
             },
-            180: {"nodes": 512, "tasks_per_node": max_tasks_per_node, "threads": 1},
-            400: {"nodes": 1024, "tasks_per_node": max_tasks_per_node, "threads": 1},
+            180: {
+                "nodes": 512,
+                "tasks_per_node": int(max(max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
+            400: {
+                "nodes": 1024,
+                "tasks_per_node": int(max(max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
         },
     }
 
