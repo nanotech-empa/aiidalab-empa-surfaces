@@ -7,6 +7,7 @@ from aiida_cp2k.utils import Cp2kInput
 from aiidalab_widgets_base.utils import list_to_string_range, string_range_to_list
 from .ANALYZE_structure import mol_ids_range
 from .cp2k2dict import CP2K2DICT
+from .constraints import ConstraintsWidget
 from .cp2k_input_validity import validate_input
 from .get_cp2k_input import Get_CP2K_Input
 from .number_of_nodes import compute_cost, compute_nodes
@@ -309,7 +310,7 @@ class UksSectionWidget(ipw.Accordion):
     def traits_to_link(self):
         return ["details", "uks", "net_charge"]
 
-class ConstraintsWidget(ipw.Accordion):
+class ConstraintsWidget2(ipw.Accordion):
     details = Dict()
     structure = Instance(Atoms, allow_none=True)
 
