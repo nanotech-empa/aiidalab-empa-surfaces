@@ -6,7 +6,6 @@ from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, obs
 
 from .ANALYZE_structure import mol_ids_range
 from .cp2k_input_validity import validate_input
-from .number_of_nodes import get_nodes
 
 # from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
@@ -487,92 +486,6 @@ class CellSectionWidget(ipw.Accordion):
         return ["details", "do_cell_opt", "net_charge"]
 
 
-class MetadataWidget(ipw.VBox):
-    """Setup metadata for an AiiDA process."""
-
-    details = Dict()
-    uks = Bool()
-    selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
-
-    def __init__(self):
-        """Metadata widget to generate metadata"""
-
-        self.walltime_s = ipw.IntText(
-            value=86400,
-            description="seconds:",
-            style={"description_width": "initial"},
-            layout={"width": "initial"},
-        )
-
-        self.nodes = ipw.IntText(
-            value=48, description="# Nodes", style=STYLE, layout=LAYOUT2
-        )
-        self.tasks_per_node = ipw.IntText(
-            value=12, description="tasks/node", style=STYLE
-        )
-        self.threads_per_task = ipw.IntText(
-            value=1, description="threads/task", style=STYLE
-        )
-        self.estimate_nodes_button = ipw.Button(
-            description="Estimate resources", button_style="warning"
-        )
-        self.estimate_nodes_button.on_click(self._suggest_resources)
-
-        children = [
-            ipw.HBox([self.nodes, self.tasks_per_node, self.threads_per_task]),
-            ipw.HBox([ipw.HTML("walltime, "), self.walltime_s]),
-            self.estimate_nodes_button,
-        ]
-
-        super().__init__(children=children)
-        # ---------------------------------------------------------
-
-    def return_dict(self):
-
-        return {
-            "nodes": self.nodes.value,
-            "tasks_per_node": self.tasks_per_node.value,
-            "threads_per_task": self.threads_per_task.value,
-            "walltime": self.walltime_s.value,
-        }
-
-    def _suggest_resources(self, _=None):
-        try:
-            max_tasks_per_node = (
-                self.selected_code.computer.get_default_mpiprocs_per_machine()
-            )
-        except AttributeError:
-            max_tasks_per_node = None
-        if max_tasks_per_node is None:
-            max_tasks_per_node = 1
-
-        try:
-            systype = self.details["system_type"]
-            element_list = self.details["all_elements"]
-        except KeyError:
-            systype = "Other"
-            element_list = []
-
-        if "Slab" in systype:
-            systype = "Slab"
-        calctype = systype + "-DFT"
-
-        (
-            self.nodes.value,
-            self.tasks_per_node.value,
-            self.threads_per_task.value,
-        ) = get_nodes(
-            element_list=element_list,
-            calctype=calctype,
-            systype=systype,
-            max_tasks_per_node=max_tasks_per_node,
-            uks=False,
-        )
-
-    def traits_to_link(self):
-        return ["details", "uks", "selected_code"]
-
-
 SECTIONS_TO_DISPLAY = {
     "None": [],
     "Wire": [],
@@ -584,7 +497,6 @@ SECTIONS_TO_DISPLAY = {
         FixedAtomsWidget,
         CellSectionWidget,
         ProtocolSelectionWidget,
-        MetadataWidget,
     ],
     "SlabXY": [
         DescriptionWidget,
@@ -593,7 +505,6 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         FixedAtomsWidget,
         ProtocolSelectionWidget,
-        MetadataWidget,
     ],
     "Molecule": [
         StructureInfoWidget,
@@ -601,6 +512,5 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         ProtocolSelectionWidget,
-        MetadataWidget,
     ],
 }
