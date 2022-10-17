@@ -45,7 +45,8 @@ class ProcessResourcesWidget(ipw.VBox):
             self.nodes_widget,
             self.tasks_per_node_widget,
             self.threads_per_task_widget,
-            ipw.HBox([self.walltime_widget, self.time_info, self.wrong_syntax]),
+            ipw.HBox([self.walltime_widget, self.wrong_syntax]),
+            self.time_info,
         ]
 
         super().__init__(children=children)
@@ -73,7 +74,7 @@ class ProcessResourcesWidget(ipw.VBox):
         self.time_info.value = ""
         try:
             dtime = pd.Timedelta(self.walltime_widget.value)
-            self.time_info.value = str(dtime)
+            self.time_info.value = f"Runtime: {dtime}"
         except Exception:
             self.wrong_syntax.layout.visibility = "visible"
             self.time_info.value = ""
