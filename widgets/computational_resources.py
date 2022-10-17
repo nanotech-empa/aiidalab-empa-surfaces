@@ -3,7 +3,10 @@ import pandas as pd
 import traitlets as trt
 from aiida import orm
 
-STYLE = {"description_width": "120px"}
+STYLE = {
+    "description_width": "120px",
+}
+LAYOUT = {"width": "200px"}
 
 
 class ProcessResourcesWidget(ipw.VBox):
@@ -16,23 +19,26 @@ class ProcessResourcesWidget(ipw.VBox):
             description="Walltime:",
             placeholder="10:30:00",
             style=STYLE,
+            layout=LAYOUT,
         )
 
         self.wrong_syntax = ipw.HTML(
             value="""<i class="fa fa-times" style="color:red;font-size:2em;" ></i> wrong syntax""",
             layout={"visibility": "hidden"},
         )
-        self.time_info = ipw.HTML()
+        self.time_info = ipw.HTML(layout=LAYOUT)
         self.walltime_widget.observe(self.parse_time_string, "value")
 
         self.walltime_widget.value = "24:00:00"
 
-        self.nodes_widget = ipw.IntText(value=48, description="# Nodes", style=STYLE)
+        self.nodes_widget = ipw.IntText(
+            value=48, description="# Nodes", style=STYLE, layout=LAYOUT
+        )
         self.tasks_per_node_widget = ipw.IntText(
-            value=12, description="# Tasks per node", style=STYLE
+            value=12, description="# Tasks per node", style=STYLE, layout=LAYOUT
         )
         self.threads_per_task_widget = ipw.IntText(
-            value=1, description="# Threads per task", style=STYLE
+            value=1, description="# Threads per task", style=STYLE, layout=LAYOUT
         )
 
         children = [
@@ -79,13 +85,15 @@ class ResourcesEstimatorWidget(ipw.VBox):
     uks = trt.Bool()
     selected_code = trt.Union([trt.Unicode(), trt.Instance(orm.Code)], allow_none=True)
 
-    def __init__(self):
+    def __init__(self, calculation_type="dft"):
         """Resources estimator widget to generate metadata"""
 
+        self.max_tasks_per_node = 1
+        self.calculation_type = calculation_type
         self.estimate_resources_button = ipw.Button(
             description="Estimate resources", button_style="warning"
         )
-        self.estimate_resources_button.on_click(self._estimate_resources)
+        self.estimate_resources_button.on_click(self.estimate_resources)
 
         super().__init__([self.estimate_resources_button])
 
@@ -95,16 +103,15 @@ class ResourcesEstimatorWidget(ipw.VBox):
     @trt.observe("details")
     def _observe_details(self, _=None):
         try:
-            self.systype = (
+            self.system_type = (
                 "Slab"
                 if "Slab" in self.details["system_type"]
                 else self.details["system_type"]
             )
             self.element_list = self.details["all_elements"]
         except KeyError:
-            self.systype = "Other"
+            self.system_type = "Other"
             self.element_list = []
-        self.calctype = self.systype + "-DFT"
 
     @trt.observe("selected_code")
     def _observe_code(self, _=None):
@@ -115,7 +122,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
         except AttributeError:
             self.max_tasks_per_node = 1
 
-    def _compute_cost(self, element_list=None, systype="Slab", uks=False):
+    def _compute_cost(self, element_list=None, system_type="Slab", uks=False):
         cost = {
             "H": 1,
             "C": 4,
@@ -142,7 +149,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
                     the_cost += cost[s]
                 else:
                     the_cost += 4
-            if systype == "Slab" or systype == "Bulk":
+            if system_type == "Slab" or system_type == "Bulk":
                 the_cost = int(the_cost / 11)
             else:
                 the_cost = int(the_cost / 4)
@@ -150,11 +157,31 @@ class ResourcesEstimatorWidget(ipw.VBox):
                 the_cost = the_cost * 1.26
         return the_cost
 
-    def _estimate_resources(self, _=None):
+    def estimate_resources(self, _=None):
         """Determine the resources needed for the calculation."""
 
+        if self.calculation_type == "dft":
+            resources = self._estimate_resources_dft()
+        elif self.calculation_type == "gw":
+            resources = self._estimate_resources_gw()
+        elif self.calculation_type == "gw_ic":
+            resources = self._estimate_resources_gw_ic()
+
+        cost = self._compute_cost(
+            element_list=self.element_list, system_type=self.system_type, uks=self.uks
+        )
+
+        theone = min(resources, key=lambda x: abs(x - cost))
+
+        self.resources.nodes_widget.value = resources[theone]["nodes"]
+        self.resources.tasks_per_node_widget.value = resources[theone]["tasks_per_node"]
+        self.resources.threads_per_task_widget.value = resources[theone]["threads"]
+
+    def _estimate_resources_dft(self):
+        """Determine the resources needed for the DFT calculation."""
+
         resources = {
-            "Slab-DFT": {
+            "Slab": {
                 50: {
                     "nodes": 4,
                     "tasks_per_node": self.max_tasks_per_node,
@@ -186,7 +213,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
                     "threads": 1,
                 },
             },
-            "Bulk-DFT": {
+            "Bulk": {
                 50: {
                     "nodes": 4,
                     "tasks_per_node": self.max_tasks_per_node,
@@ -218,7 +245,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
                     "threads": 1,
                 },
             },
-            "Molecule-DFT": {
+            "Molecule": {
                 50: {
                     "nodes": 4,
                     "tasks_per_node": self.max_tasks_per_node,
@@ -240,7 +267,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
                     "threads": 1,
                 },
             },
-            "Other-DFT": {
+            "Other": {
                 50: {
                     "nodes": 4,
                     "tasks_per_node": self.max_tasks_per_node,
@@ -259,85 +286,79 @@ class ResourcesEstimatorWidget(ipw.VBox):
                 400: {
                     "nodes": 48,
                     "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
-                },
-            },
-            "gw": {
-                10: {
-                    "nodes": 2,
-                    "tasks_per_node": max(self.max_tasks_per_node / 4, 1),
-                    "threads": 1,
-                },
-                20: {
-                    "nodes": 6,
-                    "tasks_per_node": max(self.max_tasks_per_node / 4, 1),
-                    "threads": 1,
-                },
-                50: {
-                    "nodes": 12,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
-                },
-                100: {
-                    "nodes": 256,
-                    "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
-                    "threads": 1,
-                },
-                180: {
-                    "nodes": 512,
-                    "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
-                    "threads": 1,
-                },
-                400: {
-                    "nodes": 1024,
-                    "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
-                    "threads": 1,
-                },
-            },
-            "gw_ic": {
-                10: {
-                    "nodes": 2,
-                    "tasks_per_node": max(self.max_tasks_per_node / 4, 1),
-                    "threads": 1,
-                },
-                20: {
-                    "nodes": 6,
-                    "tasks_per_node": max(self.max_tasks_per_node / 4, 1),
-                    "threads": 1,
-                },
-                50: {
-                    "nodes": 12,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
-                },
-                100: {
-                    "nodes": 256,
-                    "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
-                    "threads": 1,
-                },
-                180: {
-                    "nodes": 512,
-                    "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
-                    "threads": 1,
-                },
-                400: {
-                    "nodes": 1024,
-                    "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
                     "threads": 1,
                 },
             },
         }
 
-        cost = self._compute_cost(
-            element_list=self.element_list, systype=self.systype, uks=self.uks
-        )
+        return resources[self.system_type]
 
-        theone = min(resources[self.calctype], key=lambda x: abs(x - cost))
+    def _estimate_resources_gw(self):
+        resources = {
+            10: {
+                "nodes": 2,
+                "tasks_per_node": max(self.max_tasks_per_node / 4, 1),
+                "threads": 1,
+            },
+            20: {
+                "nodes": 6,
+                "tasks_per_node": max(self.max_tasks_per_node / 4, 1),
+                "threads": 1,
+            },
+            50: {
+                "nodes": 12,
+                "tasks_per_node": self.max_tasks_per_node,
+                "threads": 1,
+            },
+            100: {
+                "nodes": 256,
+                "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
+            180: {
+                "nodes": 512,
+                "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
+            400: {
+                "nodes": 1024,
+                "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
+        }
+        return resources
 
-        self.resources.nodes_widget.value = resources[self.calctype][theone]["nodes"]
-        self.resources.tasks_per_node_widget.value = resources[self.calctype][theone][
-            "tasks_per_node"
-        ]
-        self.resources.threads_per_task_widget.value = resources[self.calctype][theone][
-            "threads"
-        ]
+    def _estimate_resources_gw_ic(self):
+        resources = {
+            10: {
+                "nodes": 2,
+                "tasks_per_node": max(self.max_tasks_per_node / 4, 1),
+                "threads": 1,
+            },
+            20: {
+                "nodes": 6,
+                "tasks_per_node": max(self.max_tasks_per_node / 4, 1),
+                "threads": 1,
+            },
+            50: {
+                "nodes": 12,
+                "tasks_per_node": self.max_tasks_per_node,
+                "threads": 1,
+            },
+            100: {
+                "nodes": 256,
+                "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
+            180: {
+                "nodes": 512,
+                "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
+            400: {
+                "nodes": 1024,
+                "tasks_per_node": int(max(self.max_tasks_per_node / 3, 1)),
+                "threads": 1,
+            },
+        }
+        return resources
