@@ -12,7 +12,7 @@ class ProcessResourcesWidget(ipw.VBox):
     def __init__(self):
         """Metadata widget to generate metadata"""
 
-        self.walltime = ipw.Text(
+        self.walltime_widget = ipw.Text(
             description="Walltime:",
             placeholder="10:30:00",
             style=STYLE,
@@ -23,43 +23,50 @@ class ProcessResourcesWidget(ipw.VBox):
             layout={"visibility": "hidden"},
         )
         self.time_info = ipw.HTML()
-        self.walltime.observe(self.parse_time_string, "value")
+        self.walltime_widget.observe(self.parse_time_string, "value")
 
-        self.walltime.value = "10:00:00"
+        self.walltime_widget.value = "24:00:00"
 
-        self.nodes = ipw.IntText(value=48, description="# Nodes", style=STYLE)
-        self.tasks_per_node = ipw.IntText(
+        self.nodes_widget = ipw.IntText(value=48, description="# Nodes", style=STYLE)
+        self.tasks_per_node_widget = ipw.IntText(
             value=12, description="# Tasks per node", style=STYLE
         )
-        self.threads_per_task = ipw.IntText(
+        self.threads_per_task_widget = ipw.IntText(
             value=1, description="# Threads per task", style=STYLE
         )
 
         children = [
-            self.nodes,
-            self.tasks_per_node,
-            self.threads_per_task,
-            ipw.HBox([self.walltime, self.time_info, self.wrong_syntax]),
+            self.nodes_widget,
+            self.tasks_per_node_widget,
+            self.threads_per_task_widget,
+            ipw.HBox([self.walltime_widget, self.time_info, self.wrong_syntax]),
         ]
 
         super().__init__(children=children)
         # ---------------------------------------------------------
 
-    def return_dict(self):
+    @property
+    def nodes(self):
+        return int(self.nodes_widget.value)
 
-        return {
-            "nodes": self.nodes.value,
-            "tasks_per_node": self.tasks_per_node.value,
-            "threads_per_task": self.threads_per_task.value,
-            "walltime": self.walltime.value,
-        }
+    @property
+    def tasks_per_node(self):
+        return int(self.tasks_per_node_widget.value)
+
+    @property
+    def threads_per_task(self):
+        return int(self.threads_per_task_widget.value)
+
+    @property
+    def walltime_seconds(self):
+        return int(pd.Timedelta(self.walltime_widget.value).total_seconds())
 
     def parse_time_string(self, _=None):
         """Parse the time string and set the time in seconds"""
         self.wrong_syntax.layout.visibility = "hidden"
         self.time_info.value = ""
         try:
-            dtime = pd.Timedelta(self.walltime.value)
+            dtime = pd.Timedelta(self.walltime_widget.value)
             self.time_info.value = str(dtime)
         except Exception:
             self.wrong_syntax.layout.visibility = "visible"
@@ -327,10 +334,10 @@ class ResourcesEstimatorWidget(ipw.VBox):
 
         theone = min(resources[self.calctype], key=lambda x: abs(x - cost))
 
-        self.resources.nodes.value = resources[self.calctype][theone]["nodes"]
-        self.resources.tasks_per_node.value = resources[self.calctype][theone][
+        self.resources.nodes_widget.value = resources[self.calctype][theone]["nodes"]
+        self.resources.tasks_per_node_widget.value = resources[self.calctype][theone][
             "tasks_per_node"
         ]
-        self.resources.threads_per_task.value = resources[self.calctype][theone][
+        self.resources.threads_per_task_widget.value = resources[self.calctype][theone][
             "threads"
         ]
