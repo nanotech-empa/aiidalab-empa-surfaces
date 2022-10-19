@@ -74,7 +74,7 @@ class ProcessResourcesWidget(ipw.VBox):
         self.time_info.value = ""
         try:
             dtime = pd.Timedelta(self.walltime_widget.value)
-            self.time_info.value = f"Runtime: {dtime}"
+            self.time_info.value = f"Walltime will be: {dtime}"
         except Exception:
             self.wrong_syntax.layout.visibility = "visible"
             self.time_info.value = ""
