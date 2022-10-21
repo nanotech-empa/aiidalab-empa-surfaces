@@ -1,31 +1,11 @@
-from collections import OrderedDict
-from datetime import datetime
-
 import ipywidgets as ipw
 from aiida.orm import Code
-from aiida_cp2k.utils import Cp2kInput
-from aiidalab_widgets_base.utils import list_to_string_range, string_range_to_list
-from .ANALYZE_structure import mol_ids_range
-from .cp2k2dict import CP2K2DICT
-from .cp2k_input_validity import validate_input
-from .get_cp2k_input import Get_CP2K_Input
-from .number_of_nodes import compute_cost, compute_nodes
-from ase import Atom, Atoms
+from aiidalab_widgets_base.utils import string_range_to_list
 from IPython.display import clear_output, display
-from traitlets import (
-    Bool,
-    Dict,
-    Instance,
-    Int,
-    List,
-    Set,
-    Unicode,
-    Union,
-    default,
-    link,
-    observe,
-    validate,
-)
+from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, observe
+
+from .ANALYZE_structure import mol_ids_range
+from .cp2k_input_validity import validate_input
 
 # from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
@@ -33,6 +13,7 @@ from traitlets import (
 STYLE = {"description_width": "120px"}
 LAYOUT = {"width": "70%"}
 LAYOUT2 = {"width": "35%"}
+
 
 class InputDetails(ipw.VBox):
     selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
@@ -86,43 +67,44 @@ class InputDetails(ipw.VBox):
     def return_final_dictionary(self):
         tmp_dict = {}
 
-        ## PUT LIST OF ELEMENTS IN DICTIONARY
+        # PUT LIST OF ELEMENTS IN DICTIONARY
         tmp_dict["elements"] = self.details["all_elements"]
 
-        ## RETRIEVE ALL WIDGET VALUES
+        # RETRIEVE ALL WIDGET VALUES
         for section in self.displayed_sections:
             to_add = section.return_dict()
             if to_add:
                 tmp_dict.update(to_add)
 
-        ## DECIDE WHICH KIND OF WORKCHAIN
+        # DECIDE WHICH KIND OF WORKCHAIN
 
-        ## SLAB
+        # SLAB
         if self.details["system_type"] == "SlabXY":
             tmp_dict.update({"workchain": "Cp2kSlabOptWorkChain"})
 
-        ## MOLECULE
+        # MOLECULE
         elif self.details["system_type"] == "Molecule":
             tmp_dict.update({"workchain": "Cp2kMoleculeOptWorkChain"})
 
-        ## BULK
+        # BULK
         elif self.details["system_type"] == "Bulk":
             tmp_dict.update({"workchain": "Cp2kBulkOptWorkChain"})
 
-        ## CHECK input validity
+        # CHECK input validity
         can_submit, error_msg = validate_input(self.details, tmp_dict)
 
-        ## CREATE PLAIN INPUT
+        # CREATE PLAIN INPUT
         if can_submit:
             self.final_dictionary = tmp_dict
 
         # print(self.final_dictionary)
-        ## RETURN DICT of widgets details
+        # RETURN DICT of widgets details
         return can_submit, error_msg, self.final_dictionary
+
 
 class DescriptionWidget(ipw.Text):
 
-    ## DESCRIPTION OF CALCULATION
+    # DESCRIPTION OF CALCULATION
     def __init__(self):
 
         super().__init__(
@@ -156,7 +138,7 @@ class StructureInfoWidget(ipw.Accordion):
             with self.info:
                 clear_output()
                 print(self.details["summary"])
-    
+
     def traits_to_link(self):
         return ["details"]
 
@@ -166,16 +148,20 @@ class StructureInfoWidget(ipw.Accordion):
 
 class ProtocolSelectionWidget(ipw.Dropdown):
     def __init__(self):
-        options = [("Standard", "standard"), ("Low accuracy", "low_accuracy")]
+        options = [
+            ("Standard", "standard"),
+            ("Low accuracy", "low_accuracy"),
+            ("Debug", "debug"),
+        ]
         super().__init__(
             value="standard",
             options=options,
             description="Protocol:",
             style={"description_width": "120px"},
         )
+
     def return_dict(self):
         return {"protocol": self.value}
-
 
 
 class VdwSelectorWidget(ipw.ToggleButton):
@@ -200,7 +186,7 @@ class UksSectionWidget(ipw.Accordion):
     net_charge = Int()
 
     def __init__(self):
-        #### UKS
+        # UKS
         self.uks_toggle = ipw.ToggleButton(
             value=False,
             description="UKS",
@@ -209,7 +195,6 @@ class UksSectionWidget(ipw.Accordion):
         )
 
         link((self, "uks"), (self.uks_toggle, "value"))
-
 
         self.multiplicity = ipw.IntText(
             value=0,
@@ -236,13 +221,13 @@ class UksSectionWidget(ipw.Accordion):
             layout={"width": "120px"},
         )
 
-        ## guess multiplicity
+        # guess multiplicity
         def multiplicity_guess(c=None):
             self.net_charge = self.charge.value
             system_charge = self.details["total_charge"] - self.net_charge
             setu = set(string_range_to_list(self.spin_u.value)[0])
             setd = set(string_range_to_list(self.spin_d.value)[0])
-            ## check if same atom entered in two different spins
+            # check if same atom entered in two different spins
             if bool(setu & setd):
                 self.multiplicity.value = 1
                 self.spin_u.value = ""
@@ -308,8 +293,6 @@ class UksSectionWidget(ipw.Accordion):
 
     def traits_to_link(self):
         return ["details", "uks", "net_charge"]
-
-
 
 
 class FixedAtomsWidget(ipw.Text):
@@ -435,7 +418,7 @@ class CellSectionWidget(ipw.Accordion):
             layout=LAYOUT,
         )
 
-        #'cell_free'
+        # 'cell_free'
         self.cell_cases = {
             "Cell_true": [
                 ("cell", self.cell),
@@ -484,7 +467,7 @@ class CellSectionWidget(ipw.Accordion):
     @observe("do_cell_opt")
     def _observe_do_cell_opt(self, _=None):
         self._widgets_to_show()
-    
+
     def _widgets_to_show(self):
         if self.opt_cell.value:
             self.set_title(0, "CELL/PBC details")
@@ -497,44 +480,10 @@ class CellSectionWidget(ipw.Accordion):
         self.cell.value = self.details["cell"]
 
         if self.net_charge and self.details["system_type"] == "Molecule":
-                self.periodic.value = "NONE"
-    
+            self.periodic.value = "NONE"
+
     def traits_to_link(self):
         return ["details", "do_cell_opt", "net_charge"]
-
-
-class MetadataWidget(ipw.VBox):
-    """Setup metadata for an AiiDA process."""
-
-    details = Dict()
-    #    gw_trait = Unicode()
-    selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
-
-    def __init__(self):
-        """Metadata widget to generate metadata"""
-
-        self.walltime_s = ipw.IntText(
-            value=86400,
-            description="seconds:",
-            style={"description_width": "initial"},
-            layout={"width": "initial"},
-        )
-
-        self.max_nodes = ipw.IntText(
-            value=48, description="Max # Nodes", style=STYLE, layout=LAYOUT2
-        )
-
-        children = [self.max_nodes, ipw.HBox([ipw.HTML("walltime, "), self.walltime_s])]
-
-        super().__init__(children=children)
-        ### ---------------------------------------------------------
-
-    def return_dict(self):
-
-        return {"max_nodes": self.max_nodes.value, "walltime": self.walltime_s.value}
-
-    def traits_to_link(self):
-        return ["details", "selected_code"]
 
 
 SECTIONS_TO_DISPLAY = {
@@ -547,7 +496,7 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         FixedAtomsWidget,
         CellSectionWidget,
-        MetadataWidget,
+        ProtocolSelectionWidget,
     ],
     "SlabXY": [
         DescriptionWidget,
@@ -556,13 +505,12 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         FixedAtomsWidget,
         ProtocolSelectionWidget,
-        MetadataWidget,
     ],
     "Molecule": [
         StructureInfoWidget,
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
-        MetadataWidget,
+        ProtocolSelectionWidget,
     ],
 }
