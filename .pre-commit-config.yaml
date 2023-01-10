@@ -11,6 +11,11 @@ repos:
             exclude: miscellaneous/structures/SiO2.xyz
           - id: check-yaml
           - id: check-added-large-files
+    - repo: https://github.com/pycqa/isort
+      rev: 5.10.1
+      hooks:
+          - id: isort
+            args: [--profile, black, --filter-files]
     - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
       rev: 0.2.2
       hooks:
@@ -29,12 +34,6 @@ repos:
             args: [--count, --show-source, --statistics]
             additional_dependencies:
                 - flake8-bugbear==21.3.1
-
-    - repo: https://github.com/pycqa/isort
-      rev: 5.11.4
-      hooks:
-          - id: isort
-            args: [--profile, black, --filter-files]
 
     - repo: https://github.com/asottile/setup-cfg-fmt
       rev: v2.2.0
