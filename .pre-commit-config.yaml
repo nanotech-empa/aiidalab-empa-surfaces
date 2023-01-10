@@ -61,3 +61,7 @@ repos:
       rev: v2.2.0
       hooks:
           - id: setup-cfg-fmt
+    - repo: https://github.com/kynan/nbstripout
+      rev: 0.6.1
+      hooks:
+          - id: nbstripout
