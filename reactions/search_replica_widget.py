@@ -66,7 +66,7 @@ class SearchReplicaWidget(ipw.VBox):
             self.output_thumbnails,
             self.output_checked_pks,
         ]
-        super(SearchReplicaWidget, self).__init__(children=children, **kwargs)
+        super().__init__(children=children, **kwargs)
         ### ---------------------------------------------------------
 
     def parse_preprocessed_replica_calcs(self):
@@ -96,7 +96,7 @@ class SearchReplicaWidget(ipw.VBox):
 
         with self.output_header:
             clear_output()
-            html = "<h2>{}</h2><br/> PK: ".format(self.drop_replica.value) + str(
+            html = f"<h2>{self.drop_replica.value}</h2><br/> PK: " + str(
                 [wc.pk for wc in selected_replica_calc["wcs"]]
             )
             display(ipw.HTML(html))
@@ -383,7 +383,7 @@ class SearchReplicaWidget(ipw.VBox):
                     "Skipping: %s %s "
                     % (
                         str(wc.pk),
-                        "cv_def: %s, cv_inc: %s" % (str(cv_def), str(cv_inc)),
+                        "cv_def: {}, cv_inc: {}".format(str(cv_def), str(cv_inc)),
                     )
                 )
                 print("----")
@@ -583,11 +583,11 @@ class SearchReplicaWidget(ipw.VBox):
             reps_not_preproc = self.parse_rep_wcs(
                 self.get_replica_wcs(False), existing_rep_sets=self.replica_calcs
             )
-            print("Preprocessing {} replicas...".format(len(reps_not_preproc.keys())))
+            print(f"Preprocessing {len(reps_not_preproc.keys())} replicas...")
 
         for i, k in enumerate(reps_not_preproc.keys()):
             with self.out_preproc:
-                print("{}: {}/{}".format(k, i + 1, len(reps_not_preproc.keys())))
+                print(f"{k}: {i + 1}/{len(reps_not_preproc.keys())}")
                 self.preprocess(reps_not_preproc[k])
 
         with self.out_preproc:

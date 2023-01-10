@@ -1,5 +1,4 @@
 """Setup metadata for an AiiDA process."""
-from __future__ import absolute_import, print_function
 
 import ipywidgets as ipw
 
@@ -60,7 +59,7 @@ class MetadataWidget(ipw.VBox):
             ),
         ]
 
-        super(MetadataWidget, self).__init__(children=children)
+        super().__init__(children=children)
         ### ---------------------------------------------------------
 
     @property

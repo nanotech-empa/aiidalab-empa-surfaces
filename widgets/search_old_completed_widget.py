@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import datetime
 import importlib
 import pathlib
@@ -110,7 +108,7 @@ class SearchCompletedWidget(ipw.VBox):
         )
 
         # self.search()
-        super(SearchCompletedWidget, self).__init__([app])
+        super().__init__([app])
 
         # display(app)
 
@@ -180,9 +178,7 @@ class SearchCompletedWidget(ipw.VBox):
             filters["extras.formula"] = {"in": formula_list}
 
         if len(self.text_description.value) > 1:
-            filters["description"] = {
-                "like": "%{}%".format(self.text_description.value)
-            }
+            filters["description"] = {"like": f"%{self.text_description.value}%"}
 
         try:  # If the date range is valid, use it for the search
             start_date = datetime.datetime.strptime(self.date_start.value, "%Y-%m-%d")
@@ -387,10 +383,10 @@ class SearchCompletedWidget(ipw.VBox):
                 slab_formula += (
                     " adatoms: " + ase_struct[res["adatoms"]].get_chemical_formula()
                 )
-            workcalc.set_extra("formula", "{} at {}".format(mol_formula, slab_formula))
+            workcalc.set_extra("formula", f"{mol_formula} at {slab_formula}")
         else:
             formula = ase_struct.get_chemical_formula()
-            workcalc.set_extra("formula", "{}".format(formula))
+            workcalc.set_extra("formula", f"{formula}")
 
         workcalc.set_extra("structure_description", structure.description)
 

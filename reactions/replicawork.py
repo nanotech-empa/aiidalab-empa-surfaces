@@ -49,7 +49,7 @@ METAL_ATOMS = ["Au", "Ag", "Cu"]
 class ReplicaWorkChain(WorkChain):
     @classmethod
     def define(cls, spec):
-        super(ReplicaWorkChain, cls).define(spec)
+        super().define(spec)
         spec.input("cp2k_code", valid_type=Code)
         spec.input("structure", valid_type=StructureData)
         spec.input("num_machines", valid_type=Int, default=lambda: Int(54))
@@ -90,11 +90,11 @@ class ReplicaWorkChain(WorkChain):
         self.ctx.init_energy_ran = False
         self.ctx.init_geo_stored = False
 
-        self.report("#{} replicas".format(len(self.ctx.replica_list)))
+        self.report(f"#{len(self.ctx.replica_list)} replicas")
 
     # ==========================================================================
     def next_replica(self):
-        self.report("Go to replica - {}".format(len(self.ctx.replica_list)))
+        self.report(f"Go to replica - {len(self.ctx.replica_list)}")
         self.report(
             "Remaining list: {} ({})".format(
                 self.ctx.replica_list, len(self.ctx.replica_list)
@@ -308,7 +308,7 @@ class ReplicaWorkChain(WorkChain):
         # parameters
         # if no cell is given use the one from the xyz file.
         if cell == "" or len(str(cell)) < 3:
-            cell_abc = "%f  %f  %f" % (
+            cell_abc = "{:f}  {:f}  {:f}".format(
                 atoms.cell[0, 0],
                 atoms.cell[1, 1],
                 atoms.cell[2, 2],

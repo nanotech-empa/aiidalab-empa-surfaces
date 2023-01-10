@@ -289,12 +289,10 @@ def analyze(atoms):
     is_a_molecule = False
     is_a_wire = False
 
-    spins_up = set(
-        str(the_a.symbol) + str(the_a.tag) for the_a in atoms if the_a.tag == 1
-    )
-    spins_down = set(
+    spins_up = {str(the_a.symbol) + str(the_a.tag) for the_a in atoms if the_a.tag == 1}
+    spins_down = {
         str(the_a.symbol) + str(the_a.tag) for the_a in atoms if the_a.tag == 2
-    )
+    }
     #### check if there is vacuum otherwise classify as bulk and skip
 
     vacuum_x = (
@@ -386,7 +384,7 @@ def analyze(atoms):
         summary = "Slab " + slabtype + " contains: \n"
 
     if len(slabatoms) == 0:
-        slab_elements = set([])
+        slab_elements = set()
     else:
         slab_elements = set(atoms[slabatoms].get_chemical_symbols())
 

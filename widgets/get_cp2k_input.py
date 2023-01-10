@@ -463,7 +463,7 @@ class Get_CP2K_Input:
             # The fun part
             for r in range(int(self.inp_dict["nreplica_files"])):
                 motion["BAND"]["REPLICA"].append(
-                    {"COORD_FILE_NAME": "replica{}.xyz".format(r + 1)}
+                    {"COORD_FILE_NAME": f"replica{r + 1}.xyz"}
                 )
 
         ### END NEB
@@ -526,9 +526,15 @@ class Get_CP2K_Input:
             },
             "SUBSYS": {
                 "CELL": {
-                    "A": "%f %f %f" % (self.cell[0], self.cell[1], self.cell[2]),
-                    "B": "%f %f %f" % (self.cell[3], self.cell[4], self.cell[5]),
-                    "C": "%f %f %f" % (self.cell[6], self.cell[7], self.cell[8]),
+                    "A": "{:f} {:f} {:f}".format(
+                        self.cell[0], self.cell[1], self.cell[2]
+                    ),
+                    "B": "{:f} {:f} {:f}".format(
+                        self.cell[3], self.cell[4], self.cell[5]
+                    ),
+                    "C": "{:f} {:f} {:f}".format(
+                        self.cell[6], self.cell[7], self.cell[8]
+                    ),
                 },
                 "TOPOLOGY": {
                     "COORD_FILE_NAME": "mol_on_slab.xyz",
@@ -609,9 +615,15 @@ class Get_CP2K_Input:
             },
             "SUBSYS": {
                 "CELL": {
-                    "A": "%f %f %f" % (self.cell[0], self.cell[1], self.cell[2]),
-                    "B": "%f %f %f" % (self.cell[3], self.cell[4], self.cell[5]),
-                    "C": "%f %f %f" % (self.cell[6], self.cell[7], self.cell[8]),
+                    "A": "{:f} {:f} {:f}".format(
+                        self.cell[0], self.cell[1], self.cell[2]
+                    ),
+                    "B": "{:f} {:f} {:f}".format(
+                        self.cell[3], self.cell[4], self.cell[5]
+                    ),
+                    "C": "{:f} {:f} {:f}".format(
+                        self.cell[6], self.cell[7], self.cell[8]
+                    ),
                 },
                 "TOPOLOGY": {
                     "COORD_FILE_NAME": "mol_on_slab.xyz",
@@ -670,9 +682,15 @@ class Get_CP2K_Input:
             },
             "SUBSYS": {
                 "CELL": {
-                    "A": "%f %f %f" % (self.cell[0], self.cell[1], self.cell[2]),
-                    "B": "%f %f %f" % (self.cell[3], self.cell[4], self.cell[5]),
-                    "C": "%f %f %f" % (self.cell[6], self.cell[7], self.cell[8]),
+                    "A": "{:f} {:f} {:f}".format(
+                        self.cell[0], self.cell[1], self.cell[2]
+                    ),
+                    "B": "{:f} {:f} {:f}".format(
+                        self.cell[3], self.cell[4], self.cell[5]
+                    ),
+                    "C": "{:f} {:f} {:f}".format(
+                        self.cell[6], self.cell[7], self.cell[8]
+                    ),
                 },
                 "TOPOLOGY": {"COORD_FILE_NAME": "mol.xyz", "COORD_FILE_FORMAT": "xyz"},
             },
@@ -791,9 +809,15 @@ class Get_CP2K_Input:
             },
             "SUBSYS": {
                 "CELL": {
-                    "A": "%f %f %f" % (self.cell[0], self.cell[1], self.cell[2]),
-                    "B": "%f %f %f" % (self.cell[3], self.cell[4], self.cell[5]),
-                    "C": "%f %f %f" % (self.cell[6], self.cell[7], self.cell[8]),
+                    "A": "{:f} {:f} {:f}".format(
+                        self.cell[0], self.cell[1], self.cell[2]
+                    ),
+                    "B": "{:f} {:f} {:f}".format(
+                        self.cell[3], self.cell[4], self.cell[5]
+                    ),
+                    "C": "{:f} {:f} {:f}".format(
+                        self.cell[6], self.cell[7], self.cell[8]
+                    ),
                     "SYMMETRY": self.inp_dict["cell_sym"],
                 },
                 "TOPOLOGY": {
@@ -888,9 +912,7 @@ class Get_CP2K_Input:
                 string_range_to_list(self.inp_dict["spin_u"])[0]
                 + string_range_to_list(self.inp_dict["spin_u"])[0]
             )
-            spin_elements = list(
-                set([self.inp_dict["elements"][j] for j in spin_elements])
-            )
+            spin_elements = list({self.inp_dict["elements"][j] for j in spin_elements})
             for element in spin_elements:
                 for u in [1, 2]:
                     pp = ATOMIC_KINDS[element]["pseudo"]

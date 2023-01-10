@@ -49,9 +49,9 @@ class DistanceCV:
         try:
             a_list = [int(x) for x in self.text_colvar_atoms.value.split()]
         except:
-            raise IOError("Error: wrong input for distance cv.")
+            raise OSError("Error: wrong input for distance cv.")
         if len(a_list) != 2:
-            raise IOError("Error: distance cv not two atoms.")
+            raise OSError("Error: distance cv not two atoms.")
         self.a_list = a_list
 
         self.input_received = True
@@ -153,9 +153,9 @@ class AnglePlanePlaneCV:
         try:
             self.p1_def = np.array([int(x) for x in self.text_plane1_def.value.split()])
         except:
-            raise IOError("Error: wrong input for plane 1 definition.")
+            raise OSError("Error: wrong input for plane 1 definition.")
         if len(self.p1_def) != 3:
-            raise IOError("Error: plane 1 needs 3 atoms.")
+            raise OSError("Error: plane 1 needs 3 atoms.")
 
         self.p2_def_type = self.toggle_plane2_type.value
 
@@ -165,18 +165,18 @@ class AnglePlanePlaneCV:
                     [int(x) for x in self.text_plane2_def.value.split()]
                 )
             except:
-                raise IOError("Error: wrong input for plane 2 definition.")
+                raise OSError("Error: wrong input for plane 2 definition.")
             if len(self.p2_def) != 3:
-                raise IOError("Error: plane 2 needs 3 atoms.")
+                raise OSError("Error: plane 2 needs 3 atoms.")
         else:
             try:
                 self.p2_def = np.array(
                     [float(x) for x in self.text_plane2_def.value.split()]
                 )
             except:
-                raise IOError("Error: wrong input for plane 2 definition.")
+                raise OSError("Error: wrong input for plane 2 definition.")
             if len(self.p2_def) != 3:
-                raise IOError("Error: plane 2 normal needs 3 coordinates.")
+                raise OSError("Error: plane 2 normal needs 3 coordinates.")
 
         self.input_received = True
 
@@ -373,7 +373,7 @@ class BondRotationCV:
                         [int(x) - 1 for x in self.bond_point_textbs[i_p].value.split()]
                     )
                 except:
-                    raise IOError(
+                    raise OSError(
                         "Error: wrong input for '%s'" % self.bond_point_texts[i_p]
                     )
             else:
@@ -382,11 +382,11 @@ class BondRotationCV:
                         [float(x) for x in self.bond_point_textbs[i_p].value.split()]
                     )
                 except:
-                    raise IOError(
+                    raise OSError(
                         "Error: wrong input for '%s'" % self.bond_point_texts[i_p]
                     )
                 if len(dl) != 3:
-                    raise IOError(
+                    raise OSError(
                         "Error: '%s' needs x,y,z" % self.bond_point_texts[i_p]
                     )
             self.data_list.append(dl)
@@ -499,7 +499,7 @@ class CollectiveVariableWidget(ipw.VBox):
             self.float_spring,
             self.error_out,
         ]
-        super(CollectiveVariableWidget, self).__init__(children=children, **kwargs)
+        super().__init__(children=children, **kwargs)
         ### ---------------------------------------------------------
 
     def validation_check(self):

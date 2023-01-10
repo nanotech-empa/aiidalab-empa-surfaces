@@ -144,7 +144,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
         if element_list is not None:
             for element in element_list:
                 s = "".join(i for i in element if not i.isdigit())
-                if isinstance(s[-1], type(1)):
+                if isinstance(s[-1], int):
                     s = s[:-1]
                 if s in cost.keys():
                     the_cost += cost[s]

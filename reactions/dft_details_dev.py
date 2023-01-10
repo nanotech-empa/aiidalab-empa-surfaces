@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 from collections import OrderedDict
 
 import ipywidgets as ipw
@@ -499,7 +497,7 @@ class DFTDetails(ipw.VBox):
 
         ##################SUPER
 
-        super(DFTDetails, self).__init__(children=visualize_widgets, **kwargs)
+        super().__init__(children=visualize_widgets, **kwargs)
 
         with self.dft_out:
             display(self.mgrid_cutoff)
