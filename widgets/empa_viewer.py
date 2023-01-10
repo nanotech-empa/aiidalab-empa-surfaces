@@ -2,8 +2,9 @@ import nglview
 import numpy as np
 from aiidalab_widgets_base.structures import StructureDataViewer
 from aiidalab_widgets_base.utils import list_to_string_range, string_range_to_list
-from .ANALYZE_structure import StructureAnalyzer
 from traitlets import Dict, Unicode, observe
+
+from .ANALYZE_structure import StructureAnalyzer
 
 
 ## custom set for visualization

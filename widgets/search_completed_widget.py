@@ -1,8 +1,8 @@
 from __future__ import absolute_import, print_function
 
 import datetime
-import pathlib
 import importlib
+import pathlib
 
 import ipywidgets as ipw
 from aiida.orm import (
@@ -15,9 +15,9 @@ from aiida.orm import (
     load_node,
 )
 from aiidalab_widgets_base import viewer
+from IPython.display import clear_output, display
 
 from .ANALYZE_structure import StructureAnalyzer
-from IPython.display import clear_output, display
 
 FIELDS_DISABLE_DEFAULT = {
     "cell": True,
@@ -116,10 +116,14 @@ class SearchCompletedWidget(ipw.VBox):
     def search(self):
 
         self.results.value = "searching..."
-        scanning_probe_common = pathlib.Path.home() / 'apps' / 'scanning_probe' / 'common.py'
+        scanning_probe_common = (
+            pathlib.Path.home() / "apps" / "scanning_probe" / "common.py"
+        )
         if scanning_probe_common.exists():
-            loader = importlib.machinery.SourceFileLoader('common', str(scanning_probe_common))
-            spec = importlib.util.spec_from_loader('common', loader)
+            loader = importlib.machinery.SourceFileLoader(
+                "common", str(scanning_probe_common)
+            )
+            spec = importlib.util.spec_from_loader("common", loader)
             common = importlib.util.module_from_spec(spec)
             loader.exec_module(common)
             common.preprocess_spm_calcs(
@@ -252,8 +256,7 @@ class SearchCompletedWidget(ipw.VBox):
                 extra_calc_links += calc_links_str
 
             ### --------------------------------------------------
-            
-            
+
             ### --------------------------------------------------
             ### add links to AdsorptionEnergy calcs
             if "Cp2kAdsorptionEnergyWorkChain_pks" in st_extras:
@@ -268,8 +271,7 @@ class SearchCompletedWidget(ipw.VBox):
 
                 extra_calc_links += calc_links_str
 
-            ### --------------------------------------------------            
-            
+            ### --------------------------------------------------
 
             extra_calc_area = (
                 "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> %s </div>"

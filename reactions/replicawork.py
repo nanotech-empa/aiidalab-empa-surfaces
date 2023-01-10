@@ -22,6 +22,7 @@ import shutil
 import tempfile
 
 import numpy as np
+
 from . import analyze_structure
 from .get_cp2k_input import Get_CP2K_Input
 
