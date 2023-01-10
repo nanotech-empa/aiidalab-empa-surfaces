@@ -335,7 +335,7 @@ class EmpaStructureViewer(StructureDataViewer):
         try:
             cell_z = self.structure.cell[2, 2]
             com = self.structure.get_center_of_mass()
-            def_orientation = self._viewer._camera_orientation
+            self._viewer._camera_orientation
             top_z_orientation = [
                 1.0,
                 0.0,

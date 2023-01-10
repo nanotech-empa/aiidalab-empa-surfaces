@@ -1,10 +1,6 @@
 import copy
-import re
-import time
-import urllib.parse
 from base64 import b64encode
 from collections import OrderedDict
-from pprint import pprint
 from tempfile import NamedTemporaryFile
 
 import ase.io

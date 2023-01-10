@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 import ipywidgets as ipw
 import numpy as np
 from IPython.display import HTML, clear_output, display

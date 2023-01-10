@@ -1,6 +1,5 @@
 from __future__ import absolute_import, print_function
 
-from collections import OrderedDict
 
 import ipywidgets as ipw
 from IPython.display import clear_output, display

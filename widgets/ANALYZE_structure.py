@@ -1,5 +1,4 @@
 import itertools
-from collections import Counter
 from copy import deepcopy
 
 import ipywidgets as ipw
@@ -139,8 +138,8 @@ class StructureAnalyzer(HasTraits):
             rel_height=peak_rel_height,
         )
         layersg = z_values[peaks[0].tolist()]
-        n_tot_layers = len(layersg)
-        last_layer = layersg[-1]
+        len(layersg)
+        layersg[-1]
 
         ##check top and bottom layers should be documented better
 

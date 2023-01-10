@@ -102,7 +102,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
     @staticmethod
     def pybel2ase(mol):
         """converts pybel molecule into ase Atoms"""
-        asemol = Atoms()
+        Atoms()
         species = [chemical_symbols[atm.atomicnum] for atm in mol.atoms]
         pos = np.asarray([atm.coords for atm in mol.atoms])
         pca = PCA(n_components=3)

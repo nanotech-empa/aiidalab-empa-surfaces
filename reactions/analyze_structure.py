@@ -1,5 +1,4 @@
 import itertools
-from collections import Counter
 
 import ase.neighborlist
 import ipywidgets as ipw
@@ -83,8 +82,8 @@ def get_types(frame, thr):  ## Piero Gasparotto
         rel_height=peak_rel_height,
     )
     layersg = z_values[peaks[0].tolist()]
-    n_tot_layers = len(layersg)
-    last_layer = layersg[-1]
+    len(layersg)
+    layersg[-1]
 
     ##check top and bottom layers
 
@@ -281,7 +280,6 @@ def analyze(atoms):
     total_charge = np.sum(atoms.get_atomic_numbers())
     bottom_H = []
     adatoms = []
-    remaining = []
     metalatings = []
     unclassified = []
     slabatoms = []

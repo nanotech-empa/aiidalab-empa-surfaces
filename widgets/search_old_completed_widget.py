@@ -221,7 +221,7 @@ class SearchCompletedWidget(ipw.VBox):
                 extra_calc_links += apps.scanning_probe.common.create_viewer_link_html(
                     st_extras, "../"
                 )
-            except Exception as e:
+            except Exception:
                 pass
             ### --------------------------------------------------
 

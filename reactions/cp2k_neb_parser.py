@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import io
-import os
 import re
 
 import ase
@@ -122,8 +120,6 @@ class Cp2kNebParser(Parser):
         cell_lines = [line.strip().split() for line in m.group(1).split("\n")]
         cell_str = [line[1:] for line in cell_lines if line[0] in "ABC"]
         cell = np.array(cell_str, np.float64)
-
-        structure_data_list = []
 
         matches = re.findall(
             r"\n\s*&COORD\n(.*?)\n\s*&END COORD\n", output_string, re.DOTALL

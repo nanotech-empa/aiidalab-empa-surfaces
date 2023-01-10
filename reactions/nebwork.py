@@ -20,7 +20,6 @@ from aiida.plugins import CalculationFactory, WorkflowFactory
 
 Cp2kCalculation = CalculationFactory("cp2k")
 
-import os
 
 import numpy as np
 

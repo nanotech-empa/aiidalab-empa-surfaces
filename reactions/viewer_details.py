@@ -186,7 +186,7 @@ class ViewerDetails(ipw.VBox):
         # Orient camera to look from positive z
         cell_z = self.atoms.cell[2, 2]
         com = self.atoms.get_center_of_mass()
-        def_orientation = self.viewer._camera_orientation
+        self.viewer._camera_orientation
         top_z_orientation = [
             1.0,
             0.0,
