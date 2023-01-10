@@ -3,17 +3,9 @@ import importlib
 import pathlib
 
 import ipywidgets as ipw
-from aiida.orm import (
-    CalcFunctionNode,
-    CalcJobNode,
-    Node,
-    QueryBuilder,
-    StructureData,
-    WorkChainNode,
-    load_node,
-)
+from aiida.orm import CalcJobNode, QueryBuilder, WorkChainNode, load_node
 from aiidalab_widgets_base import viewer
-from IPython.display import clear_output, display
+from IPython.display import clear_output
 
 from .ANALYZE_structure import StructureAnalyzer
 
@@ -143,7 +135,7 @@ class SearchCompletedWidget(ipw.VBox):
 
         self.value = "searching..."
 
-        # html table header
+        # HTML table header.
         html = "<style>#aiida_results td,th {padding: 2px}</style>"
         html += '<table border=1 id="aiida_results" style="margin:0px"><tr>'
         html += "<th>PK</th>"
@@ -162,7 +154,7 @@ class SearchCompletedWidget(ipw.VBox):
             html += '<th style="width: 10%">Extras</th>'
         html += "</tr>"
 
-        # query AiiDA database
+        # Query AiiDA database.
         filters = {}
         filters["label"] = self.wlabel
         filters["extras.preprocess_version"] = self.version
@@ -198,19 +190,19 @@ class SearchCompletedWidget(ipw.VBox):
         qb.append(WorkChainNode, filters=filters)
         qb.order_by({WorkChainNode: {"ctime": "desc"}})
 
-        for i, node_tuple in enumerate(qb.iterall()):
+        for node_tuple in qb.iterall():
             node = node_tuple[0]
             thumbnail = node.extras["thumbnail"]
             description = node.extras["structure_description"]
             opt_structure_uuid = node.extras["opt_structure_uuid"]
 
-            ## Find all extra calculations done on the optimized geometry
+            # Find all extra calculations done on the optimized geometry
             extra_calc_links = ""
             opt_structure = load_node(opt_structure_uuid)
             st_extras = opt_structure.extras
 
-            ### --------------------------------------------------
-            ### add links to SPM calcs
+            # --------------------------------------------------
+            # Add links to SPM calcs
             try:
                 import apps.scanning_probe.common
 
@@ -219,10 +211,10 @@ class SearchCompletedWidget(ipw.VBox):
                 )
             except Exception:
                 pass
-            ### --------------------------------------------------
+            # --------------------------------------------------
 
-            ### --------------------------------------------------
-            ### add links to GW calcs
+            # --------------------------------------------------
+            # Add links to GW calcs
             if "Cp2kAdsorbedGwIcWorkChain_pks" in st_extras:
                 calc_links_str = ""
                 nr = 0
@@ -235,14 +227,14 @@ class SearchCompletedWidget(ipw.VBox):
 
                 extra_calc_links += calc_links_str
 
-            ### --------------------------------------------------
+            # --------------------------------------------------
 
             extra_calc_area = (
                 "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> %s </div>"
                 % extra_calc_links
             )
 
-            # append table row
+            # Append table row.
             html += "<tr>"
             html += "<td>%d</td>" % node.pk
             html += "<td>%s</td>" % node.ctime.strftime("%Y-%m-%d %H:%M")
@@ -253,7 +245,7 @@ class SearchCompletedWidget(ipw.VBox):
                 html += "<td>%s</td>" % node.extras["cell"]
             if not self.fields_disable["volume"]:
                 html += "<td>%f</td>" % node.extras["volume"]
-            # image with a link to structure export
+            # Image with a link to structure export
             html += (
                 '<td><a target="_blank" href="./export_structure.ipynb?uuid=%s">'
                 % opt_structure_uuid

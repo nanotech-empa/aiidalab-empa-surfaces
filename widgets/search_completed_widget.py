@@ -3,19 +3,8 @@ import importlib
 import pathlib
 
 import ipywidgets as ipw
-from aiida.orm import (
-    CalcFunctionNode,
-    CalcJobNode,
-    Node,
-    QueryBuilder,
-    StructureData,
-    WorkChainNode,
-    load_node,
-)
-from aiidalab_widgets_base import viewer
-from IPython.display import clear_output, display
-
-from .ANALYZE_structure import StructureAnalyzer
+from aiida.orm import QueryBuilder, WorkChainNode
+from IPython.display import clear_output
 
 FIELDS_DISABLE_DEFAULT = {
     "cell": True,
@@ -33,7 +22,7 @@ class SearchCompletedWidget(ipw.VBox):
         self.fields_disable = FIELDS_DISABLE_DEFAULT
         for fd in fields_disable:
             self.fields_disable[fd] = fields_disable[fd]
-        # search UI
+        # Search UI.
         self.wlabel = wlabel
         style = {"description_width": "150px"}
         layout = ipw.Layout(width="600px")
@@ -56,8 +45,7 @@ class SearchCompletedWidget(ipw.VBox):
             style=style,
         )
 
-        # ---------
-        # date selection
+        # Date selection.
         dt_now = datetime.datetime.now()
         dt_from = dt_now - datetime.timedelta(days=20)
         self.date_start = ipw.Text(
@@ -75,7 +63,6 @@ class SearchCompletedWidget(ipw.VBox):
         )
 
         self.date_text = ipw.HTML(value="<p>Select the date range:</p>", width="150px")
-        # ---------
 
         search_crit = [
             self.inp_pks,
@@ -106,10 +93,7 @@ class SearchCompletedWidget(ipw.VBox):
             children=search_crit + [buttons_hbox, self.results, self.info_out]
         )
 
-        # self.search()
         super().__init__([app])
-
-        # display(app)
 
     def search(self):
 
@@ -196,7 +180,7 @@ class SearchCompletedWidget(ipw.VBox):
         qb.append(WorkChainNode, filters=filters)
         qb.order_by({WorkChainNode: {"ctime": "desc"}})
 
-        for i, node_tuple in enumerate(qb.iterall()):
+        for node_tuple in qb.iterall():
             node = node_tuple[0]
             thumbnail = ""
             try:
@@ -206,12 +190,12 @@ class SearchCompletedWidget(ipw.VBox):
             description = node.description
             opt_structure = node.outputs.output_structure
 
-            ## Find all extra calculations done on the optimized geometry
+            # Find all extra calculations done on the optimized geometry.
             extra_calc_links = ""
             st_extras = opt_structure.extras
 
-            ### --------------------------------------------------
-            ### add links to SPM calcs
+            # --------------------------------------------------
+            # Add links to SPM calcs.
             try:
                 import apps.scanning_probe.common
 
@@ -220,10 +204,10 @@ class SearchCompletedWidget(ipw.VBox):
                 )
             except Exception:
                 pass
-            ### --------------------------------------------------
+            # --------------------------------------------------
 
-            ### --------------------------------------------------
-            ### add links to GW-IC calcs
+            # --------------------------------------------------
+            # Add links to GW-IC calcs.
             if "Cp2kAdsorbedGwIcWorkChain_pks" in st_extras:
                 calc_links_str = ""
                 nr = 0
@@ -236,9 +220,9 @@ class SearchCompletedWidget(ipw.VBox):
 
                 extra_calc_links += calc_links_str
 
-            ### --------------------------------------------------
+            # --------------------------------------------------
 
-            ### add links to GW calcs
+            # Add links to GW calcs.
             if "Cp2kMoleculeOptGwWorkChain_pks" in st_extras:
                 calc_links_str = ""
                 nr = 0
@@ -251,10 +235,10 @@ class SearchCompletedWidget(ipw.VBox):
 
                 extra_calc_links += calc_links_str
 
-            ### --------------------------------------------------
+            # --------------------------------------------------
 
-            ### --------------------------------------------------
-            ### add links to AdsorptionEnergy calcs
+            # --------------------------------------------------
+            # Add links to AdsorptionEnergy calcs.
             if "Cp2kAdsorptionEnergyWorkChain_pks" in st_extras:
                 calc_links_str = ""
                 nr = 0
@@ -267,7 +251,7 @@ class SearchCompletedWidget(ipw.VBox):
 
                 extra_calc_links += calc_links_str
 
-            ### --------------------------------------------------
+            # --------------------------------------------------
 
             extra_calc_area = (
                 "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> %s </div>"

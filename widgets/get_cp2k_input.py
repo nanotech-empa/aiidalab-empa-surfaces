@@ -1,5 +1,3 @@
-# from aiida.orm import Int, Float, Str, Bool, List
-# from aiida.orm import  Dict
 import copy
 import itertools
 
@@ -60,7 +58,7 @@ ATOMIC_KINDS["O"]["GW_BASIS_SET_HQ"] = "aug-cc-pVQZ"
 ATOMIC_KINDS["S"]["GW_BASIS_SET_HQ"] = "aug-cc-pVQZ"
 ATOMIC_KINDS["Zn"]["GW_BASIS_SET_HQ"] = "aug-cc-pVQZ"
 
-# possible metal atoms for empirical substrate
+# Possible metal atoms for empirical substrate.
 METAL_ATOMS = ["Au", "Ag", "Cu"]
 
 DEFAULT_INPUT_DICT = {
@@ -89,11 +87,11 @@ DEFAULT_INPUT_DICT = {
     "parent_folder": None,  # why is ext_restart named this?
     "periodic": None,
     "poisson_solver": None,
-    #'remote_calc_folder'    : None                  ,
+    # 'remote_calc_folder'    : None                  ,
     "smear": False,
     "spin_d": "",
     "spin_u": "",
-    #'struc_folder'          : None                  ,
+    # 'struc_folder'          : None                  ,
     "vdw_switch": None,
     "walltime": 86000,
     "workchain": "SlabGeoOptWorkChain",
@@ -111,25 +109,6 @@ DEFAULT_INPUT_DICT = {
     "subsys_colvar": None,
     "target_unit": None,
 }
-
-
-########py_type_conversion={type(Str(''))   : str   ,
-########                   type(Bool(True)) : bool  ,
-########                   type(Float(1.0)) : float ,
-########                   type(Int(1))     : int
-########                  }
-########
-########def to_py_type(aiida_obj):
-########    if type(aiida_obj) in py_type_conversion.keys():
-########        return py_type_conversion[type(aiida_obj)](aiida_obj)
-########    elif type(aiida_obj) == type(List()):
-########        pylist=list(aiida_obj)
-########        return pylist
-########    elif type(aiida_obj) == type(Dict()):
-########        pydict=aiida_obj.get_dict()
-########        return pydict
-########    else:
-########        return aiida_obj
 
 
 class Get_CP2K_Input:
@@ -161,7 +140,7 @@ class Get_CP2K_Input:
             "XC_FUNCTIONAL": {"_": "PBE"},
         }
 
-        ### XC FOR GW
+        # XC FOR GW
         self.xc_gw = {}
 
         # maybe we will reintroduce EPS_DEFAULT
@@ -242,7 +221,7 @@ class Get_CP2K_Input:
             # TO BE IMPLEMENTED
             self.xc_gw = {}  # END XC
 
-        ###END XC FOR GW
+        # END XC FOR GW
 
         self.sections_dict = {
             "SlabGeoOptWorkChain": {
@@ -295,7 +274,7 @@ class Get_CP2K_Input:
             },
         }
 
-        ################ START INPUT SECTIONS
+        # START INPUT SECTIONS
         self.workchain = self.inp_dict["workchain"]
         self.cell = self.inp_dict["cell"].split()
         if len(self.cell) == 3:
@@ -315,16 +294,16 @@ class Get_CP2K_Input:
         if self.inp_dict["gw_type"]:
             self.inp["GLOBAL"]["PRINT_LEVEL"] = "MEDIUM"
 
-        ### CHECK WHETHER MOTION SECTION NEEDED OR NOT
+        # CHECK WHETHER MOTION SECTION NEEDED OR NOT
         if self.sections_dict[self.workchain]["motion"]:
             self.inp["MOTION"] = self.get_motion()
 
-        ### EXTERNAL RESTART from parent folder
+        # EXTERNAL RESTART from parent folder
         if self.inp_dict["parent_folder"] is not None:
             self.inp["EXT_RESTART"] = {
                 "RESTART_FILE_NAME": "   ./parent_calc/aiida-1.restart"
             }
-        ### FORCEVAL case MIXED DFTB
+        # FORCEVAL case MIXED DFTB
         if self.inp_dict["calc_type"] == "Mixed DFTB":
             self.inp["FORCE_EVAL"] = [
                 self.force_eval_mixed(),
@@ -336,7 +315,7 @@ class Get_CP2K_Input:
                 "MULTIPLE_SUBSYS": "T",
             }
 
-        ### FORCEVAL case MIXED DFT
+        # FORCEVAL case MIXED DFT
         elif self.inp_dict["calc_type"] == "Mixed DFT":
             self.inp_dict["topology"] = "mol.xyz"
             self.inp["FORCE_EVAL"] = [
@@ -350,9 +329,9 @@ class Get_CP2K_Input:
                 "MULTIPLE_SUBSYS": "T",
             }
 
-        ### FULL DFT CALCULATIONS
+        # FULL DFT CALCULATIONS
         elif self.inp_dict["calc_type"] == "Full DFT":
-            ## XYZ file name for DFT section
+            # XYZ file name for DFT section
 
             if self.workchain == "NEBWorkChain":
                 full_dft_topology = "replica1.xyz"
@@ -367,30 +346,17 @@ class Get_CP2K_Input:
             self.inp_dict["topology"] = full_dft_topology
             self.inp["FORCE_EVAL"] = self.get_force_eval_qs_dft()
 
-        # ----
-        # add the colvar subsystem for Replica calcs
+        # Add the colvar subsystem for Replica calcs.
         subsys_cv = self.inp_dict["subsys_colvar"]
         if subsys_cv is not None:
             if isinstance(self.inp["FORCE_EVAL"], list):
-                # mixed environment, add only to first force_eval
+                # Mixed environment, add only to first force_eval
                 self.inp["FORCE_EVAL"][0]["SUBSYS"]["COLVAR"] = subsys_cv
             else:
                 self.inp["FORCE_EVAL"]["SUBSYS"]["COLVAR"] = subsys_cv
-        # ----
 
-    ### MOTION SECTION
+    # MOTION SECTION
     def get_motion(self):
-
-        #        motion = {
-        #                   'PRINT' : {
-        #                      'RESTART_HISTORY' :{'_': 'OFF'},
-        #                   },
-        #            'CONSTRAINT': {
-        #                'FIXED_ATOMS': {
-        #                    'LIST': '%s' % (self.inp_dict['fixed_atoms']),
-        #                }
-        #            }
-        #        }
 
         motion = {
             "PRINT": {
@@ -404,7 +370,7 @@ class Get_CP2K_Input:
                 }
             }
 
-        ### GEO_OPT
+        # GEO_OPT
         if (
             self.workchain == "SlabGeoOptWorkChain"
             or self.workchain == "BulkOptWorkChain"
@@ -418,9 +384,9 @@ class Get_CP2K_Input:
                     "TRUST_RADIUS": "[bohr] 0.1",
                 },
             }
-        ### END GEO_OPT
+        # END GEO_OPT
 
-        ### CELL_OPT
+        # CELL_OPT
         if self.workchain == "CellOptWorkChain":
             motion["CELL_OPT"] = {
                 "OPTIMIZER": "BFGS",
@@ -431,9 +397,9 @@ class Get_CP2K_Input:
             }
             if self.inp_dict["cell_free"] != "FREE":
                 motion["CELL_OPT"][str(self.inp_dict["cell_free"])] = ""
-        #### END CELL_OPT
+        # END CELL_OPT
 
-        ### NEB
+        # NEB
         if self.workchain == "NEBWorkChain":
 
             motion["BAND"] = {
@@ -466,9 +432,9 @@ class Get_CP2K_Input:
                     {"COORD_FILE_NAME": f"replica{r + 1}.xyz"}
                 )
 
-        ### END NEB
+        # END NEB
 
-        ### REPLICA CHAIN
+        # REPLICA CHAIN
         if self.workchain == "ReplicaWorkChain":
 
             cv_section = {
@@ -489,11 +455,11 @@ class Get_CP2K_Input:
             else:
                 motion["CONSTRAINT"] = {"COLLECTIVE": cv_section}
 
-        ### END REPLICA CHAIN
+        # END REPLICA CHAIN
 
         return motion
 
-    ### MULTI FORCEVAL FOR MIXED
+    # MULTI FORCEVAL FOR MIXED
     def force_eval_mixed(self):
         first_mol_atom = 1
         last_mol_atom = self.inp_dict["first_slab_atom"] - 1
@@ -546,7 +512,7 @@ class Get_CP2K_Input:
 
         return force_eval
 
-    ### FIST FOR MIXED
+    # FIST FOR MIXED
     def force_eval_fist(self):
         ff = {
             "SPLINE": {
@@ -634,7 +600,7 @@ class Get_CP2K_Input:
         }
         return force_eval
 
-    ### DFTB for MIXED
+    # DFTB for MIXED
     def get_force_eval_qs_dftb(self):
         force_eval = {
             "METHOD": "Quickstep",
@@ -698,8 +664,6 @@ class Get_CP2K_Input:
 
         return force_eval
 
-    # ==========================================================================
-
     def get_force_eval_qs_dft(self):
 
         if not self.inp_dict["gw_type"]:
@@ -709,7 +673,7 @@ class Get_CP2K_Input:
             potential = "ALL_POTENTIALS"
             basis_set = "GW_BASIS_SET"
 
-        ### SCF PRINT
+        # SCF PRINT
         print_scf = {
             "RESTART": {
                 "EACH": {
@@ -722,7 +686,7 @@ class Get_CP2K_Input:
             "RESTART_HISTORY": {"_": "OFF"},
         }
 
-        ### DIAGONALIZATION AND OT
+        # DIAGONALIZATION AND OT
         scf_opt = {
             "OT": {
                 "MAX_SCF": "40",
@@ -779,7 +743,7 @@ class Get_CP2K_Input:
             },
         }
 
-        ### SMEARING
+        # SMEARING
         smear = {
             "_": "ON",
             "METHOD": "FERMI_DIRAC",
@@ -788,11 +752,11 @@ class Get_CP2K_Input:
         if self.inp_dict["smear"]:
             scf_opt["DIAG"]["SMEAR"] = smear
 
-        ### ADDED_MOS
+        # ADDED_MOS
         if self.inp_dict["added_mos"]:
             scf_opt["ADDED_MOS"] = self.inp_dict["added_mos"]
 
-        ### FORCEVAL MAIN
+        # FORCEVAL MAIN
         force_eval = {
             "METHOD": "Quickstep",
             "DFT": {
@@ -848,7 +812,7 @@ class Get_CP2K_Input:
             force_eval["DFT"]["UKS"] = ""
             force_eval["DFT"]["MULTIPLICITY"] = self.inp_dict["multiplicity"]
 
-        ### POISSON SOLVER
+        # POISSON SOLVER
         if self.inp_dict["periodic"]:
             force_eval["DFT"]["POISSON"] = {
                 "PERIODIC": self.inp_dict["periodic"],
@@ -856,7 +820,7 @@ class Get_CP2K_Input:
             }
             force_eval["SUBSYS"]["CELL"].update({"PERIODIC": self.inp_dict["periodic"]})
 
-        ### VDW
+        # VDW
         if self.inp_dict["vdw_switch"]:
             force_eval["DFT"]["XC"]["VDW_POTENTIAL"] = {
                 "DISPERSION_FUNCTIONAL": "PAIR_POTENTIAL",
@@ -869,11 +833,11 @@ class Get_CP2K_Input:
                 },
             }
 
-        ### CENTER COORDINATES
+        # CENTER COORDINATES
         if self.inp_dict["center_coordinates"]:
             force_eval["SUBSYS"]["TOPOLOGY"]["CENTER_COORDINATES"] = ({"_": ""},)
 
-        ### KINDS SECTIONS
+        # KINDS sections
         kinds_used = list(set(self.inp_dict["elements"]))
 
         for kind in kinds_used:
@@ -899,7 +863,7 @@ class Get_CP2K_Input:
                 force_eval["SUBSYS"]["KIND"][-1]["ELEMENT"] = kind
                 force_eval["SUBSYS"]["KIND"][-1]["BASIS_SET RI_AUX"] = ba
 
-        ### ADD KINDS for SPIN GUESS : DFT AND GW cases
+        #  ADD KINDS for SPIN GUESS : DFT AND GW cases
         spin_dict = {
             "C": {"n": "2", "l": "1", "nel": [1, -1]},
             "N": {"n": "2", "l": "1", "nel": [1, -1]},
@@ -936,7 +900,7 @@ class Get_CP2K_Input:
                                     "L": spin_dict[element]["l"],
                                     "N": spin_dict[element]["n"],
                                 },
-                                ####BETA CONSTRAINED TO ALPHA
+                                # BETA constrained to ALPHA
                                 "BETA": {
                                     "NEL": -1 * +spin_dict[element]["nel"][u - 1],
                                     "L": spin_dict[element]["l"],
@@ -947,13 +911,13 @@ class Get_CP2K_Input:
                     )
                     if self.inp_dict["gw_type"]:
                         force_eval["SUBSYS"]["KIND"][-1]["BASIS_SET RI_AUX"] = ba
-            ##### END ADD KINDS
+            # END ADD KINDS
 
-        ### STRESS TENSOR for CELL_OPT
+        # STRESS_TENSOR for CELL_OPT
         if self.workchain == "CellOptWorkChain":
             force_eval["STRESS_TENSOR"] = "ANALYTICAL"
 
-        ### RESTART from .wfn IF NOT NEB
+        # Restart from .wfn if not NEB
         if self.workchain != "NEBWorkChain":
             force_eval["DFT"]["RESTART_FILE_NAME"] = "./parent_calc/aiida-RESTART.wfn"
 
