@@ -6,12 +6,11 @@ repos:
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.4.0
       hooks:
-          - id: check-json
-          - id: check-yaml
           - id: end-of-file-fixer
           - id: trailing-whitespace
             exclude: miscellaneous/structures/SiO2.xyz
-
+          - id: check-yaml
+          - id: check-added-large-files
     - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
       rev: 0.2.2
       hooks:
@@ -41,8 +40,3 @@ repos:
       rev: v2.2.0
       hooks:
           - id: setup-cfg-fmt
-
-    - repo: https://github.com/sirosen/check-jsonschema
-      rev: 0.20.0
-      hooks:
-          - id: check-github-workflow
