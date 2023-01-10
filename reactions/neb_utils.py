@@ -140,8 +140,6 @@ def mk_wfn_cp_commands(nreplicas=None, replica_pks=None, selected_computer=None)
 
         print(name, closest_available)
 
-        list_of_cp_commands.append(
-            "cp {} ./{}".format(available_wfn_paths[index_wfn], name)
-        )
+        list_of_cp_commands.append(f"cp {available_wfn_paths[index_wfn]} ./{name}")
 
     return list_of_cp_commands

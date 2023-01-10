@@ -383,7 +383,7 @@ class SearchReplicaWidget(ipw.VBox):
                     "Skipping: %s %s "
                     % (
                         str(wc.pk),
-                        "cv_def: {}, cv_inc: {}".format(str(cv_def), str(cv_inc)),
+                        f"cv_def: {str(cv_def)}, cv_inc: {str(cv_inc)}",
                     )
                 )
                 print("----")

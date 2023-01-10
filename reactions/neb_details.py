@@ -262,9 +262,7 @@ class NebDetails(ipw.VBox):
 
             print(name, closest_available)
 
-            list_of_cp_commands.append(
-                "cp {} ./{}".format(available_wfn_paths[index_wfn], name)
-            )
+            list_of_cp_commands.append(f"cp {available_wfn_paths[index_wfn]} ./{name}")
 
         return list_of_cp_commands
 
