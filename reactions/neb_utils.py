@@ -1,4 +1,3 @@
-import os
 import shutil
 import subprocess
 import tempfile
@@ -39,7 +38,7 @@ def mk_coord_files(replica_pks=None, all_mols=None, calc_type=None):
     for i, s in enumerate(structures):
         # float_progress.value = 1.0*i/len(structures)
         atoms = s.get_ase()
-        molslab_fn = tmpdir + "/replica{}.xyz".format(i + 1)
+        molslab_fn = tmpdir + f"/replica{i + 1}.xyz"
         atoms.write(molslab_fn)
 
     fd.replace_with_folder(folder=tmpdir)
@@ -141,8 +140,6 @@ def mk_wfn_cp_commands(nreplicas=None, replica_pks=None, selected_computer=None)
 
         print(name, closest_available)
 
-        list_of_cp_commands.append(
-            "cp %s ./%s" % (available_wfn_paths[index_wfn], name)
-        )
+        list_of_cp_commands.append(f"cp {available_wfn_paths[index_wfn]} ./{name}")
 
     return list_of_cp_commands

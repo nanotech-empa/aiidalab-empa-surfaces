@@ -26,7 +26,7 @@ class CommentsWidget(ipw.VBox):
         btn_add_comment.on_click(self.on_add_click)
 
         # self.search()
-        super(CommentsWidget, self).__init__([app])
+        super().__init__([app])
 
     def on_add_click(self, _=None):
         self.node.add_comment(self.new_comment.value)

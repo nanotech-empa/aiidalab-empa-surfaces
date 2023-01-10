@@ -5,14 +5,11 @@ import re
 
 import ase.neighborlist
 import ipywidgets as ipw
-import nglview
 import numpy as np
 from ase import Atoms
 from ase.data import chemical_symbols, covalent_radii
 from ase.neighborlist import NeighborList
-from IPython.display import clear_output
 from scipy.stats import mode
-from sklearn import datasets, manifold
 from sklearn.decomposition import PCA
 from traitlets import Instance
 
@@ -102,7 +99,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
     @staticmethod
     def pybel2ase(mol):
         """converts pybel molecule into ase Atoms"""
-        asemol = Atoms()
+        Atoms()
         species = [chemical_symbols[atm.atomicnum] for atm in mol.atoms]
         pos = np.asarray([atm.coords for atm in mol.atoms])
         pca = PCA(n_components=3)
@@ -152,7 +149,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         self.mols = None
         listmols = []
         molid = 0
-        for fname, item in change["new"].items():
+        for fname, _item in change["new"].items():
             frmt = fname.split(".")[-1]
             if frmt == "cdxml":
                 cdxml_file_string = self.file_upload.value[fname]["content"].decode(
@@ -166,7 +163,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                     self.mols[molid] = m
                     listmols.append(
                         (str(molid) + ": " + m.formula, molid)
-                    )  ## m MUST BE a pb object!!!
+                    )  # m MUST BE a pb object!!!
                     molid += 1
                 self.allmols.options = listmols
 

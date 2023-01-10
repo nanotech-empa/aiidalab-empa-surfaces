@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-
-import io
-import os
 import re
 
 import ase
@@ -51,7 +47,7 @@ class Cp2kNebParser(Parser):
 
         try:
             output_string = self.retrieved.get_object_content(fname)
-        except IOError:
+        except OSError:
             return self.exit_codes.ERROR_OUTPUT_STDOUT_READ
 
         """Parse CP2K output into a dictionary."""
@@ -115,15 +111,13 @@ class Cp2kNebParser(Parser):
         # Read the restart file.
         try:
             output_string = self.retrieved.get_object_content(fname)
-        except IOError:
+        except OSError:
             return self.exit_codes.ERROR_OUTPUT_STDOUT_READ
 
         m = re.search(r"\n\s*&CELL\n(.*?)\n\s*&END CELL\n", output_string, re.DOTALL)
         cell_lines = [line.strip().split() for line in m.group(1).split("\n")]
         cell_str = [line[1:] for line in cell_lines if line[0] in "ABC"]
         cell = np.array(cell_str, np.float64)
-
-        structure_data_list = []
 
         matches = re.findall(
             r"\n\s*&COORD\n(.*?)\n\s*&END COORD\n", output_string, re.DOTALL

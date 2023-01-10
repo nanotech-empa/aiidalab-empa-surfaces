@@ -80,12 +80,12 @@ def table(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
         evals -= evals[0][sel["homo"][0] + energy_ref_i]
 
         cols += [evals[0], sel["occ"][0]]
-        label = "{}_gw".format(node.pk)
+        label = f"{node.pk}_gw"
         if nspin == 1:
-            header += "{:^11s}|".format(label)
+            header += f"{label:^11s}|"
             templ += " %6.2f  %d |"
         else:
-            header += "{:^20s}|".format(label)
+            header += f"{label:^20s}|"
             templ += " %6.2f %d %7.2f %d |"
             cols += [evals[1], sel["occ"][1]]
 
@@ -121,12 +121,12 @@ def table_scf(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
         evals -= evals[0][sel["homo"][0] + energy_ref_i]
 
         cols += [evals[0], sel["occ"][0]]
-        label = "{}_scf".format(node.pk)
+        label = f"{node.pk}_scf"
         if nspin == 1:
-            header += "{:^11s}|".format(label)
+            header += f"{label:^11s}|"
             templ += " %6.2f  %d |"
         else:
-            header += "{:^20s}|".format(label)
+            header += f"{label:^20s}|"
             templ += " %6.2f %d %7.2f %d |"
             cols += [evals[1], sel["occ"][1]]
 

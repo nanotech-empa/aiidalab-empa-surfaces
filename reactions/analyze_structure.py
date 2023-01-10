@@ -1,5 +1,4 @@
 import itertools
-from collections import Counter
 
 import ase.neighborlist
 import ipywidgets as ipw
@@ -83,8 +82,8 @@ def get_types(frame, thr):  ## Piero Gasparotto
         rel_height=peak_rel_height,
     )
     layersg = z_values[peaks[0].tolist()]
-    n_tot_layers = len(layersg)
-    last_layer = layersg[-1]
+    len(layersg)
+    layersg[-1]
 
     ##check top and bottom layers
 
@@ -281,7 +280,6 @@ def analyze(atoms):
     total_charge = np.sum(atoms.get_atomic_numbers())
     bottom_H = []
     adatoms = []
-    remaining = []
     metalatings = []
     unclassified = []
     slabatoms = []
@@ -291,12 +289,10 @@ def analyze(atoms):
     is_a_molecule = False
     is_a_wire = False
 
-    spins_up = set(
-        str(the_a.symbol) + str(the_a.tag) for the_a in atoms if the_a.tag == 1
-    )
-    spins_down = set(
+    spins_up = {str(the_a.symbol) + str(the_a.tag) for the_a in atoms if the_a.tag == 1}
+    spins_down = {
         str(the_a.symbol) + str(the_a.tag) for the_a in atoms if the_a.tag == 2
-    )
+    }
     #### check if there is vacuum otherwise classify as bulk and skip
 
     vacuum_x = (
@@ -388,7 +384,7 @@ def analyze(atoms):
         summary = "Slab " + slabtype + " contains: \n"
 
     if len(slabatoms) == 0:
-        slab_elements = set([])
+        slab_elements = set()
     else:
         slab_elements = set(atoms[slabatoms].get_chemical_symbols())
 

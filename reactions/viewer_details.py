@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import numbers
 
 import ipywidgets as ipw
@@ -38,7 +36,7 @@ class ViewerDetails(ipw.VBox):
 
         children = [self.viewer, self.info_out]
 
-        super(ViewerDetails, self).__init__(children=children, **kwargs)
+        super().__init__(children=children, **kwargs)
 
     def _on_atom_click(self, c):
         if "atom1" not in self.viewer.picked.keys():
@@ -186,7 +184,7 @@ class ViewerDetails(ipw.VBox):
         # Orient camera to look from positive z
         cell_z = self.atoms.cell[2, 2]
         com = self.atoms.get_center_of_mass()
-        def_orientation = self.viewer._camera_orientation
+        self.viewer._camera_orientation
         top_z_orientation = [
             1.0,
             0.0,

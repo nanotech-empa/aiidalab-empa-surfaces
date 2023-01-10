@@ -187,7 +187,6 @@ def analyze_slab(atoms):
 
     ##slab layers
     dz = 1.0
-    ddz = 0.01
 
     #    zmin different from one already computed above
     id_zmin = np.argmin(atoms[slabatoms].positions[:, 2])

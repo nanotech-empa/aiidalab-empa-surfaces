@@ -1,5 +1,4 @@
 import itertools
-from collections import Counter
 from copy import deepcopy
 
 import ipywidgets as ipw
@@ -139,8 +138,8 @@ class StructureAnalyzer(HasTraits):
             rel_height=peak_rel_height,
         )
         layersg = z_values[peaks[0].tolist()]
-        n_tot_layers = len(layersg)
-        last_layer = layersg[-1]
+        len(layersg)
+        layersg[-1]
 
         ##check top and bottom layers should be documented better
 
@@ -431,7 +430,7 @@ class StructureAnalyzer(HasTraits):
             "Cell: " + " ".join([str(i) for i in atoms.cell.diagonal().tolist()]) + "\n"
         )
         if len(slabatoms) == 0:
-            slab_elements = set([])
+            slab_elements = set()
         else:
             slab_elements = set(atoms[slabatoms].get_chemical_symbols())
 

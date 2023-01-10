@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import shutil
 import subprocess
 import tempfile
@@ -139,7 +137,7 @@ class NebDetails(ipw.VBox):
             self.replica_setup_out,
         ]
 
-        super(NebDetails, self).__init__(children=children, **kwargs)
+        super().__init__(children=children, **kwargs)
 
     def generate_struct_folder(self, calc_type="Full DFT"):
 
@@ -162,7 +160,7 @@ class NebDetails(ipw.VBox):
         # And we also write all the replicas up to the final geometry.
         for i, s in enumerate(structures):
             atoms = s.get_ase()
-            molslab_fn = tmpdir + "/replica{}.xyz".format(i + 1)
+            molslab_fn = tmpdir + f"/replica{i + 1}.xyz"
             atoms.write(molslab_fn)
 
         fd = FolderData(tree=tmpdir)
@@ -264,9 +262,7 @@ class NebDetails(ipw.VBox):
 
             print(name, closest_available)
 
-            list_of_cp_commands.append(
-                "cp %s ./%s" % (available_wfn_paths[index_wfn], name)
-            )
+            list_of_cp_commands.append(f"cp {available_wfn_paths[index_wfn]} ./{name}")
 
         return list_of_cp_commands
 

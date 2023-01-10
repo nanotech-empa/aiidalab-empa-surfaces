@@ -284,7 +284,7 @@ class EmpaStructureViewer(StructureDataViewer):
             ## keys must be integers 0,1,2,...
             if vis_dict:
                 self.sys_type = self.details["system_type"]
-                types = set([vis_dict[i]["type"] for i in range(len(vis_dict))])
+                types = {vis_dict[i]["type"] for i in range(len(vis_dict))}
                 ## only {'ball+stick','licorice'} implemented
                 ## atom pick very difficult with 'licorice' and 'hyperball'
                 if not types.issubset({"ball+stick", "licorice", "hyperball"}):
@@ -335,7 +335,7 @@ class EmpaStructureViewer(StructureDataViewer):
         try:
             cell_z = self.structure.cell[2, 2]
             com = self.structure.get_center_of_mass()
-            def_orientation = self._viewer._camera_orientation
+            self._viewer._camera_orientation
             top_z_orientation = [
                 1.0,
                 0.0,

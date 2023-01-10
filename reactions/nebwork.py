@@ -20,7 +20,6 @@ from aiida.plugins import CalculationFactory, WorkflowFactory
 
 Cp2kCalculation = CalculationFactory("cp2k")
 
-import os
 
 import numpy as np
 
@@ -33,7 +32,7 @@ from .get_cp2k_input import Get_CP2K_Input
 class NEBWorkChain(WorkChain):
     @classmethod
     def define(cls, spec):
-        super(NEBWorkChain, cls).define(spec)
+        super().define(spec)
         spec.input("cp2k_code", valid_type=Code)
         spec.input("structure", valid_type=StructureData)
         spec.input("max_force", valid_type=Float, default=lambda: Float(0.0005))
@@ -68,10 +67,8 @@ class NEBWorkChain(WorkChain):
     # ==========================================================================
     def not_converged(self):
         try:
-            self.report("Convergence check DEBUG: {}".format(self.ctx.neb))
-            self.report(
-                "Convergence check: {}".format(self.ctx.neb.res.exceeded_walltime)
-            )
+            self.report(f"Convergence check DEBUG: {self.ctx.neb}")
+            self.report(f"Convergence check: {self.ctx.neb.res.exceeded_walltime}")
             return self.ctx.neb.res.exceeded_walltime
         except AttributeError:
             return True
@@ -93,12 +90,12 @@ class NEBWorkChain(WorkChain):
         self.ctx.n_files = len(self.ctx.file_list)  # -2
 
         # Report some things
-        self.report("Passed #{} replica geometries + files".format(self.ctx.n_files))
-        self.report("Replicas: {}".format(self.ctx.file_list))
+        self.report(f"Passed #{self.ctx.n_files} replica geometries + files")
+        self.report(f"Replicas: {self.ctx.file_list}")
 
     # ==========================================================================
     def calc_neb(self):
-        self.report("Running CP2K CI-NEB calculation.".format(self.inputs.calc_name))
+        self.report(f"Running CP2K CI-NEB calculation.")
 
         inputs = self.build_calc_inputs(
             cp2k_code=self.inputs.cp2k_code,
@@ -172,7 +169,7 @@ class NEBWorkChain(WorkChain):
         nstepsit=None,
         endpoints=None,
         # file_list          = None,
-        **not_used
+        **not_used,
     ):
 
         inputs = {}
