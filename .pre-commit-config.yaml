@@ -1,6 +1,8 @@
 ---
-repos:
+ci:
+    autoupdat_schedule: quarterly
 
+repos:
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.4.0
       hooks:
@@ -43,4 +45,4 @@ repos:
     - repo: https://github.com/sirosen/check-jsonschema
       rev: 0.20.0
       hooks:
-          - id: check-github-workflows
+          - id: check-github-workflow
