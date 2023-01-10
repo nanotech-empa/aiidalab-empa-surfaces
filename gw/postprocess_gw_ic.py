@@ -139,9 +139,7 @@ def table_scf(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
         print(templ % row)
 
 
-def make_levels_plot(
-    node_list, n_occ=4, n_virt=4, energy_ref_i=0, ylim=None
-):
+def make_levels_plot(node_list, n_occ=4, n_virt=4, energy_ref_i=0, ylim=None):
     plt.figure(figsize=(1.5 * len(node_list), 6))
 
     pos = 0

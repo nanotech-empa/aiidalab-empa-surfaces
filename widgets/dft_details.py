@@ -3,8 +3,9 @@ from __future__ import absolute_import, print_function
 from collections import OrderedDict
 
 import ipywidgets as ipw
-from .analyze_structure import mol_ids_range
 from IPython.display import clear_output, display
+
+from .analyze_structure import mol_ids_range
 
 ###The widgets defined here assign value to the following input keywords
 ###stored in job_details:
