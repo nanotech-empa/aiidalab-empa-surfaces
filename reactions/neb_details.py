@@ -18,10 +18,10 @@ layout3 = {"width": "23%"}
 
 
 class NebDetails(ipw.VBox):
-    def __init__(self, code_drop_down, dft_details_w, **kwargs):
+    def __init__(self, computational_resources, dft_details_w, **kwargs):
         """Dropdown for DFT details"""
 
-        self.code_drop_down = code_drop_down
+        self.computational_resources = computational_resources
         self.dft_details_w = dft_details_w
 
         ### ---------------------------------------------------------
@@ -98,12 +98,12 @@ class NebDetails(ipw.VBox):
             with self.replica_setup_out:
                 clear_output()
 
-                if self.code_drop_down.selected_code is None:
+                if self.computational_resources.value is None:
                     print("please select a computer")
                     self.setup_success = False
                     return
 
-                selected_computer = self.code_drop_down.selected_code.computer
+                selected_computer = self.computational_resources.value.computer
                 replica_pks = [int(a) for a in self.text_replica_pks.value.split()]
                 nreplicas = self.num_rep.value
 
