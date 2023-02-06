@@ -15,16 +15,44 @@ FIELDS_DISABLE_DEFAULT = {
 
 AU_TO_EV = 27.211386245988
 VIEWERS = {
-    "Cp2kAdsorbedGwIcWorkChain_pks" : {'viewer_path':"./gw/view_gw-ic.ipynb",'label':"GW-IC"},
-    "Cp2kMoleculeOptGwWorkChain_pks" : {'viewer_path':"./gw/view_gw.ipynb",'label':"GW"},
-    "Cp2kAdsorptionEnergyWorkChain_pks" : {'viewer_path':"./view_ade.ipynb",'label':"Ad.E"},
-    "Cp2kOrbitalsWorkChain_pks" : {'viewer_path':"../scanning_probe/orb/view_orb.ipynb",'label': "KS"},
-    "Cp2kPdosWorkChain_pks" : {'viewer_path':"../scanning_probe/pdos/view_pdos.ipynb",'label': "PDOS"},
-    "Cp2kStmWorkChain_pks" : {'viewer_path':"../scanning_probe/stm/view_stm.ipynb",'label': "STM"},
-    "Cp2kOrbitalsWorkChain_uuids" : {'viewer_path':"../scanning_probe/orb/view_orb.ipynb",'label': "KS"},
-    "Cp2kPdosWorkChain_uuids" : {'viewer_path':"../scanning_probe/pdos/view_pdos.ipynb",'label': "PDOS"},
-    "Cp2kStmWorkChain_uuids" : {'viewer_path':"../scanning_probe/stm/view_stm.ipynb",'label': "STM"},    
+    "Cp2kAdsorbedGwIcWorkChain_pks": {
+        "viewer_path": "./gw/view_gw-ic.ipynb",
+        "label": "GW-IC",
+    },
+    "Cp2kMoleculeOptGwWorkChain_pks": {
+        "viewer_path": "./gw/view_gw.ipynb",
+        "label": "GW",
+    },
+    "Cp2kAdsorptionEnergyWorkChain_pks": {
+        "viewer_path": "./view_ade.ipynb",
+        "label": "Ad.E",
+    },
+    "Cp2kOrbitalsWorkChain_pks": {
+        "viewer_path": "../scanning_probe/orb/view_orb.ipynb",
+        "label": "KS",
+    },
+    "Cp2kPdosWorkChain_pks": {
+        "viewer_path": "../scanning_probe/pdos/view_pdos.ipynb",
+        "label": "PDOS",
+    },
+    "Cp2kStmWorkChain_pks": {
+        "viewer_path": "../scanning_probe/stm/view_stm.ipynb",
+        "label": "STM",
+    },
+    "Cp2kOrbitalsWorkChain_uuids": {
+        "viewer_path": "../scanning_probe/orb/view_orb.ipynb",
+        "label": "KS",
+    },
+    "Cp2kPdosWorkChain_uuids": {
+        "viewer_path": "../scanning_probe/pdos/view_pdos.ipynb",
+        "label": "PDOS",
+    },
+    "Cp2kStmWorkChain_uuids": {
+        "viewer_path": "../scanning_probe/stm/view_stm.ipynb",
+        "label": "STM",
+    },
 }
+
 
 class SearchCompletedWidget(ipw.VBox):
     def __init__(self, wlabel="", fields_disable={}):
@@ -228,12 +256,16 @@ class SearchCompletedWidget(ipw.VBox):
                         nr += 1
                         calc_links_str += (
                             "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />"
-                            % (VIEWERS[property]['viewer_path'], pk, VIEWERS[property]['label'], nr)
+                            % (
+                                VIEWERS[property]["viewer_path"],
+                                pk,
+                                VIEWERS[property]["label"],
+                                nr,
+                            )
                         )
                     extra_calc_links += calc_links_str
 
-            ### --------------------------------------------------                        
-            
+            ### --------------------------------------------------
 
             extra_calc_area = (
                 "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> %s </div>"
