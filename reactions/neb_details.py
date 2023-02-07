@@ -140,7 +140,6 @@ class NebDetails(ipw.VBox):
         super().__init__(children=children, **kwargs)
 
     def generate_struct_folder(self, calc_type="Full DFT"):
-
         replica_pks = [int(a) for a in self.text_replica_pks.value.split()]
         structures = [load_node(x) for x in replica_pks]
 
@@ -222,13 +221,11 @@ class NebDetails(ipw.VBox):
         return wfn_search_path
 
     def mk_wfn_cp_commands(self, nreplicas, replica_pks, selected_computer):
-
         available_wfn_paths = []
         list_wfn_available = []
         list_of_cp_commands = []
 
         for ir, node_pk in enumerate(replica_pks):
-
             avail_wfn = self.structure_available_wfn(
                 node_pk, selected_computer.hostname
             )
@@ -277,7 +274,6 @@ class NebDetails(ipw.VBox):
         align_frames=False,
         text_replica_pks="",
     ):
-
         self.proc_rep.value = proc_rep
         self.num_rep.value = num_rep
         self.spring_constant.value = spring_constant

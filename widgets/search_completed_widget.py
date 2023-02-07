@@ -18,7 +18,6 @@ AU_TO_EV = 27.211386245988
 
 class SearchCompletedWidget(ipw.VBox):
     def __init__(self, wlabel="", fields_disable={}):
-
         self.fields_disable = FIELDS_DISABLE_DEFAULT
         for fd in fields_disable:
             self.fields_disable[fd] = fields_disable[fd]
@@ -96,7 +95,6 @@ class SearchCompletedWidget(ipw.VBox):
         super().__init__([app])
 
     def search(self):
-
         self.results.value = "searching..."
         scanning_probe_common = (
             pathlib.Path.home() / "apps" / "scanning_probe" / "common.py"

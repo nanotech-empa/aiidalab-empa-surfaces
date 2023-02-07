@@ -1,7 +1,5 @@
 def slab_is_valid(slab_analyzed, dft_type):
-
     if dft_type in ["Mixed DFTB", "Mixed DFT"]:
-
         first_metal_atom = slab_analyzed["slabatoms"][0]
 
         for el in slab_analyzed["slab_elements"]:

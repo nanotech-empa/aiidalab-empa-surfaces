@@ -20,7 +20,6 @@ AU_TO_EV = 27.211386245988
 
 class SearchCompletedWidget(ipw.VBox):
     def __init__(self, version=0.0, wlabel="", clabel="", fields_disable={}):
-
         self.fields_disable = FIELDS_DISABLE_DEFAULT
         for fd in fields_disable:
             self.fields_disable[fd] = fields_disable[fd]
@@ -105,7 +104,6 @@ class SearchCompletedWidget(ipw.VBox):
         # display(app)
 
     def search(self):
-
         self.results.value = "preprocessing..."
         self.preprocess_newbies()
 

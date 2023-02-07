@@ -116,7 +116,6 @@ class ReplicaWorkChain(WorkChain):
 
     # ==========================================================================
     def generate_replica(self):
-
         if not self.ctx.init_energy_ran:
             # together with the initial replica, submit the SCF for initial structure
             self.report("Running SCF to get inital geometry energy")
@@ -184,11 +183,9 @@ class ReplicaWorkChain(WorkChain):
 
     # ==========================================================================
     def store_replica(self):
-
         n_dig = len(str(self.ctx.total_num_replica))
 
         if not self.ctx.init_geo_stored:
-
             self.out("replica_{:0{}}".format(0, n_dig), self.inputs.structure)
             initial_params = Dict(
                 dict={
@@ -258,7 +255,6 @@ class ReplicaWorkChain(WorkChain):
         colvar_target=None,
         initial_energy=False,
     ):
-
         inputs = {}
         inputs["metadata"] = {}
 
@@ -283,7 +279,6 @@ class ReplicaWorkChain(WorkChain):
 
         first_slab_atom = None
         if calc_type != "Full DFT":
-
             slab_analyzed = analyze_structure.analyze(atoms)
 
             # Au potential

@@ -42,7 +42,6 @@ def validate_input(structure_details, details_dict):
 
     if "calc_type" in details_dict.keys():
         if details_dict["calc_type"] in ["Mixed DFTB", "Mixed DFT"]:
-
             ## ADD CHECK CONTINUITY MOL INDEXES
 
             for el in structure_details["slab_elements"]:

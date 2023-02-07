@@ -58,7 +58,6 @@ def structure_available_wfn(struct_pk, current_hostname):
     wfn_name = None
 
     for key, val in struct_node.get_inputs_dict().items():
-
         if "opt_replica_" in key:
             # parent is NEB
             imag_nr = int(key.split("_")[-1]) + 1
@@ -109,7 +108,6 @@ def mk_wfn_cp_commands(nreplicas=None, replica_pks=None, selected_computer=None)
     list_wfn_available = []
     list_of_cp_commands = []
     for ir, node_pk in enumerate(replica_pks):
-
         the_selected_computer = selected_computer.get_computer()
         avail_wfn = structure_available_wfn(node_pk, the_selected_computer.hostname)
 
