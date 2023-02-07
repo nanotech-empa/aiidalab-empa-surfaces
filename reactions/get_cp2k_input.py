@@ -134,7 +134,6 @@ DEFAULT_INPUT_DICT = {
 
 class Get_CP2K_Input:
     def __init__(self, input_dict=None):
-
         self.inp_dict = copy.deepcopy(DEFAULT_INPUT_DICT)
         for inp_key in input_dict:
             # self.inp_dict[inp_key] = to_py_type(input_dict[inp_key])
@@ -238,7 +237,6 @@ class Get_CP2K_Input:
             }
 
         elif self.inp_dict["gw_type"] == "GW-LS":
-
             # TO BE IMPLEMENTED
             self.xc_gw = {}  # END XC
 
@@ -380,7 +378,6 @@ class Get_CP2K_Input:
 
     ### MOTION SECTION
     def get_motion(self):
-
         #        motion = {
         #                   'PRINT' : {
         #                      'RESTART_HISTORY' :{'_': 'OFF'},
@@ -435,7 +432,6 @@ class Get_CP2K_Input:
 
         ### NEB
         if self.workchain == "NEBWorkChain":
-
             motion["BAND"] = {
                 "NPROC_REP": self.inp_dict["nproc_rep"],
                 "BAND_TYPE": "CI-NEB",
@@ -470,7 +466,6 @@ class Get_CP2K_Input:
 
         ### REPLICA CHAIN
         if self.workchain == "ReplicaWorkChain":
-
             cv_section = {
                 "COLVAR": 1,
                 "RESTRAINT": {
@@ -701,7 +696,6 @@ class Get_CP2K_Input:
     # ==========================================================================
 
     def get_force_eval_qs_dft(self):
-
         if not self.inp_dict["gw_type"]:
             basis_set = "BASIS_MOLOPT"
             potential = "POTENTIAL"

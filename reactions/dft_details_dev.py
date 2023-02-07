@@ -53,7 +53,6 @@ WIDGETS_DISABLE_DEFAULT = {
 
 class DFTDetails(ipw.VBox):
     def __init__(self, job_details={}, widgets_disabled={}, **kwargs):
-
         self.widgets_disabled = WIDGETS_DISABLE_DEFAULT
         for wd in widgets_disabled:
             self.widgets_disabled[wd] = widgets_disabled[wd]
@@ -557,7 +556,6 @@ class DFTDetails(ipw.VBox):
             guess_kinds = spins_up + spins_down
             if len(guess_kinds) > 0:
                 for k in guess_kinds:
-
                     self.int_net.append(
                         [
                             ipw.IntText(

@@ -57,7 +57,6 @@ CENTER_COORD = {
 
 class DFTDetails(ipw.VBox):
     def __init__(self, workchain="SlabGeoOptWorkChain", structure_details={}, **kwargs):
-
         self.structure_details = structure_details
         self.widgets_enabled = WIDGETS_ENABLED[workchain]
         #        self.the_dict = the_dict

@@ -240,7 +240,6 @@ class EmpaStructureViewer(StructureDataViewer):
                 opacity=opacity,
             )
         else:
-
             ncomponents = len(self.vis_dict.keys())
             for component in range(ncomponents):
                 name = "highlight_" + self.vis_dict[component]["name"]
@@ -303,7 +302,6 @@ class EmpaStructureViewer(StructureDataViewer):
 
                 self.vis_dict = vis_dict
                 for component in range(len(self.vis_dict)):
-
                     rep_indexes = list(
                         string_range_to_list(self.vis_dict[component]["ids"], shift=0)[
                             0

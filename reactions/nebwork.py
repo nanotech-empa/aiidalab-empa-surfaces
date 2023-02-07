@@ -171,7 +171,6 @@ class NEBWorkChain(WorkChain):
         # file_list          = None,
         **not_used,
     ):
-
         inputs = {}
         inputs["metadata"] = {}
         inputs["metadata"]["label"] = "neb"
@@ -194,7 +193,6 @@ class NEBWorkChain(WorkChain):
 
         first_slab_atom = None
         if calc_type != "Full DFT":
-
             # Au potential
             pot_f = SinglefileData(file="/project/apps/surfaces/slab/Au.pot")
             inputs["file"]["au_pot"] = pot_f

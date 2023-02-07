@@ -13,7 +13,6 @@ layout = {"width": "70%"}
 
 class DistanceCV:
     def __init__(self, no_widget=False):
-
         self.spring_unit = "eV/angstrom^2"
         self.target_unit = "angstrom"
 
@@ -83,7 +82,6 @@ class DistanceCV:
 
 class AnglePlanePlaneCV:
     def __init__(self, no_widget=False):
-
         self.spring_unit = "eV/deg^2"
         self.target_unit = "deg"
 
@@ -105,7 +103,6 @@ class AnglePlanePlaneCV:
 
     @classmethod
     def from_cp2k_subsys(cls, cp2k_subsys):
-
         cv = cls(no_widget=True)
 
         subsys_app = cp2k_subsys["ANGLE_PLANE_PLANE"]
@@ -220,7 +217,6 @@ class AnglePlanePlaneCV:
         print(self.eval_cv(atoms))
 
     def visualization_list(self, atoms):
-
         if self.p1_def is None:
             return []
 
@@ -243,7 +239,6 @@ class AnglePlanePlaneCV:
         return vis_list
 
     def cp2k_subsys_inp(self):
-
         repl = {"ATOMS": "ATOMS", "VECTOR": "NORMAL_VECTOR"}
 
         cp2k_subsys = {
@@ -269,7 +264,6 @@ class AnglePlanePlaneCV:
 
 class BondRotationCV:
     def __init__(self, no_widget=False):
-
         self.spring_unit = "eV/deg^2"
         self.target_unit = "deg"
 
@@ -310,7 +304,6 @@ class BondRotationCV:
         return cv
 
     def _create_widget(self):
-
         self.bond_point_texts = [
             "1st point 1st line",
             "2nd point 1st line",
@@ -331,7 +324,6 @@ class BondRotationCV:
             tb.description = self.textbox_defaults[c.new][1]
 
         for i_p, bond_point_text in enumerate(self.bond_point_texts):
-
             toggle_button = ipw.ToggleButtons(
                 options=["GEO_CENTER", "FIX_POINT"],
                 description=bond_point_text,
@@ -358,7 +350,6 @@ class BondRotationCV:
         )
 
     def read_and_validate_inputs(self):
-
         self.types_list = []
         self.data_txt_list = []
         self.data_list = []
@@ -420,7 +411,6 @@ class BondRotationCV:
         return self._point_list(atoms)
 
     def cp2k_subsys_inp(self):
-
         repl = {"GEO_CENTER": "ATOMS", "FIX_POINT": "XYZ"}
 
         point_list = [
@@ -453,7 +443,6 @@ COLVARS = {
 
 class CollectiveVariableWidget(ipw.VBox):
     def __init__(self, viewer_widget=None, **kwargs):
-
         self.current_cv_instance = None
 
         def on_choose_colvar(c):

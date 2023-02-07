@@ -81,7 +81,6 @@ class ProcessResourcesWidget(ipw.VBox):
 
 
 class ResourcesEstimatorWidget(ipw.VBox):
-
     details = trt.Dict()
     uks = trt.Bool()
     selected_code = trt.Union([trt.Unicode(), trt.Instance(orm.Code)], allow_none=True)

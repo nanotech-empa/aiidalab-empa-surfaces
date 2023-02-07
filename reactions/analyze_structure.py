@@ -401,10 +401,8 @@ def analyze(atoms):
             + "\n"
         )
     if len(adatoms) > 0:
-
         summary += "adatoms: " + mol_ids_range(adatoms) + "\n"
     if all_molecules:
-
         summary += "#" + str(len(all_molecules)) + " molecules: "
         for nmols in range(len(all_molecules)):
             summary += str(nmols) + ") " + mol_ids_range(all_molecules[nmols])

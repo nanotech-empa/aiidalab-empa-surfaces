@@ -14,7 +14,6 @@ def make_geom_file(
     spin_d=lambda: Str(""),
     ic_plane_z=None,
 ):
-
     import shutil
     import tempfile
     from io import StringIO

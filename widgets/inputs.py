@@ -103,10 +103,8 @@ class InputDetails(ipw.VBox):
 
 
 class DescriptionWidget(ipw.Text):
-
     # DESCRIPTION OF CALCULATION
     def __init__(self):
-
         super().__init__(
             description="Process description: ",
             value="",
@@ -123,7 +121,6 @@ class StructureInfoWidget(ipw.Accordion):
     details = Dict()
 
     def __init__(self):
-
         self.info = ipw.Output()
 
         self.set_title(0, "Structure details")
@@ -326,7 +323,6 @@ class CellSectionWidget(ipw.Accordion):
     net_charge = Int()
 
     def __init__(self):
-
         self.periodic = ipw.Dropdown(
             description="PBC",
             options=["XYZ", "NONE", "X", "XY", "XZ", "Y", "YZ", "Z"],

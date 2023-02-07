@@ -12,7 +12,6 @@ REST_ASPECT = 10.0
 
 class ViewerDetails(ipw.VBox):
     def __init__(self, **kwargs):
-
         self.atoms = None
         self.details = None
 
@@ -108,7 +107,6 @@ class ViewerDetails(ipw.VBox):
             print("Selection: [" + " ".join([str(x + 1) for x in self.selection]) + "]")
 
     def setup(self, atoms, details=None):
-
         self.atoms = atoms
         self.details = details
 
@@ -223,7 +221,6 @@ class ViewerDetails(ipw.VBox):
         self.viewer.add_unitcell()
 
     def highlight_atoms(self, global_i_list, color="red", size=0.2, opacity=0.6):
-
         if not hasattr(self.viewer, "component_0"):
             return
 
@@ -243,7 +240,6 @@ class ViewerDetails(ipw.VBox):
         )
 
     def show_fixed(self, fixed_atoms_str):
-
         if not hasattr(self.viewer, "component_0"):
             return
 
@@ -277,7 +273,6 @@ class ViewerDetails(ipw.VBox):
             self.viewer.remove_component(cid)
 
         if len(vis_list) > 0:
-
             vis_atoms = [x for x in vis_list if isinstance(x, numbers.Integral)]
             vis_points = [x for x in vis_list if not isinstance(x, numbers.Integral)]
 

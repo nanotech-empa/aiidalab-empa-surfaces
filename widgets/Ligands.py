@@ -28,7 +28,6 @@ LIGANDS = {
 
 class LigandsAtoms:
     def __init__(self):
-
         super().__init__()
 
     def rotate_and_dr(mol=None, align_to=(0, 0, 1), dr=0.0, remove_anchoring=False):
