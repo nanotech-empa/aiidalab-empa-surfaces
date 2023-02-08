@@ -252,7 +252,7 @@ class SearchCompletedWidget(ipw.VBox):
                     calc_links_str = ""
                     nr = 0
                     for pk_or_uuid in st_extras[property]:
-                        print(opt_structure.pk,pk_or_uuid)
+                        print(opt_structure.pk, pk_or_uuid)
                         pk = load_node(pk_or_uuid).pk
                         nr += 1
                         calc_links_str += (
