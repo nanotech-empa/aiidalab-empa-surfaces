@@ -3,7 +3,7 @@ import importlib
 import pathlib
 
 import ipywidgets as ipw
-from aiida.orm import QueryBuilder, WorkChainNode
+from aiida.orm import QueryBuilder, WorkChainNode, load_node
 from IPython.display import clear_output
 
 FIELDS_DISABLE_DEFAULT = {
@@ -252,6 +252,7 @@ class SearchCompletedWidget(ipw.VBox):
                     calc_links_str = ""
                     nr = 0
                     for pk_or_uuid in st_extras[property]:
+                        print(opt_structure.pk,pk_or_uuid)
                         pk = load_node(pk_or_uuid).pk
                         nr += 1
                         calc_links_str += (
