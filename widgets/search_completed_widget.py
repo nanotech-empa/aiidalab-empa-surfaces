@@ -54,11 +54,11 @@ VIEWERS = {
     "Cp2kAfmWorkChain_uuids": {
         "viewer_path": "../scanning_probe/afm/view_afm.ipynb",
         "label": "AFM",
-    }, 
+    },
     "Cp2kHrstmWorkChain_uuids": {
         "viewer_path": "../scanning_probe/hrstm/view_hrstm.ipynb",
         "label": "HRSTM",
-    },   
+    },
 }
 
 
