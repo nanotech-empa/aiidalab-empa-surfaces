@@ -118,9 +118,10 @@ class ResourcesEstimatorWidget(ipw.VBox):
     def _observe_code(self, _=None):
         try:
             self.max_tasks_per_node = (
-                self.selected_code.computer.get_default_mpiprocs_per_machine()
-            )
-        except AttributeError:
+                orm.load_code(self.selected_code).computer.get_default_mpiprocs_per_machine()
+                )
+        except (ValueError,AttributeError):
+            print("Code not recognized setting tasks per node to 1")
             self.max_tasks_per_node = 1
 
     def _compute_cost(self, element_list=None, system_type="Slab", uks=False):
