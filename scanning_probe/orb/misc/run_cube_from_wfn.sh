@@ -20,4 +20,3 @@ mkdir $DIR/cubes
 #  --orb_square \
 #  --charge_dens \
 #  --spin_dens \
-

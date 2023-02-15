@@ -34,7 +34,7 @@ def get_start_widget(appbase, jupbase):
     </ul></td>
 
     </tr>
-    
+
     <tr>
         <th style="text-align:center">General</th>
         <th style="width:50px" rowspan=2></th>
@@ -43,18 +43,18 @@ def get_start_widget(appbase, jupbase):
         <th style="text-align:center">Viewers</th>
         <th style="width:50px" rowspan=2></th>
     </tr>
-    
+
     <tr>
         <td valign="top"><ul>
             <li><a href="{appbase}/setup_codes.ipynb" target="_blank">Setup codes</a>
             <li><a href="{appbase}/manage_calcs.ipynb" target="_blank">Manage calculations</a>
         </ul></td>
-        
+
         <td valign="top"><ul>
             <li><a href="{appbase}/submit_stm.ipynb" target="_blank">Submit STM</a>
             <li><a href="{appbase}/submit_pdos.ipynb" target="_blank">Submit PDOS</a>
         </ul></td>
-        
+
         <td valign="top"><ul>
             <li><a href="{appbase}/view_pdos.ipynb" target="_blank">View PDOS</a>
             <li><a href="{appbase}/view_stm.ipynb" target="_blank">View STM</a>
@@ -65,7 +65,7 @@ def get_start_widget(appbase, jupbase):
 
 
     </tr>
-    
+
     </table>
 
 """
