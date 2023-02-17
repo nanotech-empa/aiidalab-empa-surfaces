@@ -133,7 +133,9 @@ class Cp2kNebParser(Parser):
             positions = np.array(rep_coord_lines, np.float64)
             ase_atoms = ase.Atoms(symbols=element_list, positions=positions, cell=cell)
 
-            self.out("opt_replica_%s" % str(i_rep).zfill(3), StructureData(ase=ase_atoms))
+            self.out(
+                "opt_replica_%s" % str(i_rep).zfill(3), StructureData(ase=ase_atoms)
+            )
 
         return None
 
