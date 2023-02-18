@@ -128,7 +128,8 @@ class Cp2kNebParser(Parser):
         ]
         coord_set_with_elements = coord_line_sets[-1]
         replica_coord_line_sets = coord_line_sets[:-1]
-        element_list = [line[0] for line in coord_set_with_elements]
+        # remove integers from element names
+        element_list = [re.sub(r'[0-9]+', '', line[0]) for line in coord_set_with_elements]
         for i_rep, rep_coord_lines in enumerate(replica_coord_line_sets):
             positions = np.array(rep_coord_lines, np.float64)
             ase_atoms = ase.Atoms(symbols=element_list, positions=positions, cell=cell)
