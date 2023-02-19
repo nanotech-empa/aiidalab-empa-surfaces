@@ -129,8 +129,10 @@ class Cp2kNebParser(Parser):
         coord_set_with_elements = coord_line_sets[-1]
         replica_coord_line_sets = coord_line_sets[:-1]
         # remove integers from element names and create tags
-        element_list = [re.sub(r'[0-9]+', '', line[0]) for line in coord_set_with_elements]
-        tags = [int(re.findall(r'\d+', line[0])[0]) for line in coord_set_with_elements]
+        element_list = [
+            re.sub(r"[0-9]+", "", line[0]) for line in coord_set_with_elements
+        ]
+        tags = [int(re.findall(r"\d+", line[0])[0]) for line in coord_set_with_elements]
 
         for i_rep, rep_coord_lines in enumerate(replica_coord_line_sets):
             positions = np.array(rep_coord_lines, np.float64)
