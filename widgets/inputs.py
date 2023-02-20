@@ -4,8 +4,12 @@ from aiidalab_widgets_base.utils import string_range_to_list
 from IPython.display import clear_output, display
 from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, observe
 
-from .ANALYZE_structure import mol_ids_range
+import aiidalab_widgets_base as awb
+import numpy as np
+
 from .cp2k_input_validity import validate_input
+from .constraints import ConstraintsWidget
+from .spins import SpinsWidget
 
 # from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
@@ -174,7 +178,7 @@ class VdwSelectorWidget(ipw.ToggleButton):
         )
 
     def return_dict(self):
-        return {"vdw_switch": self.value}
+        return {"vdw": self.value}
 
     def traits_to_link(self):
         return []
@@ -196,22 +200,12 @@ class UksSectionWidget(ipw.Accordion):
 
         link((self, "uks"), (self.uks_toggle, "value"))
 
+        self.spins = SpinsWidget()
         self.multiplicity = ipw.IntText(
             value=0,
             description="MULTIPLICITY",
             style={"description_width": "initial"},
             layout={"width": "140px"},
-        )
-        self.spin_u = ipw.Text(
-            placeholder="1..10 15",
-            description="IDs atoms spin U",
-            style={"description_width": "initial"},
-        )
-
-        self.spin_d = ipw.Text(
-            placeholder="1..10 15",
-            description="IDs atoms spin D",
-            style={"description_width": "initial"},
         )
 
         self.charge = ipw.IntText(
@@ -222,45 +216,41 @@ class UksSectionWidget(ipw.Accordion):
         )
 
         # guess multiplicity
-        def multiplicity_guess(c=None):
-            self.net_charge = self.charge.value
-            system_charge = self.details["total_charge"] - self.net_charge
-            setu = set(string_range_to_list(self.spin_u.value)[0])
-            setd = set(string_range_to_list(self.spin_d.value)[0])
-            # check if same atom entered in two different spins
-            if bool(setu & setd):
-                self.multiplicity.value = 1
-                self.spin_u.value = ""
-                self.spin_d.value = ""
+        # def multiplicity_guess(c=None):
+        #    self.net_charge = self.charge.value
+        #    system_charge = self.details["total_charge"] - self.net_charge
+        #    # check if same atom entered in two different spins
+        #    if bool(setu & setd):
+        #        self.multiplicity.value = 1
+        #        self.spin_u.value = ""
+        #        self.spin_d.value = ""
 
-            nu = len(string_range_to_list(self.spin_u.value)[0])
-            nd = len(string_range_to_list(self.spin_d.value)[0])
-            if not system_charge % 2:
-                self.multiplicity.value = min(abs(nu - nd) * 2 + 1, 3)
-            else:
-                self.multiplicity.value = 2
+        #    if not system_charge % 2:
+        #        self.multiplicity.value = min(abs(nu - nd) * 2 + 1, 3)
+        #    else:
+        #        self.multiplicity.value = 2
 
-        self.spin_u.observe(multiplicity_guess, "value")
-        self.spin_d.observe(multiplicity_guess, "value")
-        self.charge.observe(multiplicity_guess, "value")
+        # self.charge.observe(multiplicity_guess, "value")
 
         super().__init__(selected_index=None)
 
     def return_dict(self):
         if self.uks:
+            magnetization_per_site = np.zeros(self.details["numatoms"])
+            for spinset in self.spins.spinsets.children:
+                magnetization_per_site[
+                    awb.utils.string_range_to_list(spinset.selection.value)[0]
+                ] = spinset.starting_magnetization.value
             return {
+                "uks": True,
                 "multiplicity": self.multiplicity.value,
-                "spin_u": self.spin_u.value,
-                "spin_d": self.spin_d.value,
+                "magnetisation_per_site": magnetization_per_site.astype(
+                    np.int32
+                ).tolist(),
                 "charge": self.charge.value,
             }
         else:
-            return {
-                "multiplicity": 0,
-                "spin_u": "",
-                "spin_d": "",
-                "charge": self.charge.value,
-            }
+            return {"charge": self.charge.value}
 
     @observe("details")
     def _observe_details(self, _=None):
@@ -280,10 +270,9 @@ class UksSectionWidget(ipw.Accordion):
                             [
                                 self.uks_toggle,
                                 self.multiplicity,
-                                self.spin_u,
-                                self.spin_d,
                             ]
                         ),
+                        self.spins,
                         self.charge,
                     ]
                 )
@@ -295,71 +284,19 @@ class UksSectionWidget(ipw.Accordion):
         return ["details", "uks", "net_charge"]
 
 
-class FixedAtomsWidget(ipw.Text):
-    to_fix = List()
-
-    def __init__(
-        self,
-    ):
-        super().__init__(
-            placeholder="1..10",
-            value=mol_ids_range(self.to_fix),
-            description="Fixed Atoms",
-            style=STYLE,
-            layout={"width": "60%"},
-        )
-
-    def return_dict(self):
-        return {"fixed_atoms": self.value}
-
-    @observe("to_fix")
-    def _observe_to_fix(self, _=None):
-        self.value = mol_ids_range(self.to_fix)
-
-    def traits_to_link(self):
-        return ["to_fix"]
-
-
 class CellSectionWidget(ipw.Accordion):
     details = Dict()
     do_cell_opt = Bool()
-    net_charge = Int()
 
     def __init__(self):
 
-        self.periodic = ipw.Dropdown(
-            description="PBC",
+        self.cell_constraint = ipw.Dropdown(
+            description="Cell constr.",
             options=["XYZ", "NONE", "X", "XY", "XZ", "Y", "YZ", "Z"],
-            value="XYZ",
+            value="NONE",
             style=STYLE,
             layout=LAYOUT2,
         )
-
-        self.poisson_solver = ipw.Dropdown(
-            description="Poisson solver",
-            options=["PERIODIC"],
-            value="PERIODIC",
-            style=STYLE,
-            layout=LAYOUT2,
-        )
-
-        def observe_periodic(c=None):
-            if self.periodic.value == "NONE":
-                self.poisson_solver.options = [
-                    "MT",
-                    "ANALYTIC",
-                    "IMPLICIT",
-                    "MULTIPOLE",
-                    "WAVELET",
-                ]
-                self.poisson_solver.value = "MT"
-            elif self.periodic.value == "XYZ":
-                self.poisson_solver.options = ["PERIODIC"]
-                self.poisson_solver.value = "PERIODIC"
-                if self.net_charge and self.details["system_type"] == "Molecule":
-                    self.periodic.value = "NONE"
-
-        self.periodic.observe(observe_periodic)
 
         self.cell_sym = ipw.Dropdown(
             description="symmetry",
@@ -380,25 +317,6 @@ class CellSectionWidget(ipw.Accordion):
             layout=LAYOUT,
         )
 
-        self.cell = ipw.Text(
-            description="cell size", style=STYLE, layout={"width": "60%"}
-        )
-
-        def observe_poisson(c=None):
-            if self.poisson_solver.value == "MT":
-                cell = self.details["sys_size"] * 2 + 15
-                self.cell.value = " ".join(map(str, [int(i) for i in cell.tolist()]))
-            elif self.poisson_solver.value == "PERIODIC":
-                self.cell.value = self.details["cell"]
-
-        self.poisson_solver.observe(observe_poisson)
-
-        self.center_coordinates = ipw.RadioButtons(
-            description="center coordinates",
-            options=["False", "True"],
-            value="True",
-            disabled=False,
-        )
         self.opt_cell = ipw.ToggleButton(
             value=False,
             description="Optimize cell",
@@ -411,57 +329,28 @@ class CellSectionWidget(ipw.Accordion):
         self.opt_cell.observe(on_cell_opt, "value")
 
         self.cell_free = ipw.ToggleButtons(
-            options=["FREE", "KEEP_ANGLES", "KEEP_SYMMETRY"],
+            options=["FREE", "KEEP_SYMMETRY", "KEEP_ANGLES", "KEEP_SPACE_GROUP"],
             description="Cell freedom",
             value="KEEP_SYMMETRY",
             style=STYLE,
             layout=LAYOUT,
         )
 
-        # 'cell_free'
-        self.cell_cases = {
-            "Cell_true": [
-                ("cell", self.cell),
-                ("cell_sym", self.cell_sym),
-                ("cell_free", self.cell_free),
-                ("opt_cell", self.opt_cell),
-            ],
-            "Bulk": [
-                #  ('cell', self.cell),
-                ("opt_cell", self.opt_cell)
-            ],
-            "SlabXY": [
-                #  ('periodic', self.periodic),
-                #  ('poisson_solver', self.poisson_solver),
-                #  ('cell', self.cell)
-            ],
-            "Molecule": [
-                #  ('periodic', self.periodic),
-                #  ('poisson_solver', self.poisson_solver),
-                #  ('cell', self.cell),
-                #  ('center_coordinates', self.center_coordinates)
-            ],
-        }
-
         super().__init__(selected_index=None)
 
     def return_dict(self):
-        to_return = {}
+        sys_params = {"symmetry": self.cell_sym.value}
         if self.opt_cell.value:
-            cases = self.cell_cases["Cell_true"]
-        else:
-            cases = self.cell_cases[self.details["system_type"]]
+            sys_params["cell_opt"] = ""
+        if self.cell_constraint.value != "NONE":
+            sys_params["cell_opt_constraint"] = self.cell_constraint.value
+        if self.cell.free.value != "FREE":
+            sys_params[self.cell.free.value.lower()] = ""
 
-        for i in cases:
-            to_return.update({i[0]: i[1].value})
-        return to_return
+        return sys_params
 
     @observe("details")
     def _observe_details(self, _=None):
-        self._widgets_to_show()
-
-    @observe("net_charge")
-    def _observe_net_charge(self, _=None):
         self._widgets_to_show()
 
     @observe("do_cell_opt")
@@ -470,20 +359,19 @@ class CellSectionWidget(ipw.Accordion):
 
     def _widgets_to_show(self):
         if self.opt_cell.value:
-            self.set_title(0, "CELL/PBC details")
-            self.children = [ipw.VBox([i[1] for i in self.cell_cases["Cell_true"]])]
-        else:
-            self.set_title(0, "CELL/PBC details")
+            self.set_title(0, "CELL details")
             self.children = [
-                ipw.VBox([i[1] for i in self.cell_cases[self.details["system_type"]]])
+                ipw.VBox([self.cell_sym, self.cell_free, self.cell_constraint])
             ]
-        self.cell.value = self.details["cell"]
+        else:
+            self.set_title(0, "CELL details")
+            self.children = [self.cell_sym]
 
         if self.net_charge and self.details["system_type"] == "Molecule":
             self.periodic.value = "NONE"
 
     def traits_to_link(self):
-        return ["details", "do_cell_opt", "net_charge"]
+        return ["details", "do_cell_opt"]
 
 
 SECTIONS_TO_DISPLAY = {
@@ -494,7 +382,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        FixedAtomsWidget,
+        ConstraintsWidget,
         CellSectionWidget,
         ProtocolSelectionWidget,
     ],
@@ -503,7 +391,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        FixedAtomsWidget,
+        ConstraintsWidget,
         ProtocolSelectionWidget,
     ],
     "Molecule": [
@@ -511,6 +399,7 @@ SECTIONS_TO_DISPLAY = {
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
+        ConstraintsWidget,
         ProtocolSelectionWidget,
     ],
 }
