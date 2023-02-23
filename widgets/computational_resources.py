@@ -13,6 +13,7 @@ class ProcessResourcesWidget(ipw.VBox):
     """Setup metadata for an AiiDA process."""
 
     nproc_replica_trait = trt.Int()
+    n_replica_trait = trt.Int()
 
     def __init__(self):
         """Metadata widget to generate metadata"""
@@ -43,14 +44,8 @@ class ProcessResourcesWidget(ipw.VBox):
             value=1, description="# Threads per task", style=STYLE, layout=LAYOUT
         )
 
-        def on_cores_change(c=None):
-            if self.nproc_replica_trait:
-                self.nproc_replica_trait = (
-                    self.nodes_widget * self.tasks_per_node_widget
-                )
-
-        self.nodes_widget.observe(on_cores_change, "value")
-        self.tasks_per_node_widget.observe(on_cores_change, "value")
+        self.nodes_widget.observe(self.on_cores_change, "value")
+        self.tasks_per_node_widget.observe(self.on_cores_change, "value")
 
         children = [
             self.nodes_widget,
@@ -78,6 +73,15 @@ class ProcessResourcesWidget(ipw.VBox):
     @property
     def walltime_seconds(self):
         return int(pd.Timedelta(self.walltime_widget.value).total_seconds())
+
+    def on_cores_change(self, _=None):
+        print("CHANGED")
+        self.nproc_replica_trait = 0
+        self.nproc_replica_trait = int(
+            self.nodes_widget.value
+            / self.n_replica_trait
+            * self.tasks_per_node_widget.value
+        )
 
     def parse_time_string(self, _=None):
         """Parse the time string and set the time in seconds"""

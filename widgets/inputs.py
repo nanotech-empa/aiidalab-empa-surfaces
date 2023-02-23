@@ -294,10 +294,7 @@ class NebWidget(ipw.VBox):
             layout={"width": "240px"},
         )
 
-        def on_n_replica_change(c=None):
-            self.n_replica_trait = int(self.n_replica.value)
-
-        self.n_replica.observe(on_n_replica_change, "value")
+        self.n_replica.observe(self.on_n_replica_change, "value")
 
         super().__init__(
             children=[
@@ -343,6 +340,9 @@ class NebWidget(ipw.VBox):
     def _observe_nproc_replica_trait(self, _=None):
         print("OBSERVE NRPOCREP", self.nproc_replica_trait)
         self.nproc_rep.value = str(self.nproc_replica_trait)
+
+    def on_n_replica_change(self, _=None):
+        self.n_replica_trait = int(self.n_replica.value)
 
     def traits_to_link(self):
         return ["n_replica_trait", "nproc_replica_trait"]
