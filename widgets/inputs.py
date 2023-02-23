@@ -1,8 +1,10 @@
 import ipywidgets as ipw
-from aiida.orm import Code
+from aiida.orm import Code, load_node
 from aiidalab_widgets_base.utils import string_range_to_list
 from IPython.display import clear_output, display
 from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, observe
+
+from ase import Atoms
 
 import aiidalab_widgets_base as awb
 import numpy as np
@@ -27,6 +29,11 @@ class InputDetails(ipw.VBox):
     do_cell_opt = Bool()
     uks = Bool()
     net_charge = Int()
+    neb = Bool()
+    replica = Bool()
+    n_replica_trait = Int()
+    nproc_replica_trait = Int()
+    ase_atoms = Instance(Atoms, allow_none=True)
 
     def __init__(
         self,
@@ -40,10 +47,11 @@ class InputDetails(ipw.VBox):
         # Displaying input sections.
         self.output = ipw.Output()
         self.displayed_sections = []
+        # self.neb = False
 
         super().__init__(children=[self.output])
 
-    @observe("details")
+    @observe("details", "neb", "replica")
     def _observe_details(self, _=None):
         self.to_fix = []
         self.net_charge = 0
@@ -54,6 +62,11 @@ class InputDetails(ipw.VBox):
 
             if self.details:
                 sys_type = self.details["system_type"]
+                if self.neb:
+                    sys_type = "Neb"
+                if self.replica:
+                    sys_type = "Replica"
+
             else:
                 sys_type = "None"
 
@@ -78,21 +91,19 @@ class InputDetails(ipw.VBox):
         for section in self.displayed_sections:
             to_add = section.return_dict()
             if to_add:
-                tmp_dict.update(to_add)
+                for key in to_add.keys():
+                    if key in tmp_dict.keys():
+                        tmp_dict[key].update(to_add[key])
+                    else:
+                        tmp_dict[key] = to_add[key]
 
-        # DECIDE WHICH KIND OF WORKCHAIN
+        # System type
 
-        # SLAB
-        if self.details["system_type"] == "SlabXY":
-            tmp_dict.update({"workchain": "Cp2kSlabOptWorkChain"})
+        tmp_dict["system_type"] = self.details["system_type"]
 
-        # MOLECULE
-        elif self.details["system_type"] == "Molecule":
-            tmp_dict.update({"workchain": "Cp2kMoleculeOptWorkChain"})
-
-        # BULK
-        elif self.details["system_type"] == "Bulk":
-            tmp_dict.update({"workchain": "Cp2kBulkOptWorkChain"})
+        # Molecule
+        if self.details["system_type"] == "Molecule":
+            tmp_dict["sys_params"]["periodic"] = "NONE"
 
         # CHECK input validity
         can_submit, error_msg = validate_input(self.details, tmp_dict)
@@ -165,7 +176,7 @@ class ProtocolSelectionWidget(ipw.Dropdown):
         )
 
     def return_dict(self):
-        return {"protocol": self.value}
+        return {"dft_params": {"protocol": self.value}}
 
 
 class VdwSelectorWidget(ipw.ToggleButton):
@@ -178,10 +189,163 @@ class VdwSelectorWidget(ipw.ToggleButton):
         )
 
     def return_dict(self):
-        return {"vdw": self.value}
+        return {"dft_params": {"vdw": self.value}}
 
     def traits_to_link(self):
         return []
+
+
+class ReplicaWidget(ipw.VBox):
+    def __init__(self):
+        self.restart_from = ipw.Text(
+            description="Restart from PK:",
+            value="",
+            style={"description_width": "initial"},
+            layout={"width": "340px"},
+        )
+        self.CVs_targets = ipw.Text(
+            description="CVs targets",
+            value="",
+            style={"description_width": "initial"},
+            layout={"width": "540px"},
+        )
+        self.CVs_increments = ipw.Text(
+            description="CVs increments",
+            value="",
+            style={"description_width": "initial"},
+            layout={"width": "540px"},
+        )
+        super().__init__(
+            children=[self.restart_from, self.CVs_targets, self.CVs_increments],
+        )
+
+    def return_dict(self):
+        the_dict = {}
+        if self.restart_from.value:
+            the_dict["restart_from"] = load_node(self.restart_from.value).uuid
+        the_dict["sys_params"] = {
+            "colvars_targets": [float(i) for i in self.CVs_targets.value.split()],
+            "colvars_increments": [float(i) for i in self.CVs_increments.value.split()],
+        }
+        return the_dict
+
+    def traits_to_link(self):
+        return []
+
+
+class NebWidget(ipw.VBox):
+    n_replica_trait = Int()
+    nproc_replica_trait = Int()
+
+    def __init__(self):
+        self.restart_from = ipw.Text(
+            description="Restart from PK:",
+            value="",
+            style={"description_width": "initial"},
+            layout={"width": "540px"},
+        )
+        self.replica_pks = ipw.Text(
+            description="Replica PKs:",
+            value="",
+            style={"description_width": "initial"},
+            layout={"width": "540px"},
+        )
+        self.align_frames = ipw.ToggleButton(
+            description="Align Frames",
+            value=False,
+            style={"description_width": "initial"},
+            layout={"width": "140px"},
+        )
+        self.optimize_endpoints = ipw.ToggleButton(
+            description="Optimize Endpoints",
+            value=False,
+            style={"description_width": "initial"},
+            layout={"width": "140px"},
+        )
+        self.band_type = ipw.Dropdown(
+            options=["CI-NEB"],
+            description="Band Type",
+            value="CI-NEB",
+            style={"description_width": "initial"},
+            layout={"width": "240px"},
+        )
+        self.k_spring = ipw.Text(
+            description="Spring constant",
+            value="0.05",
+            style={"description_width": "initial"},
+            layout={"width": "240px"},
+        )
+        self.nproc_rep = ipw.Text(
+            description="# processors / rep",
+            value="324",
+            style={"description_width": "initial"},
+            layout={"width": "240px"},
+        )
+        self.n_replica = ipw.Text(
+            description="# of replica",
+            value="15",
+            style={"description_width": "initial"},
+            layout={"width": "240px"},
+        )
+        self.nsteps_it = ipw.Text(
+            description="Steps before CI",
+            value="5",
+            style={"description_width": "initial"},
+            layout={"width": "240px"},
+        )
+
+        def on_n_replica_change(c=None):
+            self.n_replica_trait = int(self.n_replica.value)
+
+        self.n_replica.observe(on_n_replica_change, "value")
+
+        super().__init__(
+            children=[
+                self.restart_from,
+                self.replica_pks,
+                self.align_frames,
+                self.optimize_endpoints,
+                self.band_type,
+                self.k_spring,
+                self.nproc_rep,
+                self.n_replica,
+                self.nsteps_it,
+            ],
+        )
+
+    def return_dict(self):
+        align_frames = ".FALSE."
+        optimize_endpoints = ".FALSE."
+        if self.align_frames.value:
+            align_frames = ".TRUE."
+        if self.optimize_endpoints.value:
+            optimize_endpoints = ".TRUE."
+        the_dict = {}
+        if self.restart_from.value != "":
+            the_dict["restart_from"] = load_node(self.restart_from.value).uuid
+        the_dict["neb_params"] = {
+            "align_frames": align_frames,
+            "band_type": self.band_type.value,
+            "k_spring": self.k_spring.value,
+            "nproc_rep": int(self.nproc_rep.value),
+            "number_of_replica": int(self.n_replica.value),
+            "nsteps_it": int(self.nsteps_it.value),
+            "optimize_end_points": optimize_endpoints,
+        }
+
+        the_dict["replica_uuids"] = [
+            load_node(int(pk)).uuid for pk in self.replica_pks.value.split()
+        ]
+
+        return the_dict
+
+    @observe("nproc_replica_trait")
+    def _observe_nproc_replica_trait(self, _=None):
+        print("OBSERVE NRPOCREP", self.nproc_replica_trait)
+        self.nproc_rep.value = str(self.nproc_replica_trait)
+
+    def traits_to_link(self):
+        return ["n_replica_trait", "nproc_replica_trait"]
 
 
 class UksSectionWidget(ipw.Accordion):
@@ -239,18 +403,20 @@ class UksSectionWidget(ipw.Accordion):
             magnetization_per_site = np.zeros(self.details["numatoms"])
             for spinset in self.spins.spinsets.children:
                 magnetization_per_site[
-                    awb.utils.string_range_to_list(spinset.selection.value)[0]
+                    string_range_to_list(spinset.selection.value)[0]
                 ] = spinset.starting_magnetization.value
             return {
-                "uks": True,
-                "multiplicity": self.multiplicity.value,
-                "magnetisation_per_site": magnetization_per_site.astype(
-                    np.int32
-                ).tolist(),
-                "charge": self.charge.value,
+                "dft_params": {
+                    "uks": True,
+                    "multiplicity": self.multiplicity.value,
+                    "magnetization_per_site": magnetization_per_site.astype(
+                        np.int32
+                    ).tolist(),
+                    "charge": self.charge.value,
+                }
             }
         else:
-            return {"charge": self.charge.value}
+            return {"dft_params": {"charge": self.charge.value}}
 
     @observe("details")
     def _observe_details(self, _=None):
@@ -347,7 +513,7 @@ class CellSectionWidget(ipw.Accordion):
         if self.cell.free.value != "FREE":
             sys_params[self.cell.free.value.lower()] = ""
 
-        return sys_params
+        return {"sys_params": sys_params}
 
     @observe("details")
     def _observe_details(self, _=None):
@@ -400,6 +566,24 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         ConstraintsWidget,
+        ProtocolSelectionWidget,
+    ],
+    "Replica": [
+        DescriptionWidget,
+        VdwSelectorWidget,
+        UksSectionWidget,
+        StructureInfoWidget,
+        ConstraintsWidget,
+        ReplicaWidget,
+        ProtocolSelectionWidget,
+    ],
+    "Neb": [
+        DescriptionWidget,
+        VdwSelectorWidget,
+        UksSectionWidget,
+        StructureInfoWidget,
+        ConstraintsWidget,
+        NebWidget,
         ProtocolSelectionWidget,
     ],
 }

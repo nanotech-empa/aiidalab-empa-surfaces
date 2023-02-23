@@ -12,6 +12,8 @@ LAYOUT = {"width": "200px"}
 class ProcessResourcesWidget(ipw.VBox):
     """Setup metadata for an AiiDA process."""
 
+    nproc_replica_trait = trt.Int()
+
     def __init__(self):
         """Metadata widget to generate metadata"""
 
@@ -40,6 +42,15 @@ class ProcessResourcesWidget(ipw.VBox):
         self.threads_per_task_widget = ipw.IntText(
             value=1, description="# Threads per task", style=STYLE, layout=LAYOUT
         )
+
+        def on_cores_change(c=None):
+            if self.nproc_replica_trait:
+                self.nproc_replica_trait = (
+                    self.nodes_widget * self.tasks_per_node_widget
+                )
+
+        self.nodes_widget.observe(on_cores_change, "value")
+        self.tasks_per_node_widget.observe(on_cores_change, "value")
 
         children = [
             self.nodes_widget,
@@ -84,6 +95,8 @@ class ResourcesEstimatorWidget(ipw.VBox):
 
     details = trt.Dict()
     uks = trt.Bool()
+    n_replica_trait = trt.Int()
+
     selected_code = trt.Union([trt.Unicode(), trt.Instance(orm.Code)], allow_none=True)
 
     def __init__(self, calculation_type="dft"):
@@ -121,7 +134,6 @@ class ResourcesEstimatorWidget(ipw.VBox):
                 self.selected_code
             ).computer.get_default_mpiprocs_per_machine()
         except (ValueError, AttributeError):
-            print("Code not recognized setting tasks per node to 1")
             self.max_tasks_per_node = 1
 
     def _compute_cost(self, element_list=None, system_type="Slab", uks=False):
@@ -175,7 +187,13 @@ class ResourcesEstimatorWidget(ipw.VBox):
 
         theone = min(resources, key=lambda x: abs(x - cost))
 
-        self.resources.nodes_widget.value = resources[theone]["nodes"]
+        if self.n_replica_trait:
+            self.resources.nodes_widget.value = (
+                resources[theone]["nodes"] * self.n_replica_trait
+            )
+        else:
+            self.resources.nodes_widget.value = resources[theone]["nodes"]
+
         self.resources.tasks_per_node_widget.value = resources[theone]["tasks_per_node"]
         self.resources.threads_per_task_widget.value = resources[theone]["threads"]
 
