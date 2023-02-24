@@ -14,6 +14,7 @@ class ProcessResourcesWidget(ipw.VBox):
 
     nproc_replica_trait = trt.Int()
     n_replica_trait = trt.Int()
+    n_replica_per_group_trait = trt.Int()
 
     def __init__(self):
         """Metadata widget to generate metadata"""
@@ -73,14 +74,20 @@ class ProcessResourcesWidget(ipw.VBox):
     @property
     def walltime_seconds(self):
         return int(pd.Timedelta(self.walltime_widget.value).total_seconds())
+    
+    @trt.observe("n_replica_trait")
+    def on_n_replica_trait_change(self,change):
+        if change['old'] !=0:
+            self.nodes_widget.value = int(self.nodes_widget.value*change['new'] / change['old'])
+            
+    @trt.observe("n_replica_per_group_trait") 
+    def on_n_replica_per_group_trait_change(self,change):
+        self.nodes_widget.value = int(self.nodes_widget.value*change['old'] / change['new'])
 
     def on_cores_change(self, _=None):
-        print("CHANGED")
-        self.nproc_replica_trait = 0
         self.nproc_replica_trait = int(
-            self.nodes_widget.value
-            / self.n_replica_trait
-            * self.tasks_per_node_widget.value
+            self.nodes_widget.value * self.tasks_per_node_widget.value * self.n_replica_per_group_trait / self.n_replica_trait
+            
         )
 
     def parse_time_string(self, _=None):
@@ -99,7 +106,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
 
     details = trt.Dict()
     uks = trt.Bool()
-    n_replica_trait = trt.Int()
+    #n_replica_trait = trt.Int()
 
     selected_code = trt.Union([trt.Unicode(), trt.Instance(orm.Code)], allow_none=True)
 
@@ -191,9 +198,9 @@ class ResourcesEstimatorWidget(ipw.VBox):
 
         theone = min(resources, key=lambda x: abs(x - cost))
 
-        if self.n_replica_trait:
+        if self.resources.n_replica_trait:
             self.resources.nodes_widget.value = (
-                resources[theone]["nodes"] * self.n_replica_trait
+                resources[theone]["nodes"] * self.resources.n_replica_trait
             )
         else:
             self.resources.nodes_widget.value = resources[theone]["nodes"]

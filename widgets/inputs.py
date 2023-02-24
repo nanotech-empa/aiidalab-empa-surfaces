@@ -2,12 +2,13 @@ import ipywidgets as ipw
 from aiida.orm import Code, load_node
 from aiidalab_widgets_base.utils import string_range_to_list
 from IPython.display import clear_output, display
-from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, observe
+from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, observe, default
 
 from ase import Atoms
 
 import aiidalab_widgets_base as awb
 import numpy as np
+from functools import reduce
 
 from .cp2k_input_validity import validate_input
 from .constraints import ConstraintsWidget
@@ -33,6 +34,7 @@ class InputDetails(ipw.VBox):
     replica = Bool()
     n_replica_trait = Int()
     nproc_replica_trait = Int()
+    n_replica_per_group_trait = Int()
     ase_atoms = Instance(Atoms, allow_none=True)
 
     def __init__(
@@ -51,6 +53,21 @@ class InputDetails(ipw.VBox):
 
         super().__init__(children=[self.output])
 
+    @default("neb")
+    def _default_neb(self):
+        return False
+    
+    @default("n_replica_trait")
+    def _default_n_proc_replica(self):
+        if self.neb:
+            return 15
+        return 1
+    
+    @default("n_replica_per_group_trait")
+    def _default_n_replica_per_group_trait(self):
+        return 1
+    
+    
     @observe("details", "neb", "replica")
     def _observe_details(self, _=None):
         self.to_fix = []
@@ -236,6 +253,7 @@ class ReplicaWidget(ipw.VBox):
 class NebWidget(ipw.VBox):
     n_replica_trait = Int()
     nproc_replica_trait = Int()
+    n_replica_per_group_trait = Int()
 
     def __init__(self):
         self.restart_from = ipw.Text(
@@ -275,18 +293,22 @@ class NebWidget(ipw.VBox):
             style={"description_width": "initial"},
             layout={"width": "240px"},
         )
-        self.nproc_rep = ipw.Text(
+        self.nproc_rep = ipw.HTML(
             description="# processors / rep",
             value="324",
             style={"description_width": "initial"},
             layout={"width": "240px"},
         )
-        self.n_replica = ipw.Text(
+        self.n_replica = ipw.IntText(
             description="# of replica",
             value="15",
             style={"description_width": "initial"},
             layout={"width": "240px"},
         )
+        self.n_replica_per_group = ipw.Dropdown(description='# rep / group',
+                                                options=[1,3,5],
+                                                value = 1,
+                                                style={"description_width": "initial"})
         self.nsteps_it = ipw.Text(
             description="Steps before CI",
             value="5",
@@ -295,6 +317,7 @@ class NebWidget(ipw.VBox):
         )
 
         self.n_replica.observe(self.on_n_replica_change, "value")
+        self.n_replica_per_group.observe(self.on_n_replica_per_group_change, "value")
 
         super().__init__(
             children=[
@@ -306,6 +329,7 @@ class NebWidget(ipw.VBox):
                 self.k_spring,
                 self.nproc_rep,
                 self.n_replica,
+                self.n_replica_per_group,
                 self.nsteps_it,
             ],
         )
@@ -333,19 +357,25 @@ class NebWidget(ipw.VBox):
         the_dict["replica_uuids"] = [
             load_node(int(pk)).uuid for pk in self.replica_pks.value.split()
         ]
-
+        
         return the_dict
 
     @observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
-        print("OBSERVE NRPOCREP", self.nproc_replica_trait)
         self.nproc_rep.value = str(self.nproc_replica_trait)
+        
+    def on_n_replica_per_group_change(self, _=None):
+        self.n_replica_per_group_trait = self.n_replica_per_group.value
 
     def on_n_replica_change(self, _=None):
         self.n_replica_trait = int(self.n_replica.value)
-
+        nrep = int(self.n_replica.value)
+        self.n_replica_per_group.value = 1
+        self.n_replica_per_group.options = set(reduce(list.__add__, 
+                    ([i, nrep//i] for i in range(1, int(nrep**0.5) + 1) if nrep % i == 0)))
+        
     def traits_to_link(self):
-        return ["n_replica_trait", "nproc_replica_trait"]
+        return ["n_replica_trait", "nproc_replica_trait","n_replica_per_group_trait"]
 
 
 class UksSectionWidget(ipw.Accordion):
