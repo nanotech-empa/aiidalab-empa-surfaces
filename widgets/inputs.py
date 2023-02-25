@@ -10,7 +10,6 @@ import aiidalab_widgets_base as awb
 import numpy as np
 from functools import reduce
 
-from .cp2k_input_validity import validate_input
 from .constraints import ConstraintsWidget
 from .spins import SpinsWidget
 
@@ -30,12 +29,17 @@ class InputDetails(ipw.VBox):
     do_cell_opt = Bool()
     uks = Bool()
     net_charge = Int()
-    neb = Bool()
-    replica = Bool()
-    n_replica_trait = Int()
-    nproc_replica_trait = Int()
-    n_replica_per_group_trait = Int()
-    ase_atoms = Instance(Atoms, allow_none=True)
+    neb = Bool() # set by app in case of neb calculation, to be linked to resources
+    replica = Bool() # set by app in case of replica chain calculation
+    n_replica_trait = Int() # to be linked to resources used only if neb = True
+    nproc_replica_trait = Int() # to be linked from resources to input_details  used only if neb = True
+    n_replica_per_group_trait = Int() # to be linked to resources used only if neb = True
+    # example in app:
+    #ipw.dlink((input_details, 'n_replica_trait'),(resources, 'n_replica_trait'))
+    #ipw.dlink((input_details, 'n_replica_per_group_trait'),(resources, 'n_replica_per_group_trait'))
+    #ipw.dlink((resources, 'nproc_replica_trait'),(input_details, 'nproc_replica_trait'))    
+    
+    ase_atoms = Instance(Atoms, allow_none=True)# needed for colvars
 
     def __init__(
         self,
@@ -371,9 +375,10 @@ class NebWidget(ipw.VBox):
         self.n_replica_trait = int(self.n_replica.value)
         nrep = int(self.n_replica.value)
         self.n_replica_per_group.value = 1
+        # factors of n_replica
         self.n_replica_per_group.options = set(reduce(list.__add__, 
                     ([i, nrep//i] for i in range(1, int(nrep**0.5) + 1) if nrep % i == 0)))
-        
+                
     def traits_to_link(self):
         return ["n_replica_trait", "nproc_replica_trait","n_replica_per_group_trait"]
 
