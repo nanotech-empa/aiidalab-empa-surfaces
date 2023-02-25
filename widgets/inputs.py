@@ -12,6 +12,7 @@ from functools import reduce
 
 from .constraints import ConstraintsWidget
 from .spins import SpinsWidget
+from .cp2k_input_validity import validate_input
 
 # from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
 
@@ -545,8 +546,8 @@ class CellSectionWidget(ipw.Accordion):
             sys_params["cell_opt"] = ""
         if self.cell_constraint.value != "NONE":
             sys_params["cell_opt_constraint"] = self.cell_constraint.value
-        if self.cell.free.value != "FREE":
-            sys_params[self.cell.free.value.lower()] = ""
+        if self.cell_free.value != "FREE":
+            sys_params[self.cell_free.value.lower()] = ""
 
         return {"sys_params": sys_params}
 
@@ -568,7 +569,7 @@ class CellSectionWidget(ipw.Accordion):
             self.set_title(0, "CELL details")
             self.children = [self.cell_sym]
 
-        if self.net_charge and self.details["system_type"] == "Molecule":
+        if self.details["system_type"] == "Molecule":
             self.periodic.value = "NONE"
 
     def traits_to_link(self):
