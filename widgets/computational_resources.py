@@ -8,20 +8,22 @@ STYLE = {
 }
 LAYOUT = {"width": "200px"}
 
+
 def closest_multiple(Nodes, Tasks, Groups):
     """
     Returns the integer M closest to N such that M*T is a multiple of G.
     """
-    if Nodes%Groups == 0 or Tasks%Groups ==0:
+    if Nodes % Groups == 0 or Tasks % Groups == 0:
         return Nodes
     else:
         int_division = Nodes // Groups
-        bigger = (int_division +1) * Groups
-        smaller = (int_division -1) *Groups
+        bigger = (int_division + 1) * Groups
+        smaller = (int_division - 1) * Groups
         if bigger - Nodes < Nodes - smaller:
             return bigger
         else:
-            return smaller   
+            return smaller
+
 
 class ProcessResourcesWidget(ipw.VBox):
     """Setup metadata for an AiiDA process."""
@@ -30,13 +32,14 @@ class ProcessResourcesWidget(ipw.VBox):
     n_replica_trait = trt.Int()
     n_replica_per_group_trait = trt.Int()
     neb = trt.Bool()
+    phonons = trt.Bool()
 
     def __init__(self):
         """Metadata widget to generate metadata"""
-        
+
         @trt.default("neb")
         def _default_neb(self):
-            return False        
+            return False
 
         self.walltime_widget = ipw.Text(
             description="Walltime:",
@@ -77,7 +80,7 @@ class ProcessResourcesWidget(ipw.VBox):
 
         super().__init__(children=children)
         # ---------------------------------------------------------
-        
+
     @property
     def nodes(self):
         return int(self.nodes_widget.value)
@@ -93,26 +96,45 @@ class ProcessResourcesWidget(ipw.VBox):
     @property
     def walltime_seconds(self):
         return int(pd.Timedelta(self.walltime_widget.value).total_seconds())
-    
+
     @trt.observe("n_replica_trait")
-    def on_n_replica_trait_change(self,change):
-        if change['old'] !=0 and self.neb:
-            self.nodes_widget.value = int(self.nodes_widget.value*change['new'] / change['old'])
-            
-    @trt.observe("n_replica_per_group_trait")    
-    def on_n_replica_per_group_trait_change(self,change):
-        if change['old'] !=0 and self.neb:
-            self.nodes_widget.value = int(self.nodes_widget.value*change['old'] / change['new'])
+    def on_n_replica_trait_change(self, change):
+        if change["old"] != 0:
+            if self.neb or self.phonons:
+                self.nodes_widget.value = int(
+                    self.nodes_widget.value * change["new"] / change["old"]
+                )
+
+    @trt.observe("n_replica_per_group_trait")
+    def on_n_replica_per_group_trait_change(self, change):
+        if change["old"] != 0 and self.neb:
+            self.nodes_widget.value = int(
+                self.nodes_widget.value * change["old"] / change["new"]
+            )
 
     def on_cores_change(self, _=None):
         if self.neb:
             ngroups = int(self.n_replica_trait / self.n_replica_per_group_trait)
-            self.nodes_widget.value = closest_multiple(self.nodes_widget.value,self.tasks_per_node_widget.value,ngroups)
-            self.nproc_replica_trait = int(
-                self.nodes_widget.value * self.tasks_per_node_widget.value * self.n_replica_per_group_trait / self.n_replica_trait
-
+            self.nodes_widget.value = closest_multiple(
+                self.nodes_widget.value, self.tasks_per_node_widget.value, ngroups
             )
-              
+            self.nproc_replica_trait = int(
+                self.nodes_widget.value
+                * self.tasks_per_node_widget.value
+                * self.n_replica_per_group_trait
+                / self.n_replica_trait
+            )
+        elif self.phonons:
+            self.nodes_widget.value = closest_multiple(
+                self.nodes_widget.value,
+                self.tasks_per_node_widget.value,
+                self.n_replica_trait,
+            )
+            self.nproc_replica_trait = int(
+                self.nodes_widget.value
+                * self.tasks_per_node_widget.value
+                / self.n_replica_trait
+            )
 
     def parse_time_string(self, _=None):
         """Parse the time string and set the time in seconds"""
@@ -130,7 +152,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
 
     details = trt.Dict()
     uks = trt.Bool()
-    #n_replica_trait = trt.Int()
+    # n_replica_trait = trt.Int()
 
     selected_code = trt.Union([trt.Unicode(), trt.Instance(orm.Code)], allow_none=True)
 

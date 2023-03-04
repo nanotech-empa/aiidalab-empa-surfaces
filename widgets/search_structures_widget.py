@@ -125,21 +125,16 @@ class SearchStructuresWidget(ipw.VBox):
         qb.order_by({StructureData: {"mtime": "desc"}})
 
         # for each structure in QB create a dictionary with info on the workflows computed on it
-        print(qb.count())
         data = []
         for node_tuple in qb.iterall():
             node = node_tuple[0]
             workflows = uuids_to_nodesdict(node.extras["surfaces"])
-            print(node.pk)
             if len(workflows) > 0:
                 nrows = len(node.extras["surfaces"])
                 if "thumbnail" not in node.extras:
-                    print("setting thumbnail to ", node.pk)
                     node.set_extra(
                         "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
                     )
-                    print("done updating node", node.pk)
-                    print("EXTRAS: ", node.extras)
                 entry = {
                     "nrows": nrows,
                     "mtime": node.mtime.strftime("%d/%m/%y"),
@@ -152,9 +147,7 @@ class SearchStructuresWidget(ipw.VBox):
                         description="",
                     ),
                 }
-                print("ENTRY_DICT ", entry)
                 data.append(entry)
-        print("end loop")
         # populate the table with the data
         html = """<style>#aiida_results td,th {padding: 2px}</style>
         <table border=1 id="aiida_results" style="margin:0px">

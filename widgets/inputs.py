@@ -2,7 +2,18 @@ import ipywidgets as ipw
 from aiida.orm import Code, load_node
 from aiidalab_widgets_base.utils import string_range_to_list
 from IPython.display import clear_output, display
-from traitlets import Bool, Dict, Instance, Int, List, Unicode, Union, link, observe, default
+from traitlets import (
+    Bool,
+    Dict,
+    Instance,
+    Int,
+    List,
+    Unicode,
+    Union,
+    link,
+    observe,
+    default,
+)
 
 from ase import Atoms
 
@@ -30,17 +41,24 @@ class InputDetails(ipw.VBox):
     do_cell_opt = Bool()
     uks = Bool()
     net_charge = Int()
-    neb = Bool() # set by app in case of neb calculation, to be linked to resources
-    replica = Bool() # set by app in case of replica chain calculation
-    n_replica_trait = Int() # to be linked to resources used only if neb = True
-    nproc_replica_trait = Int() # to be linked from resources to input_details  used only if neb = True
-    n_replica_per_group_trait = Int() # to be linked to resources used only if neb = True
+    neb = Bool()  # set by app in case of neb calculation, to be linked to resources
+    replica = Bool()  # set by app in case of replica chain calculation
+    phonons = Bool()  # set by app in case of phonons calculation
+    n_replica_trait = (
+        Int()
+    )  # to be linked to resources used only if neb = True or phonons = True
+    nproc_replica_trait = (
+        Int()
+    )  # to be linked from resources to input_details  used only if neb = True or phonons = True
+    n_replica_per_group_trait = (
+        Int()
+    )  # to be linked to resources used only if neb = True
     # example in app:
-    #ipw.dlink((input_details, 'n_replica_trait'),(resources, 'n_replica_trait'))
-    #ipw.dlink((input_details, 'n_replica_per_group_trait'),(resources, 'n_replica_per_group_trait'))
-    #ipw.dlink((resources, 'nproc_replica_trait'),(input_details, 'nproc_replica_trait'))    
-    
-    ase_atoms = Instance(Atoms, allow_none=True)# needed for colvars
+    # ipw.dlink((input_details, 'n_replica_trait'),(resources, 'n_replica_trait'))
+    # ipw.dlink((input_details, 'n_replica_per_group_trait'),(resources, 'n_replica_per_group_trait'))
+    # ipw.dlink((resources, 'nproc_replica_trait'),(input_details, 'nproc_replica_trait'))
+
+    ase_atoms = Instance(Atoms, allow_none=True)  # needed for colvars
 
     def __init__(
         self,
@@ -61,19 +79,22 @@ class InputDetails(ipw.VBox):
     @default("neb")
     def _default_neb(self):
         return False
-    
+
+    @default("phonons")
+    def _default_phonons(self):
+        return False
+
     @default("n_replica_trait")
     def _default_n_proc_replica(self):
         if self.neb:
             return 15
         return 1
-    
+
     @default("n_replica_per_group_trait")
     def _default_n_replica_per_group_trait(self):
         return 1
-    
-    
-    @observe("details", "neb", "replica")
+
+    @observe("details", "neb", "replica", "phonons")
     def _observe_details(self, _=None):
         self.to_fix = []
         self.net_charge = 0
@@ -88,6 +109,8 @@ class InputDetails(ipw.VBox):
                     sys_type = "Neb"
                 if self.replica:
                     sys_type = "Replica"
+                if self.phonons:
+                    sys_type = "Phonons"
 
             else:
                 sys_type = "None"
@@ -125,7 +148,7 @@ class InputDetails(ipw.VBox):
 
         # Molecule
         if self.details["system_type"] == "Molecule":
-            tmp_dict["sys_params"]["periodic"] = "NONE"
+            tmp_dict["dft_params"]["periodic"] = "NONE"
 
         # CHECK input validity
         can_submit, error_msg = validate_input(self.details, tmp_dict)
@@ -188,6 +211,7 @@ class ProtocolSelectionWidget(ipw.Dropdown):
         options = [
             ("Standard", "standard"),
             ("Low accuracy", "low_accuracy"),
+            ("Phonons", "phonons"),
             ("Debug", "debug"),
         ]
         super().__init__(
@@ -310,10 +334,12 @@ class NebWidget(ipw.VBox):
             style={"description_width": "initial"},
             layout={"width": "240px"},
         )
-        self.n_replica_per_group = ipw.Dropdown(description='# rep / group',
-                                                options=[1,3,5],
-                                                value = 1,
-                                                style={"description_width": "initial"})
+        self.n_replica_per_group = ipw.Dropdown(
+            description="# rep / group",
+            options=[1, 3, 5],
+            value=1,
+            style={"description_width": "initial"},
+        )
         self.nsteps_it = ipw.Text(
             description="Steps before CI",
             value="5",
@@ -362,13 +388,13 @@ class NebWidget(ipw.VBox):
         the_dict["replica_uuids"] = [
             load_node(int(pk)).uuid for pk in self.replica_pks.value.split()
         ]
-        
+
         return the_dict
 
     @observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
         self.nproc_rep.value = str(self.nproc_replica_trait)
-        
+
     def on_n_replica_per_group_change(self, _=None):
         self.n_replica_per_group_trait = self.n_replica_per_group.value
 
@@ -377,11 +403,81 @@ class NebWidget(ipw.VBox):
         nrep = int(self.n_replica.value)
         self.n_replica_per_group.value = 1
         # factors of n_replica
-        self.n_replica_per_group.options = set(reduce(list.__add__, 
-                    ([i, nrep//i] for i in range(1, int(nrep**0.5) + 1) if nrep % i == 0)))
-                
+        self.n_replica_per_group.options = set(
+            reduce(
+                list.__add__,
+                (
+                    [i, nrep // i]
+                    for i in range(1, int(nrep**0.5) + 1)
+                    if nrep % i == 0
+                ),
+            )
+        )
+
     def traits_to_link(self):
-        return ["n_replica_trait", "nproc_replica_trait","n_replica_per_group_trait"]
+        return ["n_replica_trait", "nproc_replica_trait", "n_replica_per_group_trait"]
+
+
+class PhononsWidget(ipw.VBox):
+    details = Dict()
+    n_replica_trait = Int()
+    nproc_replica_trait = Int()
+
+    def __init__(self):
+        self.nproc_rep = ipw.HTML(
+            description="# processors / rep",
+            value="324",
+            style={"description_width": "initial"},
+            layout={"width": "240px"},
+        )
+        self.n_replica = ipw.Dropdown(
+            description="# of replica",
+            value=3,
+            options=[1, 3],
+            style={"description_width": "initial"},
+            layout={"width": "240px"},
+        )
+
+        self.n_replica.observe(self.on_n_replica_change, "value")
+
+        super().__init__(
+            children=[
+                self.nproc_rep,
+                self.n_replica,
+            ],
+        )
+
+    def return_dict(self):
+        the_dict = {}
+        the_dict["phonons_params"] = {"nproc_rep": int(self.nproc_rep.value)}
+
+        return the_dict
+
+    @observe("nproc_replica_trait")
+    def _observe_nproc_replica_trait(self, _=None):
+        self.nproc_rep.value = str(self.nproc_replica_trait)
+
+    @observe("details")
+    def _observe_details(self, _=None):
+        self.n_replica.value = 3
+        three_times_natoms = self.details["numatoms"] * 3
+        # factors of 3 * Natoms
+        self.n_replica.options = set(
+            reduce(
+                list.__add__,
+                (
+                    [i, three_times_natoms // i]
+                    for i in range(1, int(three_times_natoms**0.5) + 1)
+                    if three_times_natoms % i == 0
+                ),
+            )
+        )
+
+    def on_n_replica_change(self, _=None):
+        self.n_replica_trait = int(self.n_replica.value)
+
+    def traits_to_link(self):
+        return ["n_replica_trait", "nproc_replica_trait", "details"]
 
 
 class UksSectionWidget(ipw.Accordion):
@@ -620,6 +716,15 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         ConstraintsWidget,
         NebWidget,
+        ProtocolSelectionWidget,
+    ],
+    "Phonons": [
+        DescriptionWidget,
+        VdwSelectorWidget,
+        UksSectionWidget,
+        StructureInfoWidget,
+        ConstraintsWidget,
+        PhononsWidget,
         ProtocolSelectionWidget,
     ],
 }
