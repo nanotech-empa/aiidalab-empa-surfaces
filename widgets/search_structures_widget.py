@@ -16,6 +16,7 @@ VIEWERS = {
     "CP2K_STM": "view_stm.ipynb",
     "CP2K_AFM": "view_afm.ipynb",
     "CP2K_HRSTM": "view_hrstm.ipynb",
+    "CP2K_Phonons": "view_hrstm.ipynb",
 }
 
 
