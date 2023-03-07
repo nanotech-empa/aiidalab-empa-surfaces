@@ -11,6 +11,7 @@ VIEWERS = {
     "Cp2kMoleculeOptGwWorkChain_pks": "./gw/view_gw.ipynb",
     "CP2K_AdsorptionE": "view_ade.ipynb",
     "CP2K_GeoOpt": "view_geoopt.ipynb",
+    "CP2K_CellOpt": "view_geoopt.ipynb",
     "CP2K_Orbitals": "view_orb.ipynb",
     "CP2K_Pdos": "view_pdos.ipynb",
     "CP2K_STM": "view_stm.ipynb",
@@ -20,14 +21,14 @@ VIEWERS = {
 }
 
 
-def thunmnail_raw(nrows=1, thumbnail=None, uuid=None, pk=None, description=""):
+def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
     # image with a link to structure export
-
+    pk = str(pk)
     html = (
-        '<td rowspan=%s><a target="_blank" href="./export_structure.ipynb?uuid=%s">'
-        % (str(nrows), uuid)
+        '<td rowspan=%s><a target="_blank" href="./export_structure.ipynb?pk=%s">'
+        % (str(nrows), pk)
     )
-    html += '<img width="100px" src="data:image/png;base64,%s" title="PK%d: %s">' % (
+    html += '<img width="100px" src="data:image/png;base64,%s" title="PK%s: %s">' % (
         thumbnail,
         pk,
         description,
@@ -36,21 +37,25 @@ def thunmnail_raw(nrows=1, thumbnail=None, uuid=None, pk=None, description=""):
     return html
 
 
-def link_to_viewer(description="", uuid="", label=""):
+def link_to_viewer(description="", pk="", label=""):
+    pk = str(pk)
     the_viewer = VIEWERS[label]
-    return '<li><a target="_blank" href="%s?uuid=%s"> %s </a></li>' % (
+    return '<li><a target="_blank" href="%s?pk=%s"> %s </a></li>' % (
         the_viewer,
-        uuid,
+        pk,
         description,
     )
 
 
 def uuids_to_nodesdict(uuids):
     workflows = {}
+    nworkflows = 0
     for uuid in uuids:
         try:
             node = load_node(uuid)
-            if node.label in VIEWERS:
+            nodeisobsolete = "obsolete" in node.extras and node.extras["obsolete"]
+            if node.label in VIEWERS and not nodeisobsolete:
+                nworkflows += 1
                 if node.label in workflows:
                     workflows[node.label].append(node)
                 else:
@@ -58,7 +63,7 @@ def uuids_to_nodesdict(uuids):
         except NotExistent:
             pass
 
-    return workflows
+    return nworkflows, workflows
 
 
 class SearchStructuresWidget(ipw.VBox):
@@ -129,9 +134,9 @@ class SearchStructuresWidget(ipw.VBox):
         data = []
         for node_tuple in qb.iterall():
             node = node_tuple[0]
-            workflows = uuids_to_nodesdict(node.extras["surfaces"])
-            if len(workflows) > 0:
-                nrows = len(node.extras["surfaces"])
+            nworkflows, workflows = uuids_to_nodesdict(node.extras["surfaces"])
+            if nworkflows > 0:
+                nrows = nworkflows
                 if "thumbnail" not in node.extras:
                     node.set_extra(
                         "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
@@ -143,7 +148,6 @@ class SearchStructuresWidget(ipw.VBox):
                     "thumbnail": thunmnail_raw(
                         nrows=nrows,
                         thumbnail=node.extras["thumbnail"],
-                        uuid=node.uuid,
                         pk=node.pk,
                         description="",
                     ),
@@ -173,7 +177,7 @@ class SearchStructuresWidget(ipw.VBox):
                 for node in entry["workflows"][workflow]:
                     html += link_to_viewer(
                         description="PK-" + str(node.pk) + " " + node.description,
-                        uuid=node.uuid,
+                        pk=node.pk,
                         label=node.label,
                     )
                 html += "</td></ul>"

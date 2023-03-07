@@ -6,9 +6,11 @@ def get_start_widget(appbase, jupbase):
     template = """
     <table>
     <tr>
-        <th style="text-align:center">Calculations</th>
+        <th style="text-align:center">DFT Calculations</th>
         <th style="width:60px" rowspan=2></th>
-        <th style="text-align:center">NEB and Replica chain</th>
+        <th style="text-align:center">SPM Calculations</th>
+        <th style="text-align:center">GW calculations</th>
+        <th style="text-align:center">Setup</th>        
     </tr>
 
     <tr>
@@ -16,45 +18,26 @@ def get_start_widget(appbase, jupbase):
     <td valign="top"><ul>
         <li><a href="{appbase}/submit_calculations.ipynb" target="_blank">Submit optimizatons</a>
         <li><a href="{appbase}/submit_adsorption_energy.ipynb" target="_blank">Compute adsorption energy</a>
-        <li><a href="{appbase}/submit_gw.ipynb" target="_blank">Submit GW</a>
-        <li><a href="{appbase}/submit_gw-ic.ipynb" target="_blank">Submit GW-IC</a>
+        <li><a href="{appbase}/submit_phonons.ipynb" target="_blank">Submit Phonons</a>        
+        <li><a href="{appbase}/submit_reactions.ipynb" target="_blank">Submit MEP</a>
         <li><a href="{appbase}/search.ipynb" target="_blank">Search</a>
     </ul></td>
 
     <td valign="top"><ul>
-        <li><a href="{appbase}/submit_reactions.ipynb" target="_blank">Submit MEP</a>
+        <li><a href="{appbase}/submit_stm.ipynb" target="_blank">Submit STM</a>
+        <li><a href="{appbase}/submit_pdos.ipynb" target="_blank">Submit PDOS</a>
     </ul></td>
 
-    </tr>
+    <td valign="top"><ul>
+        <li><a href="{appbase}/submit_gw.ipynb" target="_blank">Submit GW</a>
+        <li><a href="{appbase}/submit_gw-ic.ipynb" target="_blank">Submit GW-IC</a>    
 
-    <tr>
-        <th style="text-align:center">General</th>
-        <th style="width:50px" rowspan=2></th>
-        <th style="text-align:center">STM and PDOS</th>
-        <th style="width:50px" rowspan=2></th>
-        <th style="text-align:center">Viewers</th>
-        <th style="width:50px" rowspan=2></th>
-    </tr>
+    </ul></td>
 
-    <tr>
-        <td valign="top"><ul>
-            <li><a href="{appbase}/setup_codes.ipynb" target="_blank">Setup codes</a>
+    <td valign="top"><ul>
+            <li><a href="{appbase}/setup_codes.ipynb" target="_blank">Setup SPM codes</a>
             <li><a href="{appbase}/manage_calcs.ipynb" target="_blank">Manage calculations</a>
-        </ul></td>
-
-        <td valign="top"><ul>
-            <li><a href="{appbase}/submit_stm.ipynb" target="_blank">Submit STM</a>
-            <li><a href="{appbase}/submit_pdos.ipynb" target="_blank">Submit PDOS</a>
-        </ul></td>
-
-        <td valign="top"><ul>
-            <li><a href="{appbase}/view_pdos.ipynb" target="_blank">View PDOS</a>
-            <li><a href="{appbase}/view_stm.ipynb" target="_blank">View STM</a>
-            <li><a href="{appbase}/view_afm.ipynb" target="_blank">View AFM</a>
-            <li><a href="{appbase}/view_hrstm.ipynb" target="_blank">View HR-STM</a>
-            <li><a href="{appbase}/view_orb.ipynb" target="_blank">View ORB</a>
-        </ul></td>
-
+    </ul></td>
 
     </tr>
 

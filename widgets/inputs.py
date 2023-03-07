@@ -207,11 +207,12 @@ class StructureInfoWidget(ipw.Accordion):
 
 
 class ProtocolSelectionWidget(ipw.Dropdown):
+    phonons = Bool()
+
     def __init__(self):
         options = [
             ("Standard", "standard"),
             ("Low accuracy", "low_accuracy"),
-            ("Phonons", "phonons"),
             ("Debug", "debug"),
         ]
         super().__init__(
@@ -220,6 +221,27 @@ class ProtocolSelectionWidget(ipw.Dropdown):
             description="Protocol:",
             style={"description_width": "120px"},
         )
+
+    @observe("phonons")
+    def _observe_details(self, _=None):
+        if self.phonons:
+            self.options = [
+                ("Phonons", "phonons"),
+                ("Standard", "standard"),
+                ("Low accuracy", "low_accuracy"),
+                ("Debug", "debug"),
+            ]
+            self.value = "phonons"
+        else:
+            self.options = [
+                ("Standard", "standard"),
+                ("Low accuracy", "low_accuracy"),
+                ("Debug", "debug"),
+            ]
+            self.value = "standard"
+
+    def traits_to_link(self):
+        return ["phonons"]
 
     def return_dict(self):
         return {"dft_params": {"protocol": self.value}}
