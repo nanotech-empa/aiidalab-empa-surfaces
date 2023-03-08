@@ -17,19 +17,11 @@ def find_first_workchain(node):
     return lastcalling
 
 
-def remote_file_exists(hostname, filepath):
+def remote_file_exists(computer, filepath):
     """Checks if a file exists on a remote host."""
-    result = ""
-    try:
-        ssh = subprocess.check_output(
-            ["ssh", "%s" % hostname, "ls %s" % filepath],
-            shell=False,
-            stderr=subprocess.DEVNULL,
-        )
-        result = ssh.decode()
-    except subprocess.CalledProcessError:
-        pass
-    return result
+    transport = computer.get_transport()
+    with transport:
+        return transport.path_exists(filepath)
 
 
 def copy_wfn(hostname=None, wfn_search_path=None, wfn_name=None):
@@ -140,12 +132,9 @@ def structure_available_wfn(
         generating_workchain.outputs.remote_folder.get_remote_path() + "/" + wfn_name
     )
 
-    if hostname == "localhost":
-        wfn_exists = (
-            subprocess.call("test -e '{}'".format(wfn_search_path), shell=True) == 0
-        )
-    else:
-        wfn_exists = remote_file_exists(hostname, wfn_search_path) != ""
+    wfn_exists = remote_file_exists(
+        generating_workchain.inputs.code.computer, wfn_search_path
+    )
 
     if not wfn_exists:
         return None
