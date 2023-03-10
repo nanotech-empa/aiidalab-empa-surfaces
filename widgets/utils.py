@@ -6,6 +6,7 @@ from aiida.orm import StructureData, load_node
 
 def find_first_workchain(node):
     """Find the first workchain in the provenance."""
+    lastcalling = None
     if isinstance(node, StructureData):
         previous_node = node.creator
     else:
