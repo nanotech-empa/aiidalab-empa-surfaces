@@ -25,29 +25,17 @@ def remote_file_exists(computer, filepath):
         return transport.path_exists(filepath)
 
 
-def copy_wfn(hostname=None, wfn_search_path=None, wfn_name=None):
+def copy_wfn(computer=None, wfn_search_path=None, wfn_name=None):
     """Cretaes a copy of a wfn in a folder"""
-    result = ""
-    try:
-        if hostname == "localhost":
-            result = (
-                subprocess.call("cp %s %s" % (wfn_search_path, wfn_name), shell=True)
-                == 0
-            )
-        else:
-            ssh = subprocess.check_output(
-                ["ssh", "%s" % hostname, "cp %s %s" % (wfn_search_path, wfn_name)],
-                shell=False,
-                stderr=subprocess.DEVNULL,
-            )
-            result = ssh.decode()
-    except subprocess.CalledProcessError:
-        pass
+    transport = computer.get_transport()
+    with transport as trs:
+        result = trs.copyfile(wfn_search_path, wfn_search_path)
+
     return result
 
 
 def structure_available_wfn(
-    node_uuid=None,
+    node=None,
     relative_replica_id=None,
     current_hostname=None,
     return_path=True,
@@ -55,7 +43,7 @@ def structure_available_wfn(
 ):
     """
     Checks availability of .wfn file corresponding to a structure and returns the remote path.
-    :param node_uuid: uuid of the structure node
+    :param node:  the structure node
     :param relative_replica_id: if a structure has to do with  NEB replica_id / nreplica to
       account for teh case where in a NEB calculation we restart from a different number of replicas
     :param current_hostname: hostname of the current computer
@@ -64,7 +52,7 @@ def structure_available_wfn(
     :return: remote path or folder
     """
 
-    struc_node = load_node(node_uuid)
+    struc_node = node
     generating_workchain = find_first_workchain(struc_node)
 
     if generating_workchain is None:
@@ -129,20 +117,26 @@ def structure_available_wfn(
         # use the standard name
         wfn_name = "aiida-RESTART.wfn"
 
-    wfn_search_path = (
-        generating_workchain.outputs.remote_folder.get_remote_path() + "/" + wfn_name
-    )
+    wfn_exists = False
+    try:
+        wfn_search_path = (
+            generating_workchain.outputs.remote_folder.get_remote_path()
+            + "/"
+            + wfn_name
+        )
 
-    wfn_exists = remote_file_exists(
-        generating_workchain.inputs.code.computer, wfn_search_path
-    )
+        wfn_exists = remote_file_exists(
+            generating_workchain.inputs.code.computer, wfn_search_path
+        )
+    except NotExistentAttributeError:
+        pass
 
     if not wfn_exists:
         return None
 
     if create_a_copy:
         copy_wfn(
-            hostname=hostname,
+            computer=generating_workchain.inputs.code.computer,
             wfn_search_path=wfn_search_path,
             wfn_name=generating_workchain.outputs.remote_folder.get_remote_path()
             + "/"
@@ -155,17 +149,22 @@ def structure_available_wfn(
         return generating_workchain.outputs.remote_folder
 
 
-def mk_wfn_cp_commands(nreplicas, replica_uuids, selected_computer):
+def mk_wfn_cp_commands(
+    nreplicas=None, replica_nodes=None, selected_computer=None, dft_params=None
+):
     available_wfn_paths = []
     list_wfn_available = []
     list_of_cp_commands = []
 
-    for ir, node_uuid in enumerate(replica_uuids):
+    for ir, node in enumerate(replica_nodes):
 
         # in general the number of uuids is <= nreplicas
-        relative_replica_id = ir / len(replica_uuids)
+        relative_replica_id = ir / len(replica_nodes)
         avail_wfn = structure_available_wfn(
-            node_uuid, relative_replica_id, selected_computer.hostname
+            node=node,
+            relative_replica_id=relative_replica_id,
+            current_hostname=selected_computer.hostname,
+            dft_params=dft_params,
         )
 
         if avail_wfn:
@@ -175,7 +174,7 @@ def mk_wfn_cp_commands(nreplicas, replica_uuids, selected_computer):
     if len(list_wfn_available) == 0:
         return []
 
-    n_images_available = len(replica_uuids)
+    n_images_available = len(replica_nodes)
     n_images_needed = nreplicas
     n_digits = len(str(n_images_needed))
     fmt = "%." + str(n_digits) + "d"
