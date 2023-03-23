@@ -80,13 +80,12 @@ def structure_available_wfn(
             orig_dft_params["magnetization_per_site"] == magnow
             or orig_dft_params["magnetization_per_site"] == nmagnow
         )
-        was_multiplicity = orig_dft_params["multiplicity"] 
-        if 'multiplicities' in dft_params:
-            is_multiplicity = dft_params['multiplicities']['all']
-        else is_multiplicity = dft_params['multiplicity']
-        same_multiplicity = (
-            was_multiplicity == is_multiplicity
-        )
+        was_multiplicity = orig_dft_params["multiplicity"]
+        if "multiplicities" in dft_params:
+            is_multiplicity = dft_params["multiplicities"]["all"]
+        else:
+            is_multiplicity = dft_params["multiplicity"]
+        same_multiplicity = was_multiplicity == is_multiplicity
         if not (same_magnetization and same_multiplicity):
             return None
 
