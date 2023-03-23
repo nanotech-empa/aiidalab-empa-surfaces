@@ -186,28 +186,29 @@ class EmpaStructureViewer(StructureDataViewer):
 
     def _on_atom_click(self, change=None):  # pylint:disable=unused-argument
         """Update selection when clicked on atom."""
+
         if "atom1" not in self._viewer.picked.keys():
             return  # did not click on atom
         index = self._viewer.picked["atom1"]["index"]
 
-        selection = self.selection.copy()
+        displayed_selection = self.displayed_selection.copy()
 
         if self.vis_dict:
             component = self._viewer.picked["component"]
             index = self._translate_i_loc_glob[(component, index)]
 
-        if selection:
-            if index not in selection:
+        if displayed_selection:
+            if index not in displayed_selection:
                 self.selection_dict[index] = self._viewer.picked["atom1"]
-                selection.append(index)
+                displayed_selection.append(index)
             else:
-                selection.remove(index)
+                displayed_selection.remove(index)
                 self.selection_dict.pop(index, None)
         else:
             self.selection_dict[index] = self._viewer.picked["atom1"]
-            selection = [index]
+            displayed_selection = [index]
 
-        self.selection = selection
+        self.displayed_selection = displayed_selection
 
         return
 
