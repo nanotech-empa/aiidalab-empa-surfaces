@@ -7,17 +7,19 @@ from aiida_nanotech_empa.utils import common_utils
 from aiida.common.exceptions import NotExistent
 
 VIEWERS = {
-    "Cp2kAdsorbedGwIcWorkChain_pks": "./gw/view_gw-ic.ipynb",
-    "Cp2kMoleculeOptGwWorkChain_pks": "./gw/view_gw.ipynb",
     "CP2K_AdsorptionE": "view_ade.ipynb",
     "CP2K_GeoOpt": "view_geoopt.ipynb",
+    "Cp2kSlabOptWorkChain": "view_geoopt.ipynb",
     "CP2K_CellOpt": "view_geoopt.ipynb",
     "CP2K_Orbitals": "view_orb.ipynb",
-    "CP2K_Pdos": "view_pdos.ipynb",
+    "CP2K_PDOS": "view_pdos.ipynb",
     "CP2K_STM": "view_stm.ipynb",
+    "CP2K_OLDSTM": "view_stm.ipynb",
     "CP2K_AFM": "view_afm.ipynb",
+    "CP2K_OLDAFM": "view_afm.ipynb",
     "CP2K_HRSTM": "view_hrstm.ipynb",
-    "CP2K_Phonons": "view_hrstm.ipynb",
+    "CP2K_Phonons": "view_phonons.ipynb",
+    "CP2K_NEB": "view_neb.ipynb",
 }
 
 
@@ -54,7 +56,9 @@ def uuids_to_nodesdict(uuids):
         try:
             node = load_node(uuid)
             nodeisobsolete = "obsolete" in node.extras and node.extras["obsolete"]
+            # print("1 ", node.label)
             if node.label in VIEWERS and not nodeisobsolete:
+                # print("2 ", node.label)
                 nworkflows += 1
                 if node.label in workflows:
                     workflows[node.label].append(node)
@@ -132,16 +136,20 @@ class SearchStructuresWidget(ipw.VBox):
 
         # for each structure in QB create a dictionary with info on the workflows computed on it
         data = []
-        for node_tuple in qb.iterall():
-            node = node_tuple[0]
-            nworkflows, workflows = uuids_to_nodesdict(node.extras["surfaces"])
+        for node in qb.all(flat=True):
+            # print("node ", node.pk, " extras ", node.extras["surfaces"])
+            extras = node.extras["surfaces"]
+            nworkflows = 0
+            if isinstance(extras, list):
+                nworkflows, workflows = uuids_to_nodesdict(node.extras["surfaces"])
             if nworkflows > 0:
                 nrows = nworkflows
                 if "thumbnail" not in node.extras:
-                    node.set_extra(
+                    node.base.extras.set(
                         "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
                     )
                 entry = {
+                    "pk": node.pk,
                     "nrows": nrows,
                     "mtime": node.mtime.strftime("%d/%m/%y"),
                     "workflows": workflows,
@@ -154,39 +162,68 @@ class SearchStructuresWidget(ipw.VBox):
                 }
                 data.append(entry)
         # populate the table with the data
-        html = """<style>#aiida_results td,th {padding: 2px}</style>
-        <table border=1 id="aiida_results" style="margin:0px">
-        <thead>
-        <tr>
-            <th >Date last</th>
-            <th >Calc. Type</th>
-            <th >Description</th>
-            <th >Thumbnail</th>
-        </tr>
-        </thead>
-        <tbody>"""
+        # aiida_results td,th {padding: 2px}
+        html = """
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{border-color:black;border-style:solid;border-width:2px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-dark{background-color:#c0c0c0;border-color:inherit;text-align:left;vertical-align:middle}
+.tg .tg-llyw{background-color:#efefef;border-color:inherit;text-align:left;vertical-align:middle}
+.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:middle}
+</style>
+<table class="tg">
+<thead>
+<tr>
+    <th class="tg-dark" >Date last</th>
+    <th class="tg-dark">Calc. Type</th>
+    <th class="tg-dark" >Description</th>
+    <th class="tg-dark" >Thumbnail</th>
+</tr>
+</thead>
+<tbody>
+"""
+        odd = -1
+        tclass = ["", "tg-dark", "tg-llyw"]
         for entry in data:
             nrows1 = entry["nrows"]
             nrows_done = 0
             html += "<tr>"
-            html += "<td rowspan=%s> %s  </td>" % (str(nrows1), entry["mtime"])
+            html += '<td class="%s" rowspan=%s> %s  </td>' % (
+                tclass[odd],
+                str(nrows1),
+                entry["mtime"],
+            )
+            odd *= -1
             for workflow in entry["workflows"]:
+                if nrows_done != 0:
+                    html += "<tr>"
                 nrowsw = len(entry["workflows"][workflow])
-                html += "<td rowspan=%s>  %s </td>" % (str(nrowsw), workflow)
-                html += "<td><ul>"
+                html += '<td class="tg-0pky" rowspan=%s>  %s </td>' % (
+                    str(nrowsw),
+                    workflow,
+                )
+                html += '<td class="tg-0pky" rowspan=%s>' % str(nrowsw)
+                html += "<ul>"
                 for node in entry["workflows"][workflow]:
                     html += link_to_viewer(
                         description="PK-" + str(node.pk) + " " + node.description,
                         pk=node.pk,
                         label=node.label,
                     )
-                html += "</td></ul>"
+                html += "</ul></td>"
                 if nrows_done == 0:
-                    html += entry["thumbnail"]
-                    nrows_done = 1
+                    html += entry[
+                        "thumbnail"
+                    ]  # "<td rowspan=%s>  %s </td>" % ( str(nrows1),"THUMB")
+                    html += "</tr>"
+                    nrows_done += 1
                 for tr_empty in range(1, nrowsw):
                     html += "<tr></tr>"
-            html += "</tr>"
+                    nrows_done += 1
+            # html += "</tr>"
         html += "</tbody></table>"
 
         self.results.value = html

@@ -2,6 +2,7 @@ import subprocess
 import re
 import numpy as np
 from aiida.orm import StructureData, load_node
+from aiida.common.exceptions import NotExistentAttributeError
 
 
 def find_first_workchain(node):
