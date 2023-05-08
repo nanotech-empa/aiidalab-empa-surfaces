@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from aiida.engine import ExitCode, ToContext, WorkChain, calcfunction
-from aiida.orm import Bool, Code, Dict, Float, Int, List, Str, StructureData, load_node
 
 
 def find_ref_i(gw_ic_params):
@@ -65,21 +63,16 @@ def table(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
     header = " MO |"
     templ = "%3d |"
 
-    # Count starts from 1!
+    # Count starts from 1.
     mo_indexes = np.arange(ref_i - n_occ + 1, ref_i + n_virt + 1) + 1
 
     cols = [mo_indexes]
 
     for node in node_list:
-
         sel = select_orbitals(node, ref_i, n_occ, n_virt)
-
         nspin = len(sel["occ"])
-
         evals = sel["gw+ic"]
-
         evals -= evals[0][sel["homo"][0] + energy_ref_i]
-
         cols += [evals[0], sel["occ"][0]]
         label = f"{node.pk}_gw+ic"
         if nspin == 1:
@@ -99,8 +92,6 @@ def table(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
 
 
 def table_scf(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
-    # mode = 'gw' or 'gw+ic'
-
     ref_i = find_ref_i(node_list[0].outputs.gw_ic_parameters)
 
     header = " MO |"
@@ -112,15 +103,10 @@ def table_scf(node_list, n_occ=4, n_virt=4, energy_ref_i=0):
     cols = [mo_indexes]
 
     for node in node_list:
-
         sel = select_orbitals(node, ref_i, n_occ, n_virt)
-
         nspin = len(sel["occ"])
-
         evals = sel["scf"]
-
         evals -= evals[0][sel["homo"][0] + energy_ref_i]
-
         cols += [evals[0], sel["occ"][0]]
         label = f"{node.pk}_scf"
         if nspin == 1:

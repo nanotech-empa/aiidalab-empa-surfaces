@@ -1,14 +1,9 @@
 import ipywidgets as ipw
 import numpy as np
-from IPython.display import HTML, clear_output, display
+from IPython.display import clear_output, display
 
 style = {"description_width": "120px"}
 layout = {"width": "70%"}
-
-
-### --------------------------------------------------------------------------------------------------
-### --------------------------------------------------------------------------------------------------
-### --------------------------------------------------------------------------------------------------
 
 
 class DistanceCV:
@@ -25,7 +20,7 @@ class DistanceCV:
 
         self.input_received = False
 
-        # atom list (cp2k index convention: starts from 1)
+        # Atom list (cp2k index convention: starts from 1).
         self.a_list = None
 
     @classmethod
@@ -48,7 +43,7 @@ class DistanceCV:
     def read_and_validate_inputs(self):
         try:
             a_list = [int(x) for x in self.text_colvar_atoms.value.split()]
-        except:
+        except Exception:
             raise OSError("Error: wrong input for distance cv.")
         if len(a_list) != 2:
             raise OSError("Error: distance cv not two atoms.")
@@ -76,11 +71,6 @@ class DistanceCV:
         return cp2k_subsys
 
 
-### --------------------------------------------------------------------------------------------------
-### --------------------------------------------------------------------------------------------------
-### --------------------------------------------------------------------------------------------------
-
-
 class AnglePlanePlaneCV:
     def __init__(self, no_widget=False):
 
@@ -97,8 +87,8 @@ class AnglePlanePlaneCV:
 
         self.input_received = False
 
-        # definition lists for plane 1 and 2
-        # includes either 3 atom indexes or vector xyz coordinates
+        # Definition lists for plane 1 and 2.
+        # Includes either 3 atom indexes or vector xyz coordinates.
         self.p1_def = None
         self.p2_def_type = None
         self.p2_def = None
@@ -107,13 +97,9 @@ class AnglePlanePlaneCV:
     def from_cp2k_subsys(cls, cp2k_subsys):
 
         cv = cls(no_widget=True)
-
         subsys_app = cp2k_subsys["ANGLE_PLANE_PLANE"]
-
         cv.p1_def = np.array([int(x) for x in subsys_app["PLANE"]["ATOMS"].split()])
-
         cv.p2_def_type = subsys_app["PLANE  "]["DEF_TYPE"]
-
         if cv.p2_def_type == "ATOMS":
             cv.p2_def = np.array(
                 [int(x) for x in subsys_app["PLANE  "]["ATOMS"].split()]
@@ -152,7 +138,7 @@ class AnglePlanePlaneCV:
     def read_and_validate_inputs(self):
         try:
             self.p1_def = np.array([int(x) for x in self.text_plane1_def.value.split()])
-        except:
+        except Exception:
             raise OSError("Error: wrong input for plane 1 definition.")
         if len(self.p1_def) != 3:
             raise OSError("Error: plane 1 needs 3 atoms.")
@@ -164,7 +150,7 @@ class AnglePlanePlaneCV:
                 self.p2_def = np.array(
                     [int(x) for x in self.text_plane2_def.value.split()]
                 )
-            except:
+            except Exception:
                 raise OSError("Error: wrong input for plane 2 definition.")
             if len(self.p2_def) != 3:
                 raise OSError("Error: plane 2 needs 3 atoms.")
@@ -173,7 +159,7 @@ class AnglePlanePlaneCV:
                 self.p2_def = np.array(
                     [float(x) for x in self.text_plane2_def.value.split()]
                 )
-            except:
+            except Exception:
                 raise OSError("Error: wrong input for plane 2 definition.")
             if len(self.p2_def) != 3:
                 raise OSError("Error: plane 2 normal needs 3 coordinates.")
@@ -262,24 +248,15 @@ class AnglePlanePlaneCV:
         return cp2k_subsys
 
 
-### --------------------------------------------------------------------------------------------------
-### --------------------------------------------------------------------------------------------------
-### --------------------------------------------------------------------------------------------------
-
-
 class BondRotationCV:
     def __init__(self, no_widget=False):
 
         self.spring_unit = "eV/deg^2"
         self.target_unit = "deg"
 
-        # Create the widget
-
         self.bond_point_texts = None
-
         self.bond_point_btns = None
         self.bond_point_textbs = None
-
         self.widget = None
 
         if not no_widget:
@@ -330,7 +307,7 @@ class BondRotationCV:
             tb.placeholder = self.textbox_defaults[c.new][0]
             tb.description = self.textbox_defaults[c.new][1]
 
-        for i_p, bond_point_text in enumerate(self.bond_point_texts):
+        for bond_point_text in self.bond_point_texts:
 
             toggle_button = ipw.ToggleButtons(
                 options=["GEO_CENTER", "FIX_POINT"],
@@ -372,23 +349,21 @@ class BondRotationCV:
                     dl = np.array(
                         [int(x) - 1 for x in self.bond_point_textbs[i_p].value.split()]
                     )
-                except:
+                except Exception:
                     raise OSError(
-                        "Error: wrong input for '%s'" % self.bond_point_texts[i_p]
+                        f"Error: wrong input for '{self.bond_point_texts[i_p]}'"
                     )
             else:
                 try:
                     dl = np.array(
                         [float(x) for x in self.bond_point_textbs[i_p].value.split()]
                     )
-                except:
+                except Exception:
                     raise OSError(
-                        "Error: wrong input for '%s'" % self.bond_point_texts[i_p]
+                        f"Error: wrong input for '{self.bond_point_texts[i_p]}'"
                     )
                 if len(dl) != 3:
-                    raise OSError(
-                        "Error: '%s' needs x,y,z" % self.bond_point_texts[i_p]
-                    )
+                    raise OSError(f"Error: '{self.bond_point_texts[i_p]}' needs x,y,z")
             self.data_list.append(dl)
             self.data_txt_list.append(self.bond_point_textbs[i_p].value)
 
@@ -440,17 +415,6 @@ class BondRotationCV:
         return cp2k_subsys
 
 
-### --------------------------------------------------------------------------------------------------
-### --------------------------------------------------------------------------------------------------
-### --------------------------------------------------------------------------------------------------
-
-COLVARS = {
-    "DISTANCE": DistanceCV,
-    "ANGLE_PLANE_PLANE": AnglePlanePlaneCV,
-    "BOND_ROTATION": BondRotationCV,
-}
-
-
 class CollectiveVariableWidget(ipw.VBox):
     def __init__(self, viewer_widget=None, **kwargs):
 
@@ -489,8 +453,6 @@ class CollectiveVariableWidget(ipw.VBox):
 
         on_choose_colvar("")
 
-        ### ---------------------------------------------------------
-        ### Define the ipw structure and create parent VBOX
         children = [
             self.drop_colvar_type,
             self.out_colvar,
@@ -500,7 +462,6 @@ class CollectiveVariableWidget(ipw.VBox):
             self.error_out,
         ]
         super().__init__(children=children, **kwargs)
-        ### ---------------------------------------------------------
 
     def validation_check(self):
         try:
@@ -544,3 +505,10 @@ class CollectiveVariableWidget(ipw.VBox):
     @property
     def subsys_colvar(self):
         return self.current_cv_instance.cp2k_subsys_inp()
+
+
+COLVARS = {
+    "DISTANCE": DistanceCV,
+    "ANGLE_PLANE_PLANE": AnglePlanePlaneCV,
+    "BOND_ROTATION": BondRotationCV,
+}
