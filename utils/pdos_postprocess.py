@@ -1,26 +1,7 @@
-# import os
 import copy
-
-# import scipy.constants as const
 import re
 
 import numpy as np
-
-# import gzip
-# import matplotlib as mpl
-# import matplotlib.pyplot as plt
-# from collections import OrderedDict
-# import urllib.parse
-# import io
-
-
-# import matplotlib
-# import matplotlib.pyplot as plt
-
-# from scanning_probe import common
-
-# ### ---------------------------------------------------------------------
-# ### PDOS processing
 
 
 def read_and_process_pdos_file(pdos_path):
@@ -31,11 +12,11 @@ def read_and_process_pdos_file(pdos_path):
     # fermi = float(re.search("Fermi.* ([+-]?[0-9]*[.]?[0-9]+)", header).group(1))
     try:
         kind = re.search(r"atomic kind.(\S+)", header).group(1)
-    except:
+    except Exception:
         kind = None
     data = np.loadtxt(pdos_path)
 
-    # determine fermi by counting the number of electrons and
+    # Determine fermi by counting the number of electrons and
     # taking the middle of HOMO and LUMO.
     n_el = int(np.round(np.sum(data[:, 2])))
     if data[0, 2] > 1.5:
@@ -112,9 +93,6 @@ def process_pdos_files(scf_calc, newversion):
     return dos
 
 
-# ### ---------------------------------------------------------------------
-
-
 def create_series_w_broadening(x_values, y_values, x_arr, fwhm, shape="g"):
     spectrum = np.zeros(len(x_arr))
 
@@ -143,12 +121,13 @@ def match_and_reduce_spin_channels(om):
     # In rks case, just remove the 2nd spin index
     if len(om[0]) == 1:
         return [om[0][0]]
-    # Uks case:
-    # same spin channels
+
+    # Same spin channels.
     same_contrib = 0
     for i_spin in range(2):
         same_contrib = np.sum(om[i_spin][i_spin])
-    # opposite spin channels
+
+    # Opposite spin channels
     oppo_contrib = 0
     for i_spin in range(2):
         oppo_contrib = np.sum(om[i_spin][(i_spin + 1) % 2])

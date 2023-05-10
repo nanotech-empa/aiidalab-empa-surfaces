@@ -7,9 +7,9 @@ import ipywidgets as ipw
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from IPython.display import HTML, clear_output, display
+from IPython.display import HTML, display
 
-from scanning_probe import igor
+from ..utils import igor
 
 colormaps = ["seismic", "gist_heat"]
 
@@ -61,10 +61,6 @@ def make_plot(
     else:
         ax.set_xlabel(r"x ($\AA$)")
         ax.set_ylabel(r"y ($\AA$)")
-        # if 1e-3 < np.max(data) < 1e3:
-        #    cb = fig.colorbar(im, ax=ax)
-        # else:
-        #    cb = fig.colorbar(im, ax=ax, format=FormatScalarFormatter("%.1f"))
         cb = fig.colorbar(im, ax=ax)
         cb.formatter.set_powerlimits((-2, 2))
         cb.update_ticks()
@@ -131,22 +127,16 @@ class SeriesPlotter:
 
         self.select_indexes_function = select_indexes_function
 
-        ### -------------------------------------------
-        ### Selector
-
+        # Selector
         self.elem_list = []
         self.selections_vbox = ipw.VBox([])
 
         self.add_row_btn = ipw.Button(description="Add series row", disabled=True)
         self.add_row_btn.on_click(lambda b: self.add_selection_row())
 
-        style = {"description_width": "80px"}
-        layout = {"width": "40%"}
-
         self.selector_widget = ipw.VBox([self.add_row_btn, self.selections_vbox])
-        ### -------------------------------------------
-        ### Plotter
 
+        # Plotter.
         self.plot_btn = ipw.Button(description="Plot", disabled=True)
         self.plot_btn.on_click(self.plot_series)
 
@@ -154,12 +144,10 @@ class SeriesPlotter:
         self.clear_btn.on_click(self.full_clear)
 
         self.plot_output = ipw.VBox()
-        ### -------------------------------------------
 
         self.fig_y = 4
 
-        ### -------------------------------------------
-        ### Creating a zip
+        # Creating a zip file.
         self.zip_btn = ipw.Button(description="Image zip", disabled=True)
         self.zip_btn.on_click(self.create_zip_link)
 
@@ -175,8 +163,6 @@ class SeriesPlotter:
         self.link_out = ipw.Output()
 
     def add_series_collection(self, general_info, series_info, series_data):
-        # self.series : "series_label": (data_series, series_info, general_info)
-
         for info, data in zip(series_info, series_data):
             spin = general_info.get("spin")
             series_label = make_series_label(info, i_spin=spin)
@@ -293,14 +279,12 @@ class SeriesPlotter:
                     sym_check = self.elem_list[i_ser][2].value
                     norm_check = self.elem_list[i_ser][3].value
 
-                    # ---------------------------------------------------------
-                    # Retrieve the series data
-
+                    # Retrieve the series data.
                     data, info, general_info = self.series[series_label]
 
                     energy = general_info["energies"][i]
 
-                    # Build labels, title and file name
+                    # Build labels, title and file name.
                     orb_indexes = general_info.get("orb_indexes")
                     homo = general_info.get("homo")
 
@@ -313,18 +297,14 @@ class SeriesPlotter:
                         title += mo_label + " "
                     title += "E=%.2f eV" % energy
 
-                    # ---------------------------------------------------------
-                    # Is normalization enabled ?
-
+                    # Is normalization enabled?
                     vmin = None
                     vmax = None
                     if norm_check:
                         vmin = np.min(data[index_list, :, :])
                         vmax = np.max(data[index_list, :, :])
 
-                    # ---------------------------------------------------------
-                    # Make the plot
-
+                    # Make the plot.
                     ax = plt.subplot(num_series, 1, i_ser + 1)
 
                     make_plot(
@@ -357,9 +337,7 @@ class SeriesPlotter:
             f.write(zip_buffer.getvalue())
 
         with self.link_out:
-            display(
-                HTML('<a href="tmp/%s" target="_blank">download zip</a>' % filename)
-            )
+            display(HTML(f'<a href="tmp/{filename}" target="_blank">download zip</a>'))
 
     def data_to_zip(self, zip_file):
         index_list = self.select_indexes_function()
@@ -375,14 +353,11 @@ class SeriesPlotter:
                 sym_check = self.elem_list[i_ser][2].value
                 norm_check = self.elem_list[i_ser][3].value
 
-                # ---------------------------------------------------------
-                # Retrieve the series data
-
+                # Retrieve the series data.
                 data, info, general_info = self.series[series_label]
-
                 energy = general_info["energies"][i]
 
-                # Build labels, title and file name
+                # Build labels, title and file name.
                 orb_indexes = general_info.get("orb_indexes")
                 homo = general_info.get("homo")
 
@@ -390,7 +365,7 @@ class SeriesPlotter:
                 if orb_indexes is not None:
                     mo_label = make_orb_label(orb_indexes[i], homo)
 
-                title = "%s\n" % series_label
+                title = f"{series_label}\n"
                 if mo_label is not None:
                     title += mo_label + " "
                 title += "E=%.2f eV" % energy
@@ -407,18 +382,14 @@ class SeriesPlotter:
                 else:
                     plot_name += "_%03d_e%.2f" % (i, energy)
 
-                # ---------------------------------------------------------
-                # Is normalization enabled ?
-
+                # Is normalization enabled?
                 vmin = None
                 vmax = None
                 if norm_check:
                     vmin = np.min(data[index_list, :, :])
                     vmax = np.max(data[index_list, :, :])
 
-                # ---------------------------------------------------
-                # Add the png to zip
-
+                # Add the png to zip.
                 fig = plt.figure(
                     figsize=(self.fig_y * self.figure_xy_ratio, self.fig_y)
                 )
@@ -442,18 +413,15 @@ class SeriesPlotter:
                 zip_file.writestr(plot_name + ".png", imgdata.getvalue())
                 plt.close()
 
-                # ---------------------------------------------------
-                # Add txt data to the zip
+                # Add txt data to the zip.
                 header = "xlim=({:.2f}, {:.2f}), ylim=({:.2f}, {:.2f})".format(
                     self.extent[0], self.extent[1], self.extent[2], self.extent[3]
                 )
                 txtdata = io.BytesIO()
                 np.savetxt(txtdata, data[i, :, :], header=header, fmt="%.3e")
                 zip_file.writestr("txt/" + plot_name + ".txt", txtdata.getvalue())
-                # ---------------------------------------------------
 
-                # ---------------------------------------------------
-                # Add IGOR format to zip
+                # Add IGOR format to zip.
                 igorwave = igor.Wave2d(
                     data=data[i, :, :],
                     xmin=self.extent[0],
@@ -465,8 +433,6 @@ class SeriesPlotter:
                     name="'%s'" % plot_name,
                 )
                 zip_file.writestr("itx/" + plot_name + ".itx", str(igorwave))
-                # ---------------------------------------------------
-
                 self.zip_progress.value += 1.0 / float(total_pics - 1)
 
     def full_clear(self, b):

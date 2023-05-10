@@ -1,14 +1,13 @@
 import os
+
 import numpy as np
-from aiida.engine import CalcJob
-from aiida.orm import ArrayData, Code, Computer, WorkChainNode
-from aiida.orm.querybuilder import QueryBuilder
+from aiida import engine, orm
 
 
 def get_calc_by_label(workcalc, label):
-    qb = QueryBuilder()
-    qb.append(WorkChainNode, filters={"uuid": workcalc.uuid})
-    qb.append(CalcJob, with_incoming=WorkChainNode, filters={"label": label})
+    qb = orm.QueryBuilder()
+    qb.append(orm.WorkChainNode, filters={"uuid": workcalc.uuid})
+    qb.append(engine.CalcJob, with_incoming=orm.WorkChainNode, filters={"label": label})
     assert qb.count() == 1
     calc = qb.first()[0]
     assert calc.is_finished_ok
@@ -29,29 +28,25 @@ def get_slab_calc_info(struct_node):
         html += '<table border=1 id="geom_info" style="margin:0px;">'
         html += "<tr>"
         html += "<th> Structure description: </th>"
-        html += "<td> %s </td>" % struct_description
-        html += (
-            '<td rowspan="2"><img width="100px" src="data:image/png;base64,%s" title="PK:%d"></td>'
-            % (thumbnail, struct_pk)
-        )
+        html += f"<td> {struct_description} </td>"
+        html += f'<td rowspan="2"><img width="100px" src="data:image/png;base64,{thumbnail}" title="PK:{struct_pk}"></td>'
         html += "</tr>"
         html += "<tr>"
         html += "<th> Calculation description: </th>"
-        html += "<td> %s </td>" % description
+        html += f"<td> {description} </td>"
         html += "</tr>"
-
         html += "</table>"
 
-    except:
+    except Exception:
         html = ""
     return html
 
 
 def comp_plugin_codes(computer_name, plugin_name):
-    qb = QueryBuilder()
-    qb.append(Computer, project="name", tag="computer")
+    qb = orm.QueryBuilder()
+    qb.append(orm.Computer, project="name", tag="computer")
     qb.append(
-        Code,
+        orm.Code,
         project="*",
         with_computer="computer",
         filters={
@@ -59,7 +54,7 @@ def comp_plugin_codes(computer_name, plugin_name):
             "or": [{"extras": {"!has_key": "hidden"}}, {"extras.hidden": False}],
         },
     )
-    qb.order_by({Code: {"id": "desc"}})
+    qb.order_by({orm.Code: {"id": "desc"}})
     codes = qb.all()
     sel_codes = []
     for code in codes:
@@ -83,7 +78,7 @@ def create_stm_parameterdata(
     max_height = max([float(h) for h in const_height_text])
     extrap_extent = max([max_height - extrap_plane, 5.0])
 
-    # Evaluation region in z
+    # Evaluation region in z.
     z_min = "n-2.0_C" if "C" in struct_symbols else "p-4.0"
     z_max = f"p{extrap_plane:.1f}"
 
@@ -238,28 +233,26 @@ def create_hrstm_parameterdata(
     fwhmtip_ipw,
     rotate_ipw,
 ):
-    # External folders
-    cell = ArrayData()
+    # External folders.
+    cell = orm.ArrayData()
     cell.set_array("cell", np.diag(ase_geom.cell))
 
-    # PPM folder of position
-    # ppmQK = ppm_dir+"Q%1.2fK%1.2f/" %(ppm_params_dict['Ocharge'], ppm_params_dict['Oklat'])
-    # new convention:
-    ppmQK = ppm_dir + "Qo{:1.2f}Qc{:1.2f}K{:1.2f}/".format(
+    # PPM folder of position.
+    ppm_qk = ppm_dir + "Qo{:1.2f}Qc{:1.2f}K{:1.2f}/".format(
         ppm_params_dict["Ocharge"], ppm_params_dict["Ccharge"], ppm_params_dict["Oklat"]
     )
 
-    # Tip type to determine PDOS and PPM position files
+    # Tip type to determine PDOS and PPM position files.
     if tiptype_ipw != "parametrized":
         pdos_list = tiptype_ipw
         path = os.path.dirname(hrstm_code.get_remote_exec_path()) + "/hrstm_tips/"
         pdos_list = [path + "tip_coeffs.tar.gz"]
-        tip_pos = [ppmQK + "PPpos", ppmQK + "PPdisp"]
-    else:  # Parametrized tip
+        tip_pos = [ppm_qk + "PPpos", ppm_qk + "PPdisp"]
+    else:  # Parametrized tip.
         pdos_list = [str(stip_ipw), str(pytip_ipw), str(pztip_ipw), str(pxtip_ipw)]
-        tip_pos = ppmQK + "PPdisp"
+        tip_pos = ppm_qk + "PPdisp"
 
-    # HRSTM parameters
+    # HRSTM parameters.
     paramdata = {
         "--output": "hrstm",
         "--voltages": [
@@ -269,7 +262,7 @@ def create_hrstm_parameterdata(
                 len(str(volstep_ipwmin).split(".")[-1]),
             ).tolist()
         ],
-        # Sample information
+        # Sample information.
         "--cp2k_input_file": parent_dir + "aiida.inp",
         "--basis_set_file": parent_dir + "BASIS_MOLOPT",
         "--xyz_file": parent_dir + "aiida.coords.xyz",
