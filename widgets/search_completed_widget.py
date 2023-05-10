@@ -151,9 +151,7 @@ class SearchCompletedWidget(ipw.VBox):
     def search(self):
 
         self.results.value = "searching..."
-        scanning_probe_common = (
-            pathlib.Path.home() / "apps" / "scanning_probe" / "common.py"
-        )
+        scanning_probe_common = pathlib.Path.home() / "apps/scanning_probe/common.py"
         if scanning_probe_common.exists():
             loader = importlib.machinery.SourceFileLoader(
                 "common", str(scanning_probe_common)
