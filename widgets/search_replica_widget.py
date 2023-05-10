@@ -3,19 +3,14 @@ from base64 import b64encode
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
-import ase.io
-import ase.units as aseu
+import ase
 import ipywidgets as ipw
 import matplotlib.pyplot as plt
-import nglview
 import numpy as np
-from aiida.orm import Dict, StructureData, WorkChainNode, load_node
-from aiida.orm.querybuilder import QueryBuilder
-from aiida.plugins import CalculationFactory, WorkflowFactory
-from ase.data.colors import jmol_colors
-from IPython.display import HTML, clear_output, display
+from aiida import orm
+from IPython.display import clear_output, display
 
-from .collective_variables import COLVARS
+from ..utils.collective_variables import COLVARS
 
 style = {"description_width": "120px"}
 layout = {"width": "70%"}
@@ -54,8 +49,6 @@ class SearchReplicaWidget(ipw.VBox):
 
         self.btn_show.on_click(self.on_show_btn_click)
 
-        ### ---------------------------------------------------------
-        ### Define the ipw structure and create parent VBOX
         children = [
             self.check_new_btn,
             self.out_preproc,
@@ -67,7 +60,6 @@ class SearchReplicaWidget(ipw.VBox):
             self.output_checked_pks,
         ]
         super().__init__(children=children, **kwargs)
-        ### ---------------------------------------------------------
 
     def parse_preprocessed_replica_calcs(self):
         self.replica_calcs = self.parse_rep_wcs(self.get_replica_wcs(True))
@@ -140,9 +132,9 @@ class SearchReplicaWidget(ipw.VBox):
         ref_en_scf = None
         ref_en_frc = None
 
-        for i, rep in enumerate(replica_calc["replicas"]):
+        for rep in replica_calc["replicas"]:
             cv_target, energy, struct_pk = rep
-            struct_node = load_node(struct_pk)
+            struct_node = orm.load_node(struct_pk)
             colvar_actual = struct_node.get_extra("replica_calcs")[wc_pk_str][
                 "colvar_actual"
             ]
@@ -168,9 +160,9 @@ class SearchReplicaWidget(ipw.VBox):
         plt.plot(plot_colvar, plot_energy_frc, "bo-", label="FORCE_EVAL energy")
 
         for i, rep in enumerate(replica_calc["replicas"]):
-            # if the replica has no cv_target and has energy, it's an initial one, paint as red
+            # If the replica has no cv_target and has energy, it's an initial one, paint as red.
             cv_target, energy, struct_pk = rep
-            if cv_target == None and energy is not None:
+            if cv_target is None and energy is not None:
                 plt.plot(plot_colvar[i], plot_energy_scf[i], "ro-")
 
         plt.legend()
@@ -181,15 +173,12 @@ class SearchReplicaWidget(ipw.VBox):
 
         html_list = []
         check_list = []  # check boxes to show in final pk list
-
-        colvar_type = list(replica_calc["colvar_def"].keys())[0]  # 'DISTANCE', ...
-
         wc_pk_str = str(replica_calc["wcs"][0].pk)
 
-        for i, rep in enumerate(replica_calc["replicas"]):
+        for rep in replica_calc["replicas"]:
 
             cv_target, energy, struct_pk = rep
-            struct_node = load_node(struct_pk)
+            struct_node = orm.load_node(struct_pk)
 
             html = '<table style="border-spacing:20px 0px;border-collapse:separate;">'
 
@@ -217,39 +206,21 @@ class SearchReplicaWidget(ipw.VBox):
             )
             check_list.append(check_me)
 
-            html = '<img width="400px" src="data:image/png;base64,{}" title="">'.format(
-                thumbnail
+            html = (
+                f'<img width="400px" src="data:image/png;base64,{thumbnail}" title="">'
             )
-
             html += '<table style="border-spacing:6px 0px;border-collapse:separate;">'
 
-            # Output some information about the replica...
-            html += '<tr><td align="left"><b>Target:</b></td><td align="right">{}</td></tr>'.format(
-                cv_target_str
-            )
-            html += '<tr><td align="left"><b>CV actual:</b></td><td align="right">{}</td></tr>'.format(
-                colvar_actual_str
-            )
-            html += '<tr><td align="left"><b>Energy (scf) /au:</b></td><td align="right">{}</td></tr>'.format(
-                energy_scf_str
-            )
-            html += '<tr><td align="left"><b>Energy (force) /au:</b></td><td align="right">{}</td></tr>'.format(
-                energy_frc_str
-            )
-            html += '<tr><td align="left"><b>dist to prev:</b></td><td align="right">{}</td></tr>'.format(
-                d2prev_str
-            )
-            html += (
-                '<tr><td align="left">pk: </td><td align="right">{}</td></tr>'.format(
-                    struct_node.pk
-                )
-            )
+            # Output some information about the replica.
+            html += f'<tr><td align="left"><b>Target:</b></td><td align="right">{cv_target_str}</td></tr>'
+            html += f'<tr><td align="left"><b>CV actual:</b></td><td align="right">{colvar_actual_str}</td></tr>'
+            html += f'<tr><td align="left"><b>Energy (scf) /au:</b></td><td align="right">{energy_scf_str}</td></tr>'
+            html += f'<tr><td align="left"><b>Energy (force) /au:</b></td><td align="right">{energy_frc_str}</td></tr>'
+            html += f'<tr><td align="left"><b>dist to prev:</b></td><td align="right">{d2prev_str}</td></tr>'
+            html += f'<tr><td align="left">pk: </td><td align="right">{struct_node.pk}</td></tr>'
 
-            # ... and the download link.
-            html += '<tr><td align="left"><a target="_blank" href="export_structure.ipynb?uuid={}">View & export</a></td></tr>'.format(
-                struct_node.uuid
-            )
-
+            # Add the download link.
+            html += f'<tr><td align="left"><a target="_blank" href="export_structure.ipynb?uuid={struct_node.uuid}">View & export</a></td></tr>'
             html += "</table>"
 
             html_list.append(html)
@@ -258,11 +229,11 @@ class SearchReplicaWidget(ipw.VBox):
 
     def get_replica_wcs(self, preprocessed=False):
 
-        qb = QueryBuilder()
+        qb = orm.QueryBuilder()
 
         if preprocessed:
             qb.append(
-                WorkChainNode,
+                orm.WorkChainNode,
                 tag="wc",
                 filters={
                     "attributes.process_label": "ReplicaWorkChain",
@@ -274,7 +245,7 @@ class SearchReplicaWidget(ipw.VBox):
             )
         else:
             qb.append(
-                WorkChainNode,
+                orm.WorkChainNode,
                 tag="wc",
                 filters={
                     "attributes.process_label": "ReplicaWorkChain",
@@ -289,29 +260,21 @@ class SearchReplicaWidget(ipw.VBox):
 
         return qb.all()
 
-    def parse_rep_wcs(self, wc_list, existing_rep_sets=OrderedDict()):
+    def parse_rep_wcs(self, wc_list, existing_rep_sets=None):
 
         replica_sets = OrderedDict()
 
         rep_set_template = {
-            "replicas": [],  # (cv_target, (energy_scf, e_force_eval), StructureData.pk)
+            "replicas": [],  # (cv_target, (energy_scf, e_force_eval), orm.StructureData.pk)
             "wcs": [],
             "colvar_def": None,
             "colvar_inc": None,  # colvar increasing or decreasing ?
         }
 
-        # time00 = time.time()
-
         for wc_qb in wc_list:
-
-            # time0 = time.time()
-
             wc = wc_qb[0]
 
-            # we also want to potentially recover replicas from an excepted calculation
-            # if wc.is_excepted:
-            #    continue
-
+            # We also want to potentially recover replicas from an excepted calculation
             if not wc.is_terminated:
                 print(str(wc.pk) + " is still running, skipping.")
                 continue
@@ -349,7 +312,7 @@ class SearchReplicaWidget(ipw.VBox):
                 cv_targets = cv_targets[:num_replicas]
 
             if name not in replica_sets:
-                if name in existing_rep_sets:
+                if existing_rep_sets and name in existing_rep_sets:
                     # Already had a preprocessed part, add it
                     replica_sets[name] = copy.copy(existing_rep_sets[name])
                 else:
@@ -389,14 +352,14 @@ class SearchReplicaWidget(ipw.VBox):
                 print("----")
                 continue
 
-            # add it to the set
+            # Add it to the set.
             replica_sets[name]["wcs"].append(wc)
 
             wc_replica_list = []
-            for wc_o in sorted(list(wc_outputs_dict)):
+            for wc_o in sorted(wc_outputs_dict):
                 if wc_o.startswith("replica_"):
                     struct = wc_outputs_dict[wc_o]
-                    # add description, if it doesn't exist already
+                    # Add description, if it doesn't exist already.
                     if struct.description == "":
                         if struct.creator is None:
                             struct.description = "-"
@@ -436,7 +399,7 @@ class SearchReplicaWidget(ipw.VBox):
         colors = None
         if vis_list:
             vis_list_atoms = [e for e in vis_list if isinstance(e, int)]
-            colors = jmol_colors[atoms.numbers]
+            colors = ase.data.colors.jmol_colors[atoms.numbers]
             for i_at in vis_list_atoms:
                 colors[i_at] *= 0.6
                 colors[i_at][0] = 1.0
@@ -454,10 +417,9 @@ class SearchReplicaWidget(ipw.VBox):
 
         cv_actual_list = []
 
-        for i, rep in enumerate(replica_calc["replicas"]):
-
+        for rep in replica_calc["replicas"]:
             cv_target, energy, struct_pk = rep
-            struct_node = load_node(struct_pk)
+            struct_node = orm.load_node(struct_pk)
             struct_rep_info = struct_node.get_extra("replica_calcs")[wc_pk_str]
             colvar_actual = float(struct_rep_info["colvar_actual"])
 
@@ -498,16 +460,14 @@ class SearchReplicaWidget(ipw.VBox):
         colvar_type = list(replica_calc["colvar_def"].keys())[0]
         cv_instance = COLVARS[colvar_type].from_cp2k_subsys(replica_calc["colvar_def"])
 
-        # -----------------------------------------------------------
-        # Get the list of ase and actual colvar values for each replica
-
+        # Get the list of ase and actual colvar values for each replica.
         ase_list = []
         cv_actual_list = []
 
         for i, rep in enumerate(replica_calc["replicas"]):
 
             cv_target, energy, struct_pk = rep
-            struct = load_node(struct_pk)
+            struct = orm.load_node(struct_pk)
 
             progress.value += (i + 1.0) / (2 * n_rep)
 
@@ -517,9 +477,7 @@ class SearchReplicaWidget(ipw.VBox):
             ase_list.append(struct_ase)
             cv_actual_list.append(colvar_actual)
 
-        # -----------------------------------------------------------
         # Sort the order of replicas by colvar actual
-
         sorted_lists = zip(
             *sorted(
                 zip(cv_actual_list, ase_list, replica_calc["replicas"]),
@@ -529,13 +487,11 @@ class SearchReplicaWidget(ipw.VBox):
 
         cv_actual_list, ase_list, replica_calc["replicas"] = sorted_lists
 
-        # -----------------------------------------------------------
-        # calculate the dist to prev and update extras
-
+        # Calculate the dist to prev and update extras.
         for i, rep in enumerate(replica_calc["replicas"]):
 
             cv_target, energy, struct_pk = rep
-            struct = load_node(struct_pk)
+            struct = orm.load_node(struct_pk)
             cv_actual = cv_actual_list[i]
             struct_ase = ase_list[i]
 

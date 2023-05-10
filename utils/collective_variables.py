@@ -63,7 +63,7 @@ class DistanceCV:
     def visualization_list(self, atoms=None):
         if self.a_list is None:
             return []
-        # index starts from 0
+        # Index starts from 0.
         return [i_a - 1 for i_a in self.a_list]
 
     def cp2k_subsys_inp(self):
@@ -210,10 +210,10 @@ class AnglePlanePlaneCV:
         if self.p1_def is None:
             return []
 
-        # atom indexes start from 0
+        # Atom indexes start from 0.
         vis_list = list(self.p1_def - 1)
 
-        # add middle point of p1 and a point along the normal
+        # Add middle point of p1 and a point along the normal.
         p1_middle = np.mean(atoms[list(self.p1_def - 1)].positions, axis=0)
         vis_list.append(p1_middle)
         vis_list.append(p1_middle + 3.0 * self._p1_normal(atoms))
