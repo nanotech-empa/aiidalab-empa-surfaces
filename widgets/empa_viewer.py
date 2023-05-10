@@ -4,10 +4,10 @@ from aiidalab_widgets_base.structures import StructureDataViewer
 from aiidalab_widgets_base.utils import list_to_string_range, string_range_to_list
 from traitlets import Dict, Unicode, observe
 
-from .ANALYZE_structure import StructureAnalyzer
+from .analyze_structure import StructureAnalyzer
 
 
-## custom set for visualization
+# Custom set for visualization.
 def default_vis_func(structure):
     # from struct details['cases'] we receive a list of atom types in the structure:
     # 'a' adatoms
@@ -86,15 +86,15 @@ def default_vis_func(structure):
     # ['b','w','s','m','a','u'] order matters
     if "b" in details["cases"]:
         vis_dict[current_rep] = std_dict["b"]
-        ids = [item for item in details["bulkatoms"]]
+        ids = list(details["bulkatoms"])
         vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
     if "w" in details["cases"]:
         vis_dict[current_rep] = std_dict["w"]
-        ids = [item for item in details["wireatoms"]]
+        ids = list(details["wireatoms"])
         vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
     if "s" in details["cases"]:
         vis_dict[current_rep] = std_dict["s"]
-        ids = [item for item in details["slabatoms"] + details["bottom_H"]]
+        ids = list(details["slabatoms"] + details["bottom_H"])
         vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
         current_rep += 1
     if "m" in details["cases"]:
@@ -104,12 +104,12 @@ def default_vis_func(structure):
         current_rep += 1
     if "a" in details["cases"]:
         vis_dict[current_rep] = std_dict["a"]
-        ids = [item for item in details["adatoms"]]
+        ids = list(details["adatoms"])
         vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
         current_rep += 1
     if "u" in details["cases"]:
         vis_dict[current_rep] = std_dict["u"]
-        ids = [item for item in details["unclassified"]]
+        ids = list(details["unclassified"])
         vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
 
     return vis_dict, details
@@ -150,12 +150,10 @@ class EmpaStructureViewer(StructureDataViewer):
             },
         }
         """
-        self.selection_dict = (
-            {}
-        )  ## needed to display info about selected atoms e.g. distance, angle..
-        self.selection_info = (
-            ""  ## needed to display info about selected atoms e.g. distance, angle..
-        )
+
+        # Needed to display info about selected atoms e.g. distance, angle.
+        self.selection_dict = {}
+        self.selection_info = ""
         self.vis_func = vis_func
         super().__init__(**kwargs)
 
@@ -177,7 +175,7 @@ class EmpaStructureViewer(StructureDataViewer):
 
     def _translate_glob_loc(self, indexes):
         """From global index to indexes of different components."""
-        all_comp = [list() for i in range(len(self.vis_dict.keys()))]
+        all_comp = [[] for i in range(len(self.vis_dict.keys()))]
         for i_g in indexes:
             i_c, i_a = self._translate_i_glob_loc[i_g]
             all_comp[i_c].append(i_a)
@@ -212,7 +210,7 @@ class EmpaStructureViewer(StructureDataViewer):
 
         return
 
-        ## first update selection_dict then update selection
+        # First update selection_dict then update selection.
         selection_tmp = self.selection.difference({index})
 
         self.selection = selection_tmp
@@ -230,12 +228,10 @@ class EmpaStructureViewer(StructureDataViewer):
             return
 
         if self.vis_dict is None:
-            self._viewer._remove_representations_by_name(
-                repr_name="selected_atoms"
-            )  # pylint:disable=protected-access
-            self._viewer.add_ball_and_stick(  # pylint:disable=no-member
+            self._viewer._remove_representations_by_name(repr_name="selected_atoms")
+            self._viewer.add_ball_and_stick(
                 name="selected_atoms",
-                selection=list() if vis_list is None else vis_list,
+                selection=[] if vis_list is None else vis_list,
                 color=color,
                 aspectRatio=size,
                 opacity=opacity,
@@ -249,14 +245,14 @@ class EmpaStructureViewer(StructureDataViewer):
                     repr_name=name, component=component
                 )
                 color = self.vis_dict[component]["highlight_color"]
-                aspectRatio = self.vis_dict[component]["highlight_aspectRatio"]
+                aspect_ratio = self.vis_dict[component]["highlight_aspectRatio"]
                 opacity = self.vis_dict[component]["highlight_opacity"]
                 if vis_list is None:
                     self._viewer.add_ball_and_stick(
                         name=name,
-                        selection=list(),
+                        selection=[],
                         color=color,
-                        aspectRatio=aspectRatio,
+                        aspectRatio=aspect_ratio,
                         opacity=opacity,
                         component=component,
                     )
@@ -267,7 +263,7 @@ class EmpaStructureViewer(StructureDataViewer):
                         name=name,
                         selection=selection,
                         color=color,
-                        aspectRatio=aspectRatio,
+                        aspectRatio=aspect_ratio,
                         opacity=opacity,
                         component=component,
                     )
@@ -278,23 +274,19 @@ class EmpaStructureViewer(StructureDataViewer):
             return
 
         else:
-            vis_dict, self.details = self.vis_func(
-                self.structure
-            )  # self.vis_func(self.structure)
+            vis_dict, self.details = self.vis_func(self.structure)
 
-            ## keys must be integers 0,1,2,...
+            # Keys must be integers 0, 1, 2...
             if vis_dict:
                 self.sys_type = self.details["system_type"]
                 types = {vis_dict[i]["type"] for i in range(len(vis_dict))}
-                ## only {'ball+stick','licorice'} implemented
-                ## atom pick very difficult with 'licorice' and 'hyperball'
+
+                # Only {'ball+stick','licorice'} implemented
+                # Atom pick very difficult with 'licorice' and 'hyperball'.
                 if not types.issubset({"ball+stick", "licorice", "hyperball"}):
                     print("type unknown")
                     self.vis_func = None
                     return
-                # except:
-                #    self.vis_func = None
-                #    return
 
                 # delete all old components
                 while hasattr(self._viewer, "component_0"):
@@ -318,9 +310,9 @@ class EmpaStructureViewer(StructureDataViewer):
                         )
 
                         if self.vis_dict[component]["type"] == "ball+stick":
-                            aspectRatio = self.vis_dict[component]["aspectRatio"]
+                            aspect_ratio = self.vis_dict[component]["aspectRatio"]
                             self._viewer.add_ball_and_stick(
-                                aspectRatio=aspectRatio,
+                                aspectRatio=aspect_ratio,
                                 opacity=1.0,
                                 component=component,
                             )
@@ -356,7 +348,7 @@ class EmpaStructureViewer(StructureDataViewer):
                 1,
             ]
             self._viewer._set_camera_orientation(top_z_orientation)
-        except:
+        except Exception:
             return
 
     @observe("structure")

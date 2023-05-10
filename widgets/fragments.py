@@ -3,7 +3,7 @@ import ipywidgets as ipw
 import traitlets
 from IPython.display import clear_output, display
 
-from .ANALYZE_structure import StructureAnalyzer
+from .analyze_structure import StructureAnalyzer
 from .computational_resources import ProcessResourcesWidget, ResourcesEstimatorWidget
 
 STYLE = {"description_width": "100px"}

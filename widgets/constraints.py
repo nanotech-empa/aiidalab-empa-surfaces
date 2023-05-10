@@ -1,8 +1,9 @@
 import ipywidgets as ipw
 import traitlets as trt
-from ase import Atoms
-from .ANALYZE_structure import mol_ids_range
 from aiida_nanotech_empa.workflows.cp2k import cp2k_utils
+from ase import Atoms
+
+from .analyze_structure import mol_ids_range
 
 
 class OneColvar(ipw.HBox):
@@ -126,12 +127,11 @@ class ConstraintsWidget(ipw.VBox):
             and self.details
             and "Slab" in self.details["system_type"]
         ):
-            to_fix = [
-                i
-                for i in self.details["bottom_H"]
+            to_fix = list(
+                self.details["bottom_H"]
                 + self.details["slab_layers"][0]
                 + self.details["slab_layers"][1]
-            ]
+            )
             self.constraints.children[
                 0
             ].constraint_widget.value = "fixed xyz " + mol_ids_range(to_fix)

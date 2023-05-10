@@ -2,12 +2,9 @@ import itertools
 from copy import deepcopy
 
 import ase
-import nglview
 import numpy as np
-import scipy.stats
 from aiidalab_widgets_base.utils import list_to_string_range
 from ase.data import covalent_radii
-from ase.geometry.analysis import Analysis
 from scipy import sparse
 from scipy.signal import find_peaks
 from scipy.spatial import ConvexHull
@@ -16,9 +13,9 @@ from traitlets import Dict, HasTraits, Instance, observe
 
 def to_ranges(iterable):
     iterable = sorted(set(iterable))
-    for key, group in itertools.groupby(enumerate(iterable), lambda t: t[1] - t[0]):
-        group = list(group)
-        yield group[0][1], group[-1][1]
+    for _key, group in itertools.groupby(enumerate(iterable), lambda t: t[1] - t[0]):
+        lgroup = list(group)
+        yield lgroup[0][1], lgroup[-1][1]
 
 
 def mol_ids_range(ismol):

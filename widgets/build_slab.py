@@ -1,29 +1,18 @@
-import itertools
-
-import ase.neighborlist
+import aiidalab_widgets_base as awb
+import ase
 import ipywidgets as ipw
-import nglview
-import numpy as np
-import scipy.stats
-from aiidalab_widgets_base import StructureManagerWidget
-from ase import Atoms
-from ase.data import covalent_radii
-from ase.neighborlist import NeighborList
-from IPython.display import HTML, clear_output, display
-from numpy.linalg import norm
-from scipy.constants import physical_constants
-from traitlets import Dict, HasTraits, Instance, Unicode, dlink, link, observe
+import traitlets as tr
 
 from . import slabs
-from .ANALYZE_structure import StructureAnalyzer
+from .analyze_structure import StructureAnalyzer
 
 
 class BuildSlab(ipw.VBox):
-    structure = Instance(Atoms, allow_none=True)
-    molecule = Instance(Atoms, allow_none=True)
-    details = Dict()
-    slab = Instance(Atoms, allow_none=True)
-    manager = Instance(StructureManagerWidget, allow_none=True)
+    structure = tr.Instance(ase.Atoms, allow_none=True)
+    molecule = tr.Instance(ase.Atoms, allow_none=True)
+    details = tr.Dict()
+    slab = tr.Instance(ase.Atoms, allow_none=True)
+    manager = tr.Instance(awb.StructureManagerWidget, allow_none=True)
 
     def __init__(self, title=""):
         self.title = title
@@ -116,7 +105,7 @@ class BuildSlab(ipw.VBox):
         )
         self.structure = self._molecule + self.slab
 
-    @observe("molecule", "details")
+    @tr.observe("molecule", "details")
     def on_struct_change(self, change=None):
         """Selected molecule from structure."""
 
