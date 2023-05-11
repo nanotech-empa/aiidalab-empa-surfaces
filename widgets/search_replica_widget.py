@@ -121,7 +121,7 @@ class SearchReplicaWidget(ipw.VBox):
             rep_pk_str = "["
             for pk, cb in zip(list_of_pks, check_list):
                 if cb.value:
-                    rep_pk_str += "%d " % pk
+                    rep_pk_str += f"{pk} "
             print(rep_pk_str[:-1] + "]")
 
     def generate_energy_cv_plot(self, replica_calc):
@@ -188,13 +188,13 @@ class SearchReplicaWidget(ipw.VBox):
             colvar_actual = float(struct_rep_info["colvar_actual"])
             thumbnail = struct_rep_info["thumbnail"]
 
-            cv_target_str = "-" if cv_target is None else "%.2f" % cv_target
+            cv_target_str = "-" if cv_target is None else f"{cv_target:.2f}"
 
-            energy_scf_str = "%.6f" % energy[0]
-            energy_frc_str = "%.6f" % energy[1]
+            energy_scf_str = f"{energy[0]:.6f}"
+            energy_frc_str = f"{energy[1]:.6f}"
 
-            colvar_actual_str = "%.4f" % colvar_actual
-            d2prev_str = "-" if d2prev == "-" else "%.4f" % float(d2prev)
+            colvar_actual_str = f"{colvar_actual:.4f}"
+            d2prev_str = "-" if d2prev == "-" else f"{float(d2prev):.4f}"
 
             check_me = ipw.Checkbox(
                 value=True, description="select", disabled=False, layout=layout
@@ -333,23 +333,9 @@ class SearchReplicaWidget(ipw.VBox):
                     "Warning! Replica calc CV definition doesn't match with previous ones."
                 )
                 print(
-                    "Existing: %s %s"
-                    % (
-                        str([w.pk for w in replica_sets[name]["wcs"]]),
-                        "cv_def: %s, cv_inc: %s"
-                        % (
-                            str(replica_sets[name]["colvar_def"]),
-                            str(replica_sets[name]["colvar_inc"]),
-                        ),
-                    )
+                    f"""Existing: {[w.pk for w in replica_sets[name]["wcs"]]} cv_def: {replica_sets[name]['colvar_def']}, cv_inc: {replica_sets[name]['colvar_inc']}"""
                 )
-                print(
-                    "Skipping: %s %s "
-                    % (
-                        str(wc.pk),
-                        f"cv_def: {str(cv_def)}, cv_inc: {str(cv_inc)}",
-                    )
-                )
+                print(f"Skipping: {wc.pk}, cv_def: {cv_def}, cv_inc: {cv_inc} ")
                 print("----")
                 continue
 
@@ -360,6 +346,7 @@ class SearchReplicaWidget(ipw.VBox):
             for wc_o in sorted(wc_outputs_dict):
                 if wc_o.startswith("replica_"):
                     struct = wc_outputs_dict[wc_o]
+
                     # Add description, if it doesn't exist already.
                     if struct.description == "":
                         if struct.creator is None:
