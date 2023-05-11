@@ -207,7 +207,7 @@ class StructureAnalyzer(tr.HasTraits):
         # Identify separate molecules.
         all_molecules = []
         if len(possible_mol_atoms) > 0:
-            fragments = molecules
+            fragments = molecules(possible_mol_atoms, frame)
             all_molecules = copy.deepcopy(fragments)
 
             # Remove isolated atoms.

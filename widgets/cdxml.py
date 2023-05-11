@@ -6,6 +6,7 @@ import numpy as np
 import scipy
 import sklearn
 import traitlets as tr
+from ase import neighborlist
 
 
 class CdxmlUpload2GnrWidget(ipw.VBox):
@@ -105,7 +106,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
     def add_h(atoms):
         """Add missing hydrogen atoms."""
 
-        n_l = ase.neighborlist.NeighborList(
+        n_l = neighborlist.NeighborList(
             [ase.data.covalent_radii[a.number] for a in atoms],
             bothways=True,
             self_interaction=False,
