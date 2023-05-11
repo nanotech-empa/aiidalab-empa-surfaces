@@ -8,8 +8,8 @@ from aiida import orm
 from ase import Atoms
 from IPython.display import clear_output, display
 
+from ..utils.cp2k_input_validity import validate_input
 from .constraints import ConstraintsWidget
-from .cp2k_input_validity import validate_input
 from .spins import SpinsWidget
 
 STYLE = {"description_width": "120px"}

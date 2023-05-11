@@ -55,14 +55,3 @@ class SpinsWidget(ipw.VBox):
 
     def remove_spinset(self, b=None):
         self.spinsets.children = self.spinsets.children[:-1]
-
-    # def return_dict(self):
-    #    magnetization_per_site = np.zeros(self.details["numatoms"])
-    #    for spinset in self.spinsets.children:
-    #        magnetization_per_site[
-    #            awb.utils.string_range_to_list(spinset.selection.value)[0]
-    #        ] = spinset.starting_magnetization.value
-    #    return {"magnetization_per_site": magnetization_per_site}
-
-    # def traits_to_link(self):
-    #    return ["details"]

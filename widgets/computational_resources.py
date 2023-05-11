@@ -150,7 +150,6 @@ class ResourcesEstimatorWidget(ipw.VBox):
 
     details = tr.Dict()
     uks = tr.Bool()
-    # n_replica_trait = tr.Int()
 
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
 

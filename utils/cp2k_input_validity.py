@@ -1,4 +1,4 @@
-def input_is_valid(job_details={}):
+def input_is_valid(job_details=None):
     odd_charge = job_details["slab_analyzed"]["total_charge"]
     rks = True
     if "charge" in job_details.keys():
@@ -20,7 +20,7 @@ def input_is_valid(job_details={}):
 
 
 def validate_input(structure_details, details_dict):
-    ###UKS CHECK
+    # UKS check.
     total_charge = structure_details["total_charge"]
     if "charge" in details_dict["dft_params"]:
         total_charge += details_dict["dft_params"]["charge"]

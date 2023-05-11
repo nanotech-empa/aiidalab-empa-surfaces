@@ -72,30 +72,30 @@ def make_plot(
 
 def make_series_label(info, i_spin=None):
     if info["type"] == "const-height sts":
-        label = "ch-sts fwhm={:.2f} h={:.1f}".format(info["fwhm"], info["height"])
+        label = f"ch-sts fwhm={info['fwhm']:.2f} h={info['height']:.1f}"
     elif info["type"] == "const-height stm":
-        label = "ch-stm fwhm={:.2f} h={:.1f}".format(info["fwhm"], info["height"])
+        label = f"ch-stm fwhm={info['fwhm']:.2f} h={info['height']:.1f}"
     elif info["type"] == "const-isovalue sts":
-        label = "cc-sts fwhm={:.2f} isov={:.0e}".format(info["fwhm"], info["isovalue"])
+        label = f"cc-sts fwhm={info['fwhm']:.2f} isov={info['height']:.0e}"
     elif info["type"] == "const-isovalue stm":
-        label = "cc-stm fwhm={:.2f} isov={:.0e}".format(info["fwhm"], info["isovalue"])
+        label = f"cc-stm fwhm={info['fwhm']:.2f} isov={info['height']:.0e}"
 
     elif info["type"] == "const-height orbital":
-        label = "ch-orb h=%.1f" % info["height"]
+        label = f"ch-orb h={info['height']:.1f}"
     elif info["type"] == "const-height orbital^2":
-        label = "ch-orb^2 h=%.1f" % info["height"]
+        label = f"ch-orb^2 h={info['height']:.1f}"
     elif info["type"] == "const-isovalue orbital^2":
-        label = "cc-orb^2 isov=%.0e" % info["isovalue"]
+        label = f"cc-orb^2 isov={info['isovalue']:.0e}"
 
     elif info["type"] == "const-height orbital sts":
-        label = "ch-orb^2 h=%.1f" % info["height"]
+        label = f"ch-orb^2 h={info['height']:.1f}"
     elif info["type"] == "const-isovalue orbital sts":
-        label = "cc-orb^2 isov=%.0e" % info["isovalue"]
+        label = f"cc-orb^2 isov={info['isovalue']:.0e}"
     else:
         print("No support for: " + str(info))
 
     if i_spin is not None:
-        label += ", s%d" % i_spin
+        label += f", s{i_spin}"
 
     return label
 
@@ -112,7 +112,7 @@ def make_orb_label(index, homo_index):
     else:
         hl_label = "LUMO%+d" % (i_rel_homo - 1)
 
-    return "MO %d, " % index + hl_label
+    return f"MO {index + hl_label}, "
 
 
 class SeriesPlotter:
@@ -252,7 +252,7 @@ class SeriesPlotter:
             overflow_x="scroll",
             border="3px solid black",
             width="100%",
-            height="%dpx" % (fig_y_in_px * num_series + 70),
+            height=f"{fig_y_in_px * num_series + 70}px",
             display="inline-flex",
             flex_flow="column wrap",
             align_items="flex-start",
@@ -292,10 +292,10 @@ class SeriesPlotter:
                     if orb_indexes is not None:
                         mo_label = make_orb_label(orb_indexes[i], homo)
 
-                    title = "%s\n" % series_label
+                    title = f"{series_label}\n"
                     if mo_label is not None:
                         title += mo_label + " "
-                    title += "E=%.2f eV" % energy
+                    title += f"E={energy:.2f} eV"
 
                     # Is normalization enabled?
                     vmin = None
@@ -325,7 +325,7 @@ class SeriesPlotter:
     def create_zip_link(self, b):
         self.zip_btn.disabled = True
 
-        filename = "%s_pk%d.zip" % (self.zip_prepend, self.wc_pk)
+        filename = f"{self.zip_prepend}_pk{self.wc_pk}.zip"
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, False) as zip_file:
@@ -368,7 +368,7 @@ class SeriesPlotter:
                 title = f"{series_label}\n"
                 if mo_label is not None:
                     title += mo_label + " "
-                title += "E=%.2f eV" % energy
+                title += f"E={energy:.2f} eV"
 
                 plot_name = (
                     series_label.lower()
@@ -415,7 +415,7 @@ class SeriesPlotter:
 
                 # Add txt data to the zip.
                 header = "xlim=({:.2f}, {:.2f}), ylim=({:.2f}, {:.2f})".format(
-                    self.extent[0], self.extent[1], self.extent[2], self.extent[3]
+                    *self.extent[:4]
                 )
                 txtdata = io.BytesIO()
                 np.savetxt(txtdata, data[i, :, :], header=header, fmt="%.3e")
@@ -430,7 +430,7 @@ class SeriesPlotter:
                     ymin=self.extent[2],
                     ymax=self.extent[3],
                     ylabel="y [Angstroms]",
-                    name="'%s'" % plot_name,
+                    name=f"'{plot_name}'",
                 )
                 zip_file.writestr("itx/" + plot_name + ".itx", str(igorwave))
                 self.zip_progress.value += 1.0 / float(total_pics - 1)
