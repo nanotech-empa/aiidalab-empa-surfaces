@@ -1,8 +1,7 @@
 import datetime
 
 import ipywidgets as ipw
-from aiida.common.exceptions import NotExistent
-from aiida.orm import QueryBuilder, StructureData, load_node
+from aiida import common, orm
 from aiida_nanotech_empa.utils import common_utils
 from IPython.display import clear_output
 
@@ -53,7 +52,7 @@ def uuids_to_nodesdict(uuids):
     nworkflows = 0
     for uuid in uuids:
         try:
-            node = load_node(uuid)
+            node = orm.load_node(uuid)
             nodeisobsolete = "obsolete" in node.extras and node.extras["obsolete"]
             # print("1 ", node.label)
             if node.label in VIEWERS and not nodeisobsolete:
@@ -63,7 +62,7 @@ def uuids_to_nodesdict(uuids):
                     workflows[node.label].append(node)
                 else:
                     workflows[node.label] = [node]
-        except NotExistent:
+        except common.NotExistent:
             pass
 
     return nworkflows, workflows
@@ -122,18 +121,17 @@ class SearchStructuresWidget(ipw.VBox):
             self.date_start.value = start_date.strftime("%Y-%m-%d")
             self.date_end.value = end_date.strftime("%Y-%m-%d")
 
-        # search with QB structures with extra "surfaces"
-        qb = QueryBuilder()
-        # "mtime": {"and": [{"<=": end_date}, {">": start_date}]},
+        # Search with QB structures with extra "surfaces".
+        qb = orm.QueryBuilder()
         qb.append(
-            StructureData,
+            orm.StructureData,
             filters={
                 "extras": {"has_key": "surfaces"},
             },
         )
-        qb.order_by({StructureData: {"mtime": "desc"}})
+        qb.order_by({orm.StructureData: {"mtime": "desc"}})
 
-        # for each structure in QB create a dictionary with info on the workflows computed on it
+        # For each structure in QB create a dictionary with info on the workflows computed on it.
         data = []
         for node in qb.all(flat=True):
             # print("node ", node.pk, " extras ", node.extras["surfaces"])

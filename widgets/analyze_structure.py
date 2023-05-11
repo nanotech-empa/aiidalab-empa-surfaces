@@ -1,3 +1,4 @@
+import copy
 import itertools
 
 import aiidalab_widgets_base as awb
@@ -207,13 +208,9 @@ class StructureAnalyzer(tr.HasTraits):
         all_molecules = []
         if len(possible_mol_atoms) > 0:
             fragments = molecules
-            import copy
-
-            import frame
-            import possible_mol_atoms
-
             all_molecules = copy.deepcopy(fragments)
-            # Remove isolated atoms
+
+            # Remove isolated atoms.
             for frag in fragments:
                 if len(frag) == 1:
                     all_molecules.remove(frag)
