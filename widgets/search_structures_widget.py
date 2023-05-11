@@ -20,19 +20,11 @@ VIEWERS = {
 
 
 def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
-    # image with a link to structure export
-    pk = str(pk)
+    """Returns an image with a link to structure export."""
     html = (
-        '<td rowspan=%s><a target="_blank" href="./export_structure.ipynb?pk=%s">'
-        % (str(nrows), pk)
+        f'<td rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?{pk=}">'
     )
-    html += (
-        '<img width="100px" src="data:image/png;base64,{}" title="PK{}: {}">'.format(
-            thumbnail,
-            pk,
-            description,
-        )
-    )
+    html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
     html += "</a></td>"
     return html
 
@@ -40,11 +32,7 @@ def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
 def link_to_viewer(description="", pk="", label=""):
     pk = str(pk)
     the_viewer = VIEWERS[label]
-    return '<li><a target="_blank" href="{}?pk={}"> {} </a></li>'.format(
-        the_viewer,
-        pk,
-        description,
-    )
+    return f'<li><a target="_blank" href="{the_viewer}?{pk=}"> {description} </a></li>'
 
 
 def uuids_to_nodesdict(uuids):
@@ -54,9 +42,7 @@ def uuids_to_nodesdict(uuids):
         try:
             node = orm.load_node(uuid)
             nodeisobsolete = "obsolete" in node.extras and node.extras["obsolete"]
-            # print("1 ", node.label)
             if node.label in VIEWERS and not nodeisobsolete:
-                # print("2 ", node.label)
                 nworkflows += 1
                 if node.label in workflows:
                     workflows[node.label].append(node)
@@ -89,9 +75,7 @@ class SearchStructuresWidget(ipw.VBox):
         )
 
         self.date_text = ipw.HTML(value="<p>Select the date range:</p>", width="150px")
-
         search_crit = ipw.HBox([self.date_text, self.date_start, self.date_end])
-
         button = ipw.Button(description="Search")
 
         self.results = ipw.HTML()
@@ -188,25 +172,18 @@ class SearchStructuresWidget(ipw.VBox):
             nrows1 = entry["nrows"]
             nrows_done = 0
             html += "<tr>"
-            html += '<td class="{}" rowspan={}> {}  </td>'.format(
-                tclass[odd],
-                str(nrows1),
-                entry["mtime"],
-            )
+            html += f"""<td class="{tclass[odd]}" rowspan={str(nrows1)}> {entry["mtime"]}  </td>"""
             odd *= -1
             for workflow in entry["workflows"]:
                 if nrows_done != 0:
                     html += "<tr>"
                 nrowsw = len(entry["workflows"][workflow])
-                html += '<td class="tg-0pky" rowspan={}>  {} </td>'.format(
-                    str(nrowsw),
-                    workflow,
-                )
-                html += '<td class="tg-0pky" rowspan=%s>' % str(nrowsw)
+                html += f'<td class="tg-0pky" rowspan={nrowsw}>  {workflow} </td>'
+                html += f'<td class="tg-0pky" rowspan={nrowsw}>'
                 html += "<ul>"
                 for node in entry["workflows"][workflow]:
                     html += link_to_viewer(
-                        description="PK-" + str(node.pk) + " " + node.description,
+                        description=f"PK-{node.pk} {node.description}",
                         pk=node.pk,
                         label=node.label,
                     )
