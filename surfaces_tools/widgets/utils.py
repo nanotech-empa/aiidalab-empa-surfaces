@@ -69,7 +69,7 @@ def structure_available_wfn(
     # Check if UKS or RKS and in ase of UKS if matching magnetization options.
     orig_dft_params = generating_workchain.inputs.dft_params.get_dict()
     was_uks = "uks" in orig_dft_params and orig_dft_params["uks"]
-    is_uks = "uks" in dft_params and orig_dft_params["uks"]
+    is_uks = "uks" in dft_params and dft_params["uks"]
     if was_uks != is_uks:
         return None
 
@@ -108,9 +108,9 @@ def structure_available_wfn(
     if charge != was_charge:
         return None
 
+    create_a_copy = False
+    
     if generating_workchain.label == "CP2K_NEB":
-        create_a_copy = False
-
         # It could be that the neb calculatio had a different number of replicas.
         nreplica_parent = generating_workchain.inputs.neb_params["number_of_replica"]
         ndigits = len(str(nreplica_parent))

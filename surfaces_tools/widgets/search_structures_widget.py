@@ -22,7 +22,7 @@ VIEWERS = {
 def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
     """Returns an image with a link to structure export."""
     html = (
-        f'<td rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?{pk=}">'
+        f'<td rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?pk={pk}">'
     )
     html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
     html += "</a></td>"
@@ -30,9 +30,8 @@ def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
 
 
 def link_to_viewer(description="", pk="", label=""):
-    pk = str(pk)
     the_viewer = VIEWERS[label]
-    return f'<li><a target="_blank" href="{the_viewer}?{pk=}"> {description} </a></li>'
+    return f'<li><a target="_blank" href="{the_viewer}?pk={pk}"> {description} </a></li>'
 
 
 def uuids_to_nodesdict(uuids):
