@@ -1,5 +1,5 @@
 import ipywidgets as ipw
-import traitlets as trt
+import traitlets as tr
 from aiida_nanotech_empa.workflows.cp2k import cp2k_utils
 from ase import Atoms
 
@@ -69,8 +69,8 @@ class OneConstraint(ipw.HBox):
 
 
 class ConstraintsWidget(ipw.VBox):
-    details = trt.Dict()
-    ase_atoms = trt.Instance(Atoms, allow_none=True)
+    details = tr.Dict()
+    ase_atoms = tr.Instance(Atoms, allow_none=True)
 
     def __init__(self):
         self.constraints = ipw.VBox()
@@ -115,7 +115,7 @@ class ConstraintsWidget(ipw.VBox):
             ]
         )
 
-    @trt.observe("details")
+    @tr.observe("details")
     def _observe_manager(self, _=None):
         if self.details and "Slab" in self.details["system_type"]:
             self.add_constraint()

@@ -1,6 +1,6 @@
 import ipywidgets as ipw
-from aiida.orm import load_node
-from IPython.display import clear_output, display
+from aiida import orm
+from IPython.display import clear_output
 
 
 class CommentsWidget(ipw.VBox):
@@ -8,7 +8,7 @@ class CommentsWidget(ipw.VBox):
 
         if not workchain:
             return
-        self.node = load_node(workchain)
+        self.node = orm.load_node(workchain)
 
         self.old_comments = ipw.Output()
         btn_add_comment = ipw.Button(description="Add comment")

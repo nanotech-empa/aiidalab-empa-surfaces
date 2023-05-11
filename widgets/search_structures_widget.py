@@ -1,10 +1,10 @@
 import datetime
 
 import ipywidgets as ipw
-from aiida.orm import QueryBuilder, StructureData, load_node
-from IPython.display import clear_output
-from aiida_nanotech_empa.utils import common_utils
 from aiida.common.exceptions import NotExistent
+from aiida.orm import QueryBuilder, StructureData, load_node
+from aiida_nanotech_empa.utils import common_utils
+from IPython.display import clear_output
 
 VIEWERS = {
     "CP2K_AdsorptionE": "view_ade.ipynb",
@@ -27,10 +27,12 @@ def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
         '<td rowspan=%s><a target="_blank" href="./export_structure.ipynb?pk=%s">'
         % (str(nrows), pk)
     )
-    html += '<img width="100px" src="data:image/png;base64,%s" title="PK%s: %s">' % (
-        thumbnail,
-        pk,
-        description,
+    html += (
+        '<img width="100px" src="data:image/png;base64,{}" title="PK{}: {}">'.format(
+            thumbnail,
+            pk,
+            description,
+        )
     )
     html += "</a></td>"
     return html
@@ -39,7 +41,7 @@ def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
 def link_to_viewer(description="", pk="", label=""):
     pk = str(pk)
     the_viewer = VIEWERS[label]
-    return '<li><a target="_blank" href="%s?pk=%s"> %s </a></li>' % (
+    return '<li><a target="_blank" href="{}?pk={}"> {} </a></li>'.format(
         the_viewer,
         pk,
         description,
@@ -188,7 +190,7 @@ class SearchStructuresWidget(ipw.VBox):
             nrows1 = entry["nrows"]
             nrows_done = 0
             html += "<tr>"
-            html += '<td class="%s" rowspan=%s> %s  </td>' % (
+            html += '<td class="{}" rowspan={}> {}  </td>'.format(
                 tclass[odd],
                 str(nrows1),
                 entry["mtime"],
@@ -198,7 +200,7 @@ class SearchStructuresWidget(ipw.VBox):
                 if nrows_done != 0:
                     html += "<tr>"
                 nrowsw = len(entry["workflows"][workflow])
-                html += '<td class="tg-0pky" rowspan=%s>  %s </td>' % (
+                html += '<td class="tg-0pky" rowspan={}>  {} </td>'.format(
                     str(nrowsw),
                     workflow,
                 )
@@ -212,15 +214,12 @@ class SearchStructuresWidget(ipw.VBox):
                     )
                 html += "</ul></td>"
                 if nrows_done == 0:
-                    html += entry[
-                        "thumbnail"
-                    ]  # "<td rowspan=%s>  %s </td>" % ( str(nrows1),"THUMB")
+                    html += entry["thumbnail"]
                     html += "</tr>"
                     nrows_done += 1
-                for tr_empty in range(1, nrowsw):
+                for _ in range(1, nrowsw):
                     html += "<tr></tr>"
                     nrows_done += 1
-            # html += "</tr>"
         html += "</tbody></table>"
 
         self.results.value = html

@@ -1,9 +1,9 @@
 import numpy as np
 from ase import Atoms
 
-## ANCHORING ATOM  has coordinates (0,0,0)
-## ANCHORING TO (-1,-1,-1)
-## IF a displacemnet of 0 is assigned then the anchoring atom is removed
+# ANCHORING ATOM  has coordinates (0,0,0)
+# ANCHORING TO (-1,-1,-1)
+# IF a displacemnet of 0 is assigned then the anchoring atom is removed
 
 LIGANDS = {
     "CH3": [
@@ -31,11 +31,13 @@ class LigandsAtoms:
 
         super().__init__()
 
-    def rotate_and_dr(mol=None, align_to=(0, 0, 1), dr=0.0, remove_anchoring=False):
+    def rotate_and_dr(
+        self, mol=None, align_to=(0, 0, 1), dr=0.0, remove_anchoring=False
+    ):
         v = np.array(align_to)
         n = np.linalg.norm(v)
 
-        ## BAD CASES
+        # Bad cases.
         if n == 0.0:
             v = np.array((1, 1, 1)) / np.sqrt(3)
         else:
@@ -44,7 +46,7 @@ class LigandsAtoms:
         if mol:
             if dr == 0.0:
                 mol.rotate((1, 1, 1), v)
-                ## REMOVE ANCHOR atom
+                # Remove anchoring atom
                 del mol[
                     [
                         atom.index
@@ -55,7 +57,7 @@ class LigandsAtoms:
                 return mol
             else:
                 mol.rotate((1, 1, 1), v)
-                mol.translate(dr * v)  ## DO NOT USE: return mol.translate() !!!!!!!!
+                mol.translate(dr * v)  # Do not do: return mol.translate()!
                 return mol
 
     def ligand(self, formula="CH3", align_to=(0, 0, 1), dr=0.0):

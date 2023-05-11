@@ -1,7 +1,7 @@
 import copy
+import tempfile
 from base64 import b64encode
 from collections import OrderedDict
-from tempfile import NamedTemporaryFile
 
 import ase
 import ipywidgets as ipw
@@ -10,6 +10,7 @@ import numpy as np
 from aiida import orm
 from IPython.display import clear_output, display
 
+from ..helpers import HART_2_EV
 from ..utils.collective_variables import COLVARS
 
 style = {"description_width": "120px"}
@@ -98,7 +99,7 @@ class SearchReplicaWidget(ipw.VBox):
             self.generate_energy_cv_plot(selected_replica_calc)
 
         n_col = 4
-        layout = {"width": "%.1f%%" % (100.0 / n_col)}
+        layout = {"width": f"{100.0 / n_col:.1f}%"}
         with self.output_thumbnails:
             clear_output()
             cur_row = []
@@ -144,13 +145,13 @@ class SearchReplicaWidget(ipw.VBox):
 
             if cv_target is None:
                 if ref_en_scf is None:
-                    ref_en_scf = energy[0] * 27.2114
-                    ref_en_frc = energy[1] * 27.2114
+                    ref_en_scf = energy[0] * HART_2_EV
+                    ref_en_frc = energy[1] * HART_2_EV
 
-        plot_energy_scf = np.array(plot_energy_scf) * 27.2114
+        plot_energy_scf = np.array(plot_energy_scf) * HART_2_EV
         plot_energy_scf -= ref_en_scf
 
-        plot_energy_frc = np.array(plot_energy_frc) * 27.2114
+        plot_energy_frc = np.array(plot_energy_frc) * HART_2_EV
         plot_energy_frc -= ref_en_frc
 
         plt.figure(figsize=(10, 5))
@@ -403,7 +404,7 @@ class SearchReplicaWidget(ipw.VBox):
             for i_at in vis_list_atoms:
                 colors[i_at] *= 0.6
                 colors[i_at][0] = 1.0
-        tmp = NamedTemporaryFile()
+        tmp = tempfile.NamedTemporaryFile()
         ase.io.write(
             tmp.name, atoms, format="png", colors=colors
         )  # does not accept StringIO

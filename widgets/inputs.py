@@ -1,32 +1,16 @@
-import ipywidgets as ipw
-from aiida.orm import Code, load_node
-from aiidalab_widgets_base.utils import string_range_to_list
-from IPython.display import clear_output, display
-from traitlets import (
-    Bool,
-    Dict,
-    Instance,
-    Int,
-    List,
-    Unicode,
-    Union,
-    link,
-    observe,
-    default,
-)
-
-from ase import Atoms
-
-import aiidalab_widgets_base as awb
-import numpy as np
 from functools import reduce
 
+import aiidalab_widgets_base as awb
+import ipywidgets as ipw
+import numpy as np
+import traitlets as tr
+from aiida import orm
+from ase import Atoms
+from IPython.display import clear_output, display
+
 from .constraints import ConstraintsWidget
-from .spins import SpinsWidget
 from .cp2k_input_validity import validate_input
-
-# from aiida_cp2k.workchains.base import Cp2kBaseWorkChain
-
+from .spins import SpinsWidget
 
 STYLE = {"description_width": "120px"}
 LAYOUT = {"width": "70%"}
@@ -34,31 +18,27 @@ LAYOUT2 = {"width": "35%"}
 
 
 class InputDetails(ipw.VBox):
-    selected_code = Union([Unicode(), Instance(Code)], allow_none=True)
-    details = Dict()
-    final_dictionary = Dict()
-    to_fix = List()
-    do_cell_opt = Bool()
-    uks = Bool()
-    net_charge = Int()
-    neb = Bool()  # set by app in case of neb calculation, to be linked to resources
-    replica = Bool()  # set by app in case of replica chain calculation
-    phonons = Bool()  # set by app in case of phonons calculation
+    selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
+    details = tr.Dict()
+    final_dictionary = tr.Dict()
+    to_fix = tr.List()
+    do_cell_opt = tr.Bool()
+    uks = tr.Bool()
+    net_charge = tr.Int()
+    neb = tr.Bool()  # Set by app in case of neb calculation, to be linked to resources.
+    replica = tr.Bool()  # Set by app in case of replica chain calculation.
+    phonons = tr.Bool()  # Set by app in case of phonons calculation
     n_replica_trait = (
-        Int()
-    )  # to be linked to resources used only if neb = True or phonons = True
+        tr.Int()
+    )  # To be linked to resources used only if neb = True or phonons = True
     nproc_replica_trait = (
-        Int()
-    )  # to be linked from resources to input_details  used only if neb = True or phonons = True
+        tr.Int()
+    )  # To be linked from resources to input_details  used only if neb = True or phonons = True
     n_replica_per_group_trait = (
-        Int()
-    )  # to be linked to resources used only if neb = True
-    # example in app:
-    # ipw.dlink((input_details, 'n_replica_trait'),(resources, 'n_replica_trait'))
-    # ipw.dlink((input_details, 'n_replica_per_group_trait'),(resources, 'n_replica_per_group_trait'))
-    # ipw.dlink((resources, 'nproc_replica_trait'),(input_details, 'nproc_replica_trait'))
+        tr.Int()
+    )  # To be linked to resources used only if neb = True
 
-    ase_atoms = Instance(Atoms, allow_none=True)  # needed for colvars
+    ase_atoms = tr.Instance(Atoms, allow_none=True)  # needed for colvars
 
     def __init__(
         self,
@@ -76,25 +56,25 @@ class InputDetails(ipw.VBox):
 
         super().__init__(children=[self.output])
 
-    @default("neb")
+    @tr.default("neb")
     def _default_neb(self):
         return False
 
-    @default("phonons")
+    @tr.default("phonons")
     def _default_phonons(self):
         return False
 
-    @default("n_replica_trait")
+    @tr.default("n_replica_trait")
     def _default_n_proc_replica(self):
         if self.neb:
             return 15
         return 1
 
-    @default("n_replica_per_group_trait")
+    @tr.default("n_replica_per_group_trait")
     def _default_n_replica_per_group_trait(self):
         return 1
 
-    @observe("details", "neb", "replica", "phonons")
+    @tr.observe("details", "neb", "replica", "phonons")
     def _observe_details(self, _=None):
         self.to_fix = []
         self.net_charge = 0
@@ -122,7 +102,7 @@ class InputDetails(ipw.VBox):
                 section = sec()
                 if hasattr(section, "traits_to_link"):
                     for trait in section.traits_to_link():
-                        link((self, trait), (section, trait))
+                        tr.link((self, trait), (section, trait))
                 self.displayed_sections.append(section)
             display(ipw.VBox(add_children + self.displayed_sections))
 
@@ -180,7 +160,7 @@ class DescriptionWidget(ipw.Text):
 
 
 class StructureInfoWidget(ipw.Accordion):
-    details = Dict()
+    details = tr.Dict()
 
     def __init__(self):
 
@@ -189,7 +169,7 @@ class StructureInfoWidget(ipw.Accordion):
         self.set_title(0, "Structure details")
         super().__init__(selected_index=None)
 
-    @observe("details")
+    @tr.observe("details")
     def _observe_details(self, _=None):
         if self.details is None:
             return
@@ -207,7 +187,7 @@ class StructureInfoWidget(ipw.Accordion):
 
 
 class ProtocolSelectionWidget(ipw.Dropdown):
-    phonons = Bool()
+    phonons = tr.Bool()
 
     def __init__(self):
         options = [
@@ -222,7 +202,7 @@ class ProtocolSelectionWidget(ipw.Dropdown):
             style={"description_width": "120px"},
         )
 
-    @observe("phonons")
+    @tr.observe("phonons")
     def _observe_details(self, _=None):
         if self.phonons:
             self.options = [
@@ -290,7 +270,7 @@ class ReplicaWidget(ipw.VBox):
     def return_dict(self):
         the_dict = {}
         if self.restart_from.value:
-            the_dict["restart_from"] = load_node(self.restart_from.value).uuid
+            the_dict["restart_from"] = orm.load_node(self.restart_from.value).uuid
         the_dict["sys_params"] = {
             "colvars_targets": [float(i) for i in self.CVs_targets.value.split()],
             "colvars_increments": [float(i) for i in self.CVs_increments.value.split()],
@@ -302,9 +282,9 @@ class ReplicaWidget(ipw.VBox):
 
 
 class NebWidget(ipw.VBox):
-    n_replica_trait = Int()
-    nproc_replica_trait = Int()
-    n_replica_per_group_trait = Int()
+    n_replica_trait = tr.Int()
+    nproc_replica_trait = tr.Int()
+    n_replica_per_group_trait = tr.Int()
 
     def __init__(self):
         self.restart_from = ipw.Text(
@@ -396,7 +376,7 @@ class NebWidget(ipw.VBox):
             optimize_endpoints = ".TRUE."
         the_dict = {}
         if self.restart_from.value != "":
-            the_dict["restart_from"] = load_node(self.restart_from.value).uuid
+            the_dict["restart_from"] = orm.load_node(self.restart_from.value).uuid
         the_dict["neb_params"] = {
             "align_frames": align_frames,
             "band_type": self.band_type.value,
@@ -408,12 +388,12 @@ class NebWidget(ipw.VBox):
         }
 
         the_dict["replica_uuids"] = [
-            load_node(int(pk)).uuid for pk in self.replica_pks.value.split()
+            orm.load_node(int(pk)).uuid for pk in self.replica_pks.value.split()
         ]
 
         return the_dict
 
-    @observe("nproc_replica_trait")
+    @tr.observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
         self.nproc_rep.value = str(self.nproc_replica_trait)
 
@@ -441,9 +421,9 @@ class NebWidget(ipw.VBox):
 
 
 class PhononsWidget(ipw.VBox):
-    details = Dict()
-    n_replica_trait = Int()
-    nproc_replica_trait = Int()
+    details = tr.Dict()
+    n_replica_trait = tr.Int()
+    nproc_replica_trait = tr.Int()
 
     def __init__(self):
         self.nproc_rep = ipw.HTML(
@@ -475,11 +455,11 @@ class PhononsWidget(ipw.VBox):
 
         return the_dict
 
-    @observe("nproc_replica_trait")
+    @tr.observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
         self.nproc_rep.value = str(self.nproc_replica_trait)
 
-    @observe("details")
+    @tr.observe("details")
     def _observe_details(self, _=None):
         self.n_replica.value = 3
         three_times_natoms = self.details["numatoms"] * 3
@@ -503,9 +483,9 @@ class PhononsWidget(ipw.VBox):
 
 
 class UksSectionWidget(ipw.Accordion):
-    details = Dict()
-    uks = Bool()
-    net_charge = Int()
+    details = tr.Dict()
+    uks = tr.Bool()
+    net_charge = tr.Int()
 
     def __init__(self):
         # UKS
@@ -516,7 +496,7 @@ class UksSectionWidget(ipw.Accordion):
             style={"description_width": "80px"},
         )
 
-        link((self, "uks"), (self.uks_toggle, "value"))
+        tr.link((self, "uks"), (self.uks_toggle, "value"))
 
         self.spins = SpinsWidget()
         self.multiplicity = ipw.IntText(
@@ -533,23 +513,6 @@ class UksSectionWidget(ipw.Accordion):
             layout={"width": "120px"},
         )
 
-        # guess multiplicity
-        # def multiplicity_guess(c=None):
-        #    self.net_charge = self.charge.value
-        #    system_charge = self.details["total_charge"] - self.net_charge
-        #    # check if same atom entered in two different spins
-        #    if bool(setu & setd):
-        #        self.multiplicity.value = 1
-        #        self.spin_u.value = ""
-        #        self.spin_d.value = ""
-
-        #    if not system_charge % 2:
-        #        self.multiplicity.value = min(abs(nu - nd) * 2 + 1, 3)
-        #    else:
-        #        self.multiplicity.value = 2
-
-        # self.charge.observe(multiplicity_guess, "value")
-
         super().__init__(selected_index=None)
 
     def return_dict(self):
@@ -557,7 +520,7 @@ class UksSectionWidget(ipw.Accordion):
             magnetization_per_site = np.zeros(self.details["numatoms"])
             for spinset in self.spins.spinsets.children:
                 magnetization_per_site[
-                    string_range_to_list(spinset.selection.value)[0]
+                    awb.utils.string_range_to_list(spinset.selection.value)[0]
                 ] = spinset.starting_magnetization.value
             return {
                 "dft_params": {
@@ -572,11 +535,11 @@ class UksSectionWidget(ipw.Accordion):
         else:
             return {"dft_params": {"charge": self.charge.value}}
 
-    @observe("details")
+    @tr.observe("details")
     def _observe_details(self, _=None):
         self._widgets_to_show()
 
-    @observe("uks")
+    @tr.observe("uks")
     def _observe_uks(self, _=None):
         self._widgets_to_show()
 
@@ -605,8 +568,8 @@ class UksSectionWidget(ipw.Accordion):
 
 
 class CellSectionWidget(ipw.Accordion):
-    details = Dict()
-    do_cell_opt = Bool()
+    details = tr.Dict()
+    do_cell_opt = tr.Bool()
 
     def __init__(self):
 
@@ -669,11 +632,11 @@ class CellSectionWidget(ipw.Accordion):
 
         return {"sys_params": sys_params}
 
-    @observe("details")
+    @tr.observe("details")
     def _observe_details(self, _=None):
         self._widgets_to_show()
 
-    @observe("do_cell_opt")
+    @tr.observe("do_cell_opt")
     def _observe_do_cell_opt(self, _=None):
         self._widgets_to_show()
 

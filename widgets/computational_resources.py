@@ -1,6 +1,6 @@
 import ipywidgets as ipw
 import pandas as pd
-import traitlets as trt
+import traitlets as tr
 from aiida import orm
 
 STYLE = {
@@ -9,17 +9,15 @@ STYLE = {
 LAYOUT = {"width": "200px"}
 
 
-def closest_multiple(Nodes, Tasks, Groups):
-    """
-    Returns the integer M closest to N such that M*T is a multiple of G.
-    """
-    if Nodes % Groups == 0 or Tasks % Groups == 0:
-        return Nodes
+def closest_multiple(nodes, tasks, groups):
+    """Returns the integer M closest to N such that M*T is a multiple of G."""
+    if nodes % groups == 0 or tasks % groups == 0:
+        return nodes
     else:
-        int_division = Nodes // Groups
-        bigger = (int_division + 1) * Groups
-        smaller = (int_division - 1) * Groups
-        if bigger - Nodes < Nodes - smaller:
+        int_division = nodes // groups
+        bigger = (int_division + 1) * groups
+        smaller = (int_division - 1) * groups
+        if bigger - nodes < nodes - smaller:
             return bigger
         else:
             return smaller
@@ -28,16 +26,16 @@ def closest_multiple(Nodes, Tasks, Groups):
 class ProcessResourcesWidget(ipw.VBox):
     """Setup metadata for an AiiDA process."""
 
-    nproc_replica_trait = trt.Int()
-    n_replica_trait = trt.Int()
-    n_replica_per_group_trait = trt.Int()
-    neb = trt.Bool()
-    phonons = trt.Bool()
+    nproc_replica_trait = tr.Int()
+    n_replica_trait = tr.Int()
+    n_replica_per_group_trait = tr.Int()
+    neb = tr.Bool()
+    phonons = tr.Bool()
 
     def __init__(self):
         """Metadata widget to generate metadata"""
 
-        @trt.default("neb")
+        @tr.default("neb")
         def _default_neb(self):
             return False
 
@@ -97,7 +95,7 @@ class ProcessResourcesWidget(ipw.VBox):
     def walltime_seconds(self):
         return int(pd.Timedelta(self.walltime_widget.value).total_seconds())
 
-    @trt.observe("n_replica_trait")
+    @tr.observe("n_replica_trait")
     def on_n_replica_trait_change(self, change):
         if change["old"] != 0:
             if self.neb or self.phonons:
@@ -105,7 +103,7 @@ class ProcessResourcesWidget(ipw.VBox):
                     self.nodes_widget.value * change["new"] / change["old"]
                 )
 
-    @trt.observe("n_replica_per_group_trait")
+    @tr.observe("n_replica_per_group_trait")
     def on_n_replica_per_group_trait_change(self, change):
         if change["old"] != 0 and self.neb:
             self.nodes_widget.value = int(
@@ -150,11 +148,11 @@ class ProcessResourcesWidget(ipw.VBox):
 
 class ResourcesEstimatorWidget(ipw.VBox):
 
-    details = trt.Dict()
-    uks = trt.Bool()
-    # n_replica_trait = trt.Int()
+    details = tr.Dict()
+    uks = tr.Bool()
+    # n_replica_trait = tr.Int()
 
-    selected_code = trt.Union([trt.Unicode(), trt.Instance(orm.Code)], allow_none=True)
+    selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
 
     def __init__(self, calculation_type="dft"):
         """Resources estimator widget to generate metadata"""
@@ -171,7 +169,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
     def link_to_resources_widget(self, resources_widget):
         self.resources = resources_widget
 
-    @trt.observe("details")
+    @tr.observe("details")
     def _observe_details(self, _=None):
         try:
             self.system_type = (
@@ -184,7 +182,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
             self.system_type = "Other"
             self.element_list = []
 
-    @trt.observe("selected_code")
+    @tr.observe("selected_code")
     def _observe_code(self, _=None):
         try:
             self.max_tasks_per_node = orm.load_code(

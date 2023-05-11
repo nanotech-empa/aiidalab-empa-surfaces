@@ -6,6 +6,8 @@ import ipywidgets as ipw
 from aiida import orm
 from IPython.display import clear_output
 
+from ..helpers import HART_2_EV
+
 FIELDS_DISABLE_DEFAULT = {
     "cell": True,
     "cell_opt": True,
@@ -13,7 +15,6 @@ FIELDS_DISABLE_DEFAULT = {
     "extras": True,
 }
 
-AU_TO_EV = 27.211386245988
 VIEWERS = {
     "Cp2kAdsorbedGwIcWorkChain_pks": {
         "viewer_path": "./view_gw-ic.ipynb",
@@ -28,35 +29,35 @@ VIEWERS = {
         "label": "Ad.E",
     },
     "Cp2kOrbitalsWorkChain_pks": {
-        "viewer_path": "../scanning_probe/orb/view_orb.ipynb",
+        "viewer_path": "./view_orb.ipynb",
         "label": "KS",
     },
     "Cp2kPdosWorkChain_pks": {
-        "viewer_path": "../scanning_probe/pdos/view_pdos.ipynb",
+        "viewer_path": "./view_pdos.ipynb",
         "label": "PDOS",
     },
     "Cp2kStmWorkChain_pks": {
-        "viewer_path": "../scanning_probe/stm/view_stm.ipynb",
+        "viewer_path": "./view_stm.ipynb",
         "label": "STM",
     },
     "Cp2kOrbitalsWorkChain_uuids": {
-        "viewer_path": "../scanning_probe/orb/view_orb.ipynb",
+        "viewer_path": "./view_orb.ipynb",
         "label": "KS",
     },
     "Cp2kPdosWorkChain_uuids": {
-        "viewer_path": "../scanning_probe/pdos/view_pdos.ipynb",
+        "viewer_path": "./view_pdos.ipynb",
         "label": "PDOS",
     },
     "Cp2kStmWorkChain_uuids": {
-        "viewer_path": "../scanning_probe/stm/view_stm.ipynb",
+        "viewer_path": "./view_stm.ipynb",
         "label": "STM",
     },
     "Cp2kAfmWorkChain_uuids": {
-        "viewer_path": "../scanning_probe/afm/view_afm.ipynb",
+        "viewer_path": "./view_afm.ipynb",
         "label": "AFM",
     },
     "Cp2kHrstmWorkChain_uuids": {
-        "viewer_path": "../scanning_probe/hrstm/view_hrstm.ipynb",
+        "viewer_path": "./view_hrstm.ipynb",
         "label": "HRSTM",
     },
 }
@@ -246,16 +247,6 @@ class SearchCompletedWidget(ipw.VBox):
             extra_calc_links = ""
             st_extras = opt_structure.extras
 
-            # Add links to SPM calcs.
-            try:
-                import apps.scanning_probe.common
-
-                extra_calc_links += apps.scanning_probe.common.create_viewer_link_html(
-                    st_extras, "../"
-                )
-            except Exception:
-                pass
-
             # Add links to the computed properties.
             for workchain in VIEWERS:
                 if workchain in st_extras:
@@ -284,7 +275,7 @@ class SearchCompletedWidget(ipw.VBox):
             except KeyError:
                 html += td(opt_structure.get_formula())
             html += td(node.description)
-            html += "<td>%.4f</td>" % (float(out_params["energy"]) * AU_TO_EV)
+            html += f"<td>{float(out_params['energy']) * HART_2_EV:.4f}</td>"
             html += td(abs_mag)
             if not self.fields_disable["cell"]:
                 cell = ""

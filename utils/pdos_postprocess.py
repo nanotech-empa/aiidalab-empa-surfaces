@@ -3,15 +3,15 @@ import re
 
 import numpy as np
 
+from ..helpers import HART_2_EV
+
 
 def read_and_process_pdos_file(pdos_path):
     try:
         header = open(pdos_path).readline()
+        kind = re.search(r"atomic kind.(\S+)", header).group(1)
     except TypeError:
         header = pdos_path.readline()
-    # fermi = float(re.search("Fermi.* ([+-]?[0-9]*[.]?[0-9]+)", header).group(1))
-    try:
-        kind = re.search(r"atomic kind.(\S+)", header).group(1)
     except Exception:
         kind = None
     data = np.loadtxt(pdos_path)
@@ -24,7 +24,7 @@ def read_and_process_pdos_file(pdos_path):
     fermi = 0.5 * (data[n_el - 1, 1] + data[n_el, 1])
 
     out_data = np.zeros((data.shape[0], 2))
-    out_data[:, 0] = (data[:, 1] - fermi) * 27.21138602  # energy
+    out_data[:, 0] = (data[:, 1] - fermi) * HART_2_EV  # energy
     out_data[:, 1] = np.sum(data[:, 3:], axis=1)  # "contracted pdos"
     return out_data, kind
 

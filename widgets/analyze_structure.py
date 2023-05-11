@@ -1,14 +1,11 @@
 import itertools
-from copy import deepcopy
 
+import aiidalab_widgets_base as awb
 import ase
 import numpy as np
-from aiidalab_widgets_base.utils import list_to_string_range
-from ase.data import covalent_radii
-from scipy import sparse
-from scipy.signal import find_peaks
-from scipy.spatial import ConvexHull
-from traitlets import Dict, HasTraits, Instance, observe
+import traitlets as tr
+from ase import neighborlist
+from scipy import signal, sparse, spatial
 
 
 def to_ranges(iterable):
@@ -19,7 +16,7 @@ def to_ranges(iterable):
 
 
 def mol_ids_range(ismol):
-    # shifts the list by +1
+    # Shifts the list by +1.
     range_string = ""
     shifted_list = [i + 1 for i in ismol]
     ranges = list(to_ranges(shifted_list))
@@ -32,8 +29,8 @@ def mol_ids_range(ismol):
 
 
 def conne_matrix(atoms):
-    cutoff = ase.neighborlist.natural_cutoffs(atoms)
-    neighbor_list = ase.neighborlist.NeighborList(
+    cutoff = neighborlist.natural_cutoffs(atoms)
+    neighbor_list = neighborlist.NeighborList(
         cutoff, self_interaction=False, bothways=False
     )
     neighbor_list.update(atoms)
@@ -53,9 +50,9 @@ def molecules(ismol, atoms):
     return []
 
 
-class StructureAnalyzer(HasTraits):
-    structure = Instance(ase.Atoms, allow_none=True)
-    details = Dict()
+class StructureAnalyzer(tr.HasTraits):
+    structure = tr.Instance(ase.Atoms, allow_none=True)
+    details = tr.Dict()
 
     def __init__(self, only_sys_type=False, who_called_me="Boh"):
         self.only_sys_type = only_sys_type
@@ -114,7 +111,7 @@ class StructureAnalyzer(HasTraits):
         arr_2d = z_v_exp - at_z_exp
         atomic_density = np.sum(self.gaussian(arr_2d, sigma), axis=0)
 
-        peaks = find_peaks(
+        peaks = signal.find_peaks(
             atomic_density,
             height=None,
             threshold=None,
@@ -139,7 +136,7 @@ class StructureAnalyzer(HasTraits):
             ]
             coverage = 0
             if len(two_d_atoms) > max_atoms_in_a_layer / 4:
-                hull = ConvexHull(two_d_atoms)
+                hull = spatial.ConvexHull(two_d_atoms)
                 coverage = hull.volume / area
             if coverage > 0.3:
                 found_top_surf = True
@@ -156,7 +153,7 @@ class StructureAnalyzer(HasTraits):
             ]
             coverage = 0
             if len(two_d_atoms) > max_atoms_in_a_layer / 4:
-                hull = ConvexHull(two_d_atoms)
+                hull = spatial.ConvexHull(two_d_atoms)
                 coverage = hull.volume / area
             if coverage > 0.3 and len(two_d_atoms) > max_atoms_in_a_layer / 4:
                 found_bottom_surf = True
@@ -205,14 +202,18 @@ class StructureAnalyzer(HasTraits):
             i for i in range(nat) if atype[i] == 2 and lbls[i] in moltypes
         ]
         possible_mol_atoms += [i for i in range(nat) if atype[i] == 5]
-        # identify separate molecules
-        # all_molecules=self.molecules(mol_atoms,atoms)
+
+        # Identify separate molecules.
         all_molecules = []
         if len(possible_mol_atoms) > 0:
-            # conne = conne_matrix(frame[possible_mol_atoms])
-            fragments = molecules(possible_mol_atoms, frame)
-            all_molecules = deepcopy(fragments)
-            # remove isolated atoms
+            fragments = molecules
+            import copy
+
+            import frame
+            import possible_mol_atoms
+
+            all_molecules = copy.deepcopy(fragments)
+            # Remove isolated atoms
             for frag in fragments:
                 if len(frag) == 1:
                     all_molecules.remove(frag)
@@ -226,10 +227,10 @@ class StructureAnalyzer(HasTraits):
         return atype, layersg, all_molecules
 
     def all_connected_to(self, id_atom, atoms, exclude):
-        cov_radii = [covalent_radii[a.number] for a in atoms]
+        cov_radii = [ase.data.covalent_radii[a.number] for a in atoms]
 
         atoms.set_pbc([False, False, False])
-        nl_no_pbc = ase.neighborlist.NeighborList(
+        nl_no_pbc = neighborlist.NeighborList(
             cov_radii, bothways=True, self_interaction=False
         )
         nl_no_pbc.update(atoms)
@@ -263,7 +264,7 @@ class StructureAnalyzer(HasTraits):
             singles += to_add
         return sorted(singles)
 
-    @observe("structure")
+    @tr.observe("structure")
     def _observe_structure(self, _=None):
         with self.hold_trait_notifications():
             self.details = self.analyze()
@@ -313,11 +314,15 @@ class StructureAnalyzer(HasTraits):
         summary = ""
         cases = []
         if len(spins_up) > 0:
-            summary += "spins_up: " + list_to_string_range(spins_up) + "\n"
+            summary += "spins_up: " + awb.utils.list_to_string_range(spins_up) + "\n"
         if len(spins_down) > 0:
-            summary += "spins_down: " + list_to_string_range(spins_down) + "\n"
+            summary += (
+                "spins_down: " + awb.utils.list_to_string_range(spins_down) + "\n"
+            )
         if len(other_tags) > 0:
-            summary += "other_tags: " + list_to_string_range(other_tags) + "\n"
+            summary += (
+                "other_tags: " + awb.utils.list_to_string_range(other_tags) + "\n"
+            )
         if (not vacuum_z) and (not vacuum_x) and (not vacuum_y):
             is_a_bulk = True
             sys_type = "Bulk"

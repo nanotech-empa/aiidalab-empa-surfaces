@@ -7,11 +7,6 @@ import scipy
 import sklearn
 import traitlets as tr
 
-try:
-    from openbabel import pybel as pb
-except ImportError:
-    import pybel as pb
-
 
 class CdxmlUpload2GnrWidget(ipw.VBox):
     """Class that allows to upload structures from user's computer."""
@@ -139,6 +134,8 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
     def _on_file_upload(self, change=None):
         """When file upload button is pressed."""
+        from openbabel import pybel as pb
+
         self.mols = None
         listmols = []
         molid = 0

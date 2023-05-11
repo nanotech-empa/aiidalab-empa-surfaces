@@ -1,8 +1,7 @@
+import aiidalab_widgets_base as awb
 import nglview
 import numpy as np
-from aiidalab_widgets_base.structures import StructureDataViewer
-from aiidalab_widgets_base.utils import list_to_string_range, string_range_to_list
-from traitlets import Dict, Unicode, observe
+import traitlets as tr
 
 from .analyze_structure import StructureAnalyzer
 
@@ -87,41 +86,41 @@ def default_vis_func(structure):
     if "b" in details["cases"]:
         vis_dict[current_rep] = std_dict["b"]
         ids = list(details["bulkatoms"])
-        vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
+        vis_dict[current_rep]["ids"] = awb.utils.list_to_string_range(ids, shift=0)
     if "w" in details["cases"]:
         vis_dict[current_rep] = std_dict["w"]
         ids = list(details["wireatoms"])
-        vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
+        vis_dict[current_rep]["ids"] = awb.utils.list_to_string_range(ids, shift=0)
     if "s" in details["cases"]:
         vis_dict[current_rep] = std_dict["s"]
         ids = list(details["slabatoms"] + details["bottom_H"])
-        vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
+        vis_dict[current_rep]["ids"] = awb.utils.list_to_string_range(ids, shift=0)
         current_rep += 1
     if "m" in details["cases"]:
         vis_dict[current_rep] = std_dict["m"]
         ids = [item for sublist in details["all_molecules"] for item in sublist]
-        vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
+        vis_dict[current_rep]["ids"] = awb.utils.list_to_string_range(ids, shift=0)
         current_rep += 1
     if "a" in details["cases"]:
         vis_dict[current_rep] = std_dict["a"]
         ids = list(details["adatoms"])
-        vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
+        vis_dict[current_rep]["ids"] = awb.utils.list_to_string_range(ids, shift=0)
         current_rep += 1
     if "u" in details["cases"]:
         vis_dict[current_rep] = std_dict["u"]
         ids = list(details["unclassified"])
-        vis_dict[current_rep]["ids"] = list_to_string_range(ids, shift=0)
+        vis_dict[current_rep]["ids"] = awb.utils.list_to_string_range(ids, shift=0)
 
     return vis_dict, details
 
 
-class EmpaStructureViewer(StructureDataViewer):
+class EmpaStructureViewer(awb.structures.StructureDataViewer):
     DEFAULT_SELECTION_OPACITY = 0.2
     DEFAULT_SELECTION_RADIUS = 6
     DEFAULT_SELECTION_COLOR = "green"
-    vis_dict = Dict()
-    details = Dict()
-    sys_type = Unicode()
+    vis_dict = tr.Dict()
+    details = tr.Dict()
+    sys_type = tr.Unicode()
 
     def __init__(self, vis_func=default_vis_func, **kwargs):
         """
@@ -166,7 +165,9 @@ class EmpaStructureViewer(StructureDataViewer):
         for component in range(len(self.vis_dict.keys())):
             comp_i = 0
             ids = list(
-                string_range_to_list(self.vis_dict[component]["ids"], shift=0)[0]
+                awb.utils.string_range_to_list(
+                    self.vis_dict[component]["ids"], shift=0
+                )[0]
             )
             for i_g in ids:
                 self._translate_i_glob_loc[i_g] = (component, comp_i)
@@ -298,9 +299,9 @@ class EmpaStructureViewer(StructureDataViewer):
                 for component in range(len(self.vis_dict)):
 
                     rep_indexes = list(
-                        string_range_to_list(self.vis_dict[component]["ids"], shift=0)[
-                            0
-                        ]
+                        awb.utils.string_range_to_list(
+                            self.vis_dict[component]["ids"], shift=0
+                        )[0]
                     )
                     if rep_indexes:
                         mol = self.structure[rep_indexes]
@@ -351,7 +352,7 @@ class EmpaStructureViewer(StructureDataViewer):
         except Exception:
             return
 
-    @observe("structure")
+    @tr.observe("structure")
     def _observe_structure(self, change):
         super()._observe_structure(change=change)
         with self.hold_trait_notifications():

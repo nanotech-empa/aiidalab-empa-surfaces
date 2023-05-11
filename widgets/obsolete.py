@@ -1,6 +1,6 @@
 import ipywidgets as ipw
 from aiida.orm import load_node
-from IPython.display import clear_output, display
+from IPython.display import clear_output
 
 
 class ObsoleteWidget(ipw.VBox):
@@ -18,11 +18,10 @@ class ObsoleteWidget(ipw.VBox):
 
         btn_mark_as_obsolete.on_click(self.on_obsolete_click)
 
-        # self.search()
         super().__init__([app])
 
     def on_obsolete_click(self, _=None):
         self.node.set_extra("obsolete", True)
         with self.output:
             clear_output()
-            print("Node %d will not be listed in search" % self.node.pk)
+            print("Node {self.node.pk} will not be listed in search")

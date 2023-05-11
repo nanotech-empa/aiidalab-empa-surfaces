@@ -77,7 +77,8 @@ class BuildSlab(ipw.VBox):
         sa = StructureAnalyzer()
         sa.structure = self.molecule
         self.info.value = ""
-        # Remembering the last used molecule
+
+        # Remembering the last used molecule.
         if sa.details and sa.details["system_type"] == "Molecule":
             self._molecule = self.molecule
             self.info.value = """<span style="color:green;">Info:</span> The molecule was remembered and will be used for the further slab builds."""
