@@ -245,7 +245,7 @@ def create_hrstm_parameterdata(
     # Tip type to determine PDOS and PPM position files.
     if tiptype_ipw != "parametrized":
         pdos_list = tiptype_ipw
-        path = os.path.dirname(hrstm_code.get_remote_exec_path()) + "/hrstm_tips/"
+        path = os.path.dirname(hrstm_code.get_executable()) + "/hrstm_tips/"
         pdos_list = [path + "tip_coeffs.tar.gz"]
         tip_pos = [ppm_qk + "PPpos", ppm_qk + "PPdisp"]
     else:  # Parametrized tip.
