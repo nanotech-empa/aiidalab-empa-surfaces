@@ -8,11 +8,11 @@ def get_start_widget(appbase, jupbase):
     <tr>
         <th style="text-align:center">Density functional theory</th>
         <th style="width:60px" rowspan=2></th>
-        <th style="text-align:center">Scanning probe microscopy</th>
+        <th style="text-align:center">Post-processing</th>
+        <!--
         <th style="width:60px" rowspan=2></th>
         <th style="text-align:center">GW</th>
-        <th style="width:60px" rowspan=2></th>
-        <th style="text-align:center">Setup</th>
+        -->
     </tr>
 
     <tr>
@@ -26,20 +26,16 @@ def get_start_widget(appbase, jupbase):
     </ul></td>
 
     <td valign="top"><ul>
-        <li><a href="{appbase}/submit_stm.ipynb" target="_blank">Scanning tunneling microscopy</a>
+        <li><a href="{appbase}/submit_spm.ipynb" target="_blank">Scanning probe microscopy</a>
         <li><a href="{appbase}/submit_pdos.ipynb" target="_blank">Projected density of states</a>
     </ul></td>
 
+    <!--
     <td valign="top"><ul>
         <li><a href="{appbase}/submit_gw.ipynb" target="_blank">GW</a>
         <li><a href="{appbase}/submit_gw-ic.ipynb" target="_blank">GW-IC</a>
-
     </ul></td>
-
-    <td valign="top"><ul>
-            <li><a href="{appbase}/setup_codes.ipynb" target="_blank">Setup SPM codes</a>
-            <li><a href="{appbase}/manage_calcs.ipynb" target="_blank">Manage calculations</a>
-    </ul></td>
+    -->
 
     </tr>
 

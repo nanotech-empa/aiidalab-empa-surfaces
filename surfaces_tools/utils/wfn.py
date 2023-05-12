@@ -26,7 +26,7 @@ def remote_file_exists(computer, filepath):
 
 
 def copy_wfn(computer=None, wfn_search_path=None, wfn_name=None):
-    """Cretaes a copy of a wfn in a folder"""
+    """Creates a copy of a wfn in a folder."""
     transport = computer.get_transport()
     with transport as trs:
         result = trs.copyfile(wfn_search_path, wfn_search_path)
@@ -109,7 +109,7 @@ def structure_available_wfn(
         return None
 
     create_a_copy = False
-    
+
     if generating_workchain.label == "CP2K_NEB":
         # It could be that the neb calculatio had a different number of replicas.
         nreplica_parent = generating_workchain.inputs.neb_params["number_of_replica"]
@@ -163,44 +163,3 @@ def structure_available_wfn(
         return wfn_search_path
     else:
         return generating_workchain.outputs.remote_folder
-
-
-def mk_wfn_cp_commands(
-    nreplicas=None, replica_nodes=None, selected_computer=None, dft_params=None
-):
-    available_wfn_paths = []
-    list_wfn_available = []
-    list_of_cp_commands = []
-
-    for ir, node in enumerate(replica_nodes):
-
-        # In general, the number of uuids is <= nreplicas.
-        relative_replica_id = ir / len(replica_nodes)
-        avail_wfn = structure_available_wfn(
-            node=node,
-            relative_replica_id=relative_replica_id,
-            current_hostname=selected_computer.hostname,
-            dft_params=dft_params,
-        )
-
-        if avail_wfn:
-            list_wfn_available.append(ir)
-            available_wfn_paths.append(avail_wfn)
-
-    if len(list_wfn_available) == 0:
-        return []
-
-    n_images_available = len(replica_nodes)
-    n_images_needed = nreplicas
-    n_digits = len(str(n_images_needed))
-
-    # Assign each initial replica to a block of created reps.
-    block_size = n_images_needed / float(n_images_available)
-
-    for to_be_created in range(1, n_images_needed + 1):
-        name = "aiida-BAND" + str(n_digits).zfill(n_digits) + "-RESTART.wfn"
-        lwa = np.array(list_wfn_available)
-        index_wfn = np.abs(lwa * block_size + block_size / 2 - to_be_created).argmin()
-        list_of_cp_commands.append(f"cp {available_wfn_paths[index_wfn]} ./{name}")
-
-    return list_of_cp_commands
