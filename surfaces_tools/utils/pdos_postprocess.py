@@ -9,9 +9,10 @@ from ..helpers import HART_2_EV
 def read_and_process_pdos_file(pdos_path):
     try:
         header = open(pdos_path).readline()
-        kind = re.search(r"atomic kind.(\S+)", header).group(1)
     except TypeError:
         header = pdos_path.readline()
+    try:        
+        kind = re.search(r"atomic kind.(\S+)", header).group(1)
     except Exception:
         kind = None
     data = np.loadtxt(pdos_path)
