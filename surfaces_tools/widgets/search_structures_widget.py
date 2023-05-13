@@ -9,7 +9,7 @@ VIEWERS = {
     "CP2K_AdsorptionE": "view_ade.ipynb",
     "CP2K_GeoOpt": "view_geoopt.ipynb",
     "CP2K_CellOpt": "view_geoopt.ipynb",
-    "CP2K_Orbitals": "view_orb.ipynb",
+    "CP2K_ORBITALS": "view_orb.ipynb",
     "CP2K_PDOS": "view_pdos.ipynb",
     "CP2K_STM": "view_stm.ipynb",
     "CP2K_AFM": "view_afm.ipynb",
@@ -29,15 +29,14 @@ def find_first_workchain(node):
     while previous_node is not None:
         lastcalling = previous_node
         previous_node = lastcalling.caller
-
     if lastcalling is not None:
         return lastcalling.label, lastcalling.pk
     return None , None
 
-def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
+def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description="", tclass="tg-dark"):
     """Returns an image with a link to structure export."""
     html = (
-        f'<td rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?pk={pk}">'
+        f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?pk={pk}">'
     )
     html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
     html += "</a></td>"
@@ -48,12 +47,12 @@ def link_to_viewer(description="", pk="", label=""):
     the_viewer = VIEWERS[label]
     return f'<li><a target="_blank" href="{the_viewer}?pk={pk}"> {description} </a></li>'
 
-def link_to_creator(pk="", label="",tclass="tg-dark"):
+def header(pk="", label="",tclass="tg-dark",last_modified=""):
     if pk is None:
-        return f"""<tr><td class="{tclass}" colspan=4> Structure created by input.</td></tr>"""
+        return f"""<tr><td class="{tclass}" colspan=3> Structure created by input and last modified {last_modified}</td></tr>"""
     else:
         the_viewer = VIEWERS[label]
-    return f"""<tr><td class="{tclass}" colspan=4>  <a target="_blank" href="{the_viewer}?pk={pk}">Structure created by {label} PK-{pk}</a></td></tr>"""
+    return f"""<tr><td class="{tclass}" colspan=3>  <a target="_blank" href="{the_viewer}?pk={pk}">Structure created by {label} PK-{pk}</a> and last modified {last_modified}</td></tr>"""
 
 
 def uuids_to_nodesdict(uuids):
@@ -132,6 +131,7 @@ class SearchStructuresWidget(ipw.VBox):
             orm.StructureData,
             filters={
                 "extras": {"has_key": "surfaces"},
+                "mtime":  {"and": [{"<=": end_date}, {">": start_date}]},
             },
         )
         qb.order_by({orm.StructureData: {"mtime": "desc"}})
@@ -157,12 +157,7 @@ class SearchStructuresWidget(ipw.VBox):
                     "nrows": nrows,
                     "mtime": node.mtime.strftime("%d/%m/%y"),
                     "workflows": workflows,
-                    "thumbnail": thunmnail_raw(
-                        nrows=nrows,
-                        thumbnail=node.extras["thumbnail"],
-                        pk=node.pk,
-                        description="",
-                    ),
+                    "thumbnail": node.extras["thumbnail"],
                 }
                 data.append(entry)
         # populate the table with the data
@@ -174,14 +169,13 @@ class SearchStructuresWidget(ipw.VBox):
   overflow:hidden;padding:10px 5px;word-break:normal;}
 .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
   font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg .tg-dark{background-color:#c0c0c0;border-color:inherit;text-align:left;vertical-align:middle}
-.tg .tg-llyw{background-color:#efefef;border-color:inherit;text-align:left;vertical-align:middle}
+.tg .tg-dark{background-color:#f1f7f7;border-color:inherit;text-align:left;vertical-align:middle}
+.tg .tg-llyw{background-color:#fefee2;border-color:inherit;text-align:left;vertical-align:middle}
 .tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:middle}
 </style>
 <table class="tg">
 <thead>
 <tr>
-    <th class="tg-dark" >Date last</th>
     <th class="tg-dark">Calc. Type</th>
     <th class="tg-dark" >Description</th>
     <th class="tg-dark" >Thumbnail</th>
@@ -194,16 +188,16 @@ class SearchStructuresWidget(ipw.VBox):
         for entry in data:
             nrows1 = entry["nrows"]
             nrows_done = 0
-            html += link_to_creator(pk=entry["creator"][1], label=entry["creator"][0],tclass=tclass[odd])
+            html += header(pk=entry["creator"][1], label=entry["creator"][0],tclass=tclass[odd],last_modified=entry["mtime"])
             html += "<tr>"
-            html += f"""<td class="{tclass[odd]}" rowspan={str(nrows1)}> {entry["mtime"]}  </td>"""
-            odd *= -1
+            #html += f"""<td class="{tclass[odd]}" rowspan={str(nrows1)}> {entry["mtime"]}  </td>"""
+            
             for workflow in entry["workflows"]:
                 if nrows_done != 0:
                     html += "<tr>"
                 nrowsw = len(entry["workflows"][workflow])
-                html += f'<td class="tg-0pky" rowspan={nrowsw}>  {workflow} </td>'
-                html += f'<td class="tg-0pky" rowspan={nrowsw}>'
+                html += f'<td class={tclass[odd]} rowspan={nrowsw}>  {workflow} </td>'
+                html += f'<td class={tclass[odd]} rowspan={nrowsw}>'
                 html += "<ul>"
                 for node in entry["workflows"][workflow]:
                     html += link_to_viewer(
@@ -213,12 +207,18 @@ class SearchStructuresWidget(ipw.VBox):
                     )
                 html += "</ul></td>"
                 if nrows_done == 0:
-                    html += entry["thumbnail"]
+                    html += thunmnail_raw(
+                        nrows=entry['nrows'],
+                        thumbnail=entry["thumbnail"],
+                        pk=entry['pk'],
+                        tclass=tclass[odd],
+                        description="")
                     html += "</tr>"
                     nrows_done += 1
                 for _ in range(1, nrowsw):
                     html += "<tr></tr>"
                     nrows_done += 1
+            odd *= -1
         html += "</tbody></table>"
 
         self.results.value = html
