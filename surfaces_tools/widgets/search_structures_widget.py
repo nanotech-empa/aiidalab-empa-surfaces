@@ -19,6 +19,20 @@ VIEWERS = {
     "CP2K_Replica": "view_replica.ipynb",
 }
 
+def find_first_workchain(node):
+    """Find the first workchain in the provenance that created the structure node."""
+    lastcalling = None
+    if isinstance(node, orm.StructureData):
+        previous_node = node.creator
+    else:
+        previous_node = node
+    while previous_node is not None:
+        lastcalling = previous_node
+        previous_node = lastcalling.caller
+
+    if lastcalling is not None:
+        return lastcalling.label, lastcalling.pk
+    return None , None
 
 def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
     """Returns an image with a link to structure export."""
@@ -33,6 +47,13 @@ def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description=""):
 def link_to_viewer(description="", pk="", label=""):
     the_viewer = VIEWERS[label]
     return f'<li><a target="_blank" href="{the_viewer}?pk={pk}"> {description} </a></li>'
+
+def link_to_creator(pk="", label="",tclass="tg-dark"):
+    if pk is None:
+        return f"""<tr><td class="{tclass}" colspan=4> Structure created by input.</td></tr>"""
+    else:
+        the_viewer = VIEWERS[label]
+    return f"""<tr><td class="{tclass}" colspan=4>  <a target="_blank" href="{the_viewer}?pk={pk}">Structure created by {label} PK-{pk}</a></td></tr>"""
 
 
 def uuids_to_nodesdict(uuids):
@@ -129,7 +150,9 @@ class SearchStructuresWidget(ipw.VBox):
                     node.base.extras.set(
                         "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
                     )
+                
                 entry = {
+                    "creator" : find_first_workchain(node),
                     "pk": node.pk,
                     "nrows": nrows,
                     "mtime": node.mtime.strftime("%d/%m/%y"),
@@ -171,6 +194,7 @@ class SearchStructuresWidget(ipw.VBox):
         for entry in data:
             nrows1 = entry["nrows"]
             nrows_done = 0
+            html += link_to_creator(pk=entry["creator"][1], label=entry["creator"][0],tclass=tclass[odd])
             html += "<tr>"
             html += f"""<td class="{tclass[odd]}" rowspan={str(nrows1)}> {entry["mtime"]}  </td>"""
             odd *= -1
