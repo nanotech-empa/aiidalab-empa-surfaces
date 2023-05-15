@@ -8,7 +8,6 @@ from .analyze_structure import mol_ids_range
 
 class OneColvar(ipw.HBox):
     def __init__(self, cvtype="distance"):
-
         style = {"description_width": "initial"}
         units = {
             "distance": ["A", "eV/A^2", "40"],
@@ -37,7 +36,6 @@ class OneColvar(ipw.HBox):
 
 class OneConstraint(ipw.HBox):
     def __init__(self, ase_atoms=None):
-
         self.constraint_widget = ipw.Text(
             description="Constraint",
             style={"description_width": "initial"},

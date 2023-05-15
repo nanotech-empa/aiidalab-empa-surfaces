@@ -3,7 +3,6 @@ import ipywidgets as ipw
 
 class OneSpinSet(ipw.HBox):
     def __init__(self):
-
         self.selection = ipw.Text(
             description="Atoms",
             style={"description_width": "initial"},
