@@ -76,9 +76,9 @@ def make_series_label(info, i_spin=None):
     elif info["type"] == "const-height stm":
         label = f"ch-stm fwhm={info['fwhm']:.2f} h={info['height']:.1f}"
     elif info["type"] == "const-isovalue sts":
-        label = f"cc-sts fwhm={info['fwhm']:.2f} isov={info['height']:.0e}"
+        label = f"cc-sts fwhm={info['fwhm']:.2f} isov={info['isovalue']:.0e}"
     elif info["type"] == "const-isovalue stm":
-        label = f"cc-stm fwhm={info['fwhm']:.2f} isov={info['height']:.0e}"
+        label = f"cc-stm fwhm={info['fwhm']:.2f} isov={info['isovalue']:.0e}"
 
     elif info["type"] == "const-height orbital":
         label = f"ch-orb h={info['height']:.1f}"
@@ -104,15 +104,15 @@ def make_orb_label(index, homo_index):
     i_rel_homo = index - homo_index
 
     if i_rel_homo < 0:
-        hl_label = "HOMO%+d" % i_rel_homo
+        hl_label = f"HOMO{i_rel_homo:+d}"
     elif i_rel_homo == 0:
         hl_label = "HOMO"
     elif i_rel_homo == 1:
         hl_label = "LUMO"
     else:
-        hl_label = "LUMO%+d" % (i_rel_homo - 1)
+        hl_label = f"LUMO{i_rel_homo-1:+d}"
 
-    return f"MO {index + hl_label}, "
+    return f"MO {str(index) + hl_label}, "
 
 
 class SeriesPlotter:
