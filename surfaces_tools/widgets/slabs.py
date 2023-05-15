@@ -374,7 +374,6 @@ def guess_slab_size(mol, which_surf):
 
 
 def prepare_slab(mol, dx, dy, dz, phi, nx, ny, nz, which_surf):
-
     # Au(110)2x1 SECTION
     if "Au(110)2x1" in which_surf:
         au = ase.Atoms()

@@ -147,10 +147,8 @@ class ProcessResourcesWidget(ipw.VBox):
 
 
 class ResourcesEstimatorWidget(ipw.VBox):
-
     details = tr.Dict()
     uks = tr.Bool()
-
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
 
     def __init__(self, calculation_type="dft"):

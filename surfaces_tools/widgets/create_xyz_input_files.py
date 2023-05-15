@@ -16,7 +16,6 @@ def make_geom_file(
     spin_d=lambda: orm.Str(""),
     ic_plane_z=None,
 ):
-
     filename = filename.value
 
     # Spins from widgets

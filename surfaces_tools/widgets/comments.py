@@ -5,7 +5,6 @@ from IPython.display import clear_output
 
 class CommentsWidget(ipw.VBox):
     def __init__(self, workchain=None):
-
         if not workchain:
             return
         self.node = orm.load_node(workchain)

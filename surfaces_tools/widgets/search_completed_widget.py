@@ -3,10 +3,8 @@ import importlib
 import pathlib
 
 import ipywidgets as ipw
-from aiida import orm
+from aiida.orm import QueryBuilder, WorkChainNode
 from IPython.display import clear_output
-
-from ..helpers import HART_2_EV
 
 FIELDS_DISABLE_DEFAULT = {
     "cell": True,
@@ -15,67 +13,14 @@ FIELDS_DISABLE_DEFAULT = {
     "extras": True,
 }
 
-VIEWERS = {
-    "Cp2kAdsorbedGwIcWorkChain_pks": {
-        "viewer_path": "./view_gw-ic.ipynb",
-        "label": "GW-IC",
-    },
-    "Cp2kMoleculeOptGwWorkChain_pks": {
-        "viewer_path": "./view_gw.ipynb",
-        "label": "GW",
-    },
-    "Cp2kAdsorptionEnergyWorkChain_pks": {
-        "viewer_path": "./view_ade.ipynb",
-        "label": "Ad.E",
-    },
-    "Cp2kOrbitalsWorkChain_pks": {
-        "viewer_path": "./view_orb.ipynb",
-        "label": "KS",
-    },
-    "Cp2kPdosWorkChain_pks": {
-        "viewer_path": "./view_pdos.ipynb",
-        "label": "PDOS",
-    },
-    "Cp2kStmWorkChain_pks": {
-        "viewer_path": "./view_stm.ipynb",
-        "label": "STM",
-    },
-    "Cp2kOrbitalsWorkChain_uuids": {
-        "viewer_path": "./view_orb.ipynb",
-        "label": "KS",
-    },
-    "Cp2kPdosWorkChain_uuids": {
-        "viewer_path": "./view_pdos.ipynb",
-        "label": "PDOS",
-    },
-    "Cp2kStmWorkChain_uuids": {
-        "viewer_path": "./view_stm.ipynb",
-        "label": "STM",
-    },
-    "Cp2kAfmWorkChain_uuids": {
-        "viewer_path": "./view_afm.ipynb",
-        "label": "AFM",
-    },
-    "Cp2kHrstmWorkChain_uuids": {
-        "viewer_path": "./view_hrstm.ipynb",
-        "label": "HRSTM",
-    },
-}
-
-
-def td(string):
-    """Returns a string in a <td> tag."""
-    return f"<td>{string}</td>"
+AU_TO_EV = 27.211386245988
 
 
 class SearchCompletedWidget(ipw.VBox):
-    def __init__(self, wlabel="", fields_disable=None):
-
+    def __init__(self, wlabel="", fields_disable={}):
         self.fields_disable = FIELDS_DISABLE_DEFAULT
-        if fields_disable:
-            for fd in fields_disable:
-                self.fields_disable[fd] = fields_disable[fd]
-
+        for fd in fields_disable:
+            self.fields_disable[fd] = fields_disable[fd]
         # Search UI.
         self.wlabel = wlabel
         style = {"description_width": "150px"}
@@ -150,9 +95,10 @@ class SearchCompletedWidget(ipw.VBox):
         super().__init__([app])
 
     def search(self):
-
         self.results.value = "searching..."
-        scanning_probe_common = pathlib.Path.home() / "apps/scanning_probe/common.py"
+        scanning_probe_common = (
+            pathlib.Path.home() / "apps" / "scanning_probe" / "common.py"
+        )
         if scanning_probe_common.exists():
             loader = importlib.machinery.SourceFileLoader(
                 "common", str(scanning_probe_common)
@@ -198,11 +144,10 @@ class SearchCompletedWidget(ipw.VBox):
             html += '<th style="width: 10%">Extras</th>'
         html += "</tr>"
 
-        # Query AiiDA database.
-        filters = {
-            "label": self.wlabel,
-            "attributes.exit_status": 0,
-        }
+        # query AiiDA database
+        filters = {}
+        filters["label"] = self.wlabel
+        filters["attributes.exit_status"] = 0
 
         pk_list = self.inp_pks.value.strip().split()
         if pk_list:
@@ -224,14 +169,14 @@ class SearchCompletedWidget(ipw.VBox):
             end_date = datetime.datetime.now()
             start_date = end_date - datetime.timedelta(days=20)
 
-            self.date_start.value = start_date.strftime("%Y-%m-%d")
-            self.date_end.value = end_date.strftime("%Y-%m-%d")
+            date_start.value = start_date.strftime("%Y-%m-%d")
+            date_end.value = end_date.strftime("%Y-%m-%d")
 
         filters["ctime"] = {"and": [{"<=": end_date}, {">": start_date}]}
 
-        qb = orm.QueryBuilder()
-        qb.append(orm.WorkChainNode, filters=filters)
-        qb.order_by({orm.WorkChainNode: {"ctime": "desc"}})
+        qb = QueryBuilder()
+        qb.append(WorkChainNode, filters=filters)
+        qb.order_by({WorkChainNode: {"ctime": "desc"}})
 
         for node_tuple in qb.iterall():
             node = node_tuple[0]
@@ -247,36 +192,85 @@ class SearchCompletedWidget(ipw.VBox):
             extra_calc_links = ""
             st_extras = opt_structure.extras
 
-            # Add links to the computed properties.
-            for workchain in VIEWERS:
-                if workchain in st_extras:
-                    calc_links_str = ""
-                    nr = 0
-                    for pk_or_uuid in st_extras[workchain]:
-                        print(opt_structure.pk, pk_or_uuid)
-                        pk = orm.load_node(pk_or_uuid).pk
-                        nr += 1
-                        calc_links_str += f"""<a target='_blank' href='{VIEWERS[workchain]["viewer_path"]}?{pk=}'>{VIEWERS[workchain]["label"]} {nr}</a><br />"""
-                    extra_calc_links += calc_links_str
+            # Add links to SPM calcs.
+            try:
+                import apps.scanning_probe.common
 
-            extra_calc_area = f"<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> {extra_calc_links} </div>"
+                extra_calc_links += apps.scanning_probe.common.create_viewer_link_html(
+                    st_extras, "../"
+                )
+            except Exception:
+                pass
+
+            # Add links to GW-IC calcs.
+            if "Cp2kAdsorbedGwIcWorkChain_pks" in st_extras:
+                calc_links_str = ""
+                nr = 0
+                for gw_pk in st_extras["Cp2kAdsorbedGwIcWorkChain_pks"]:
+                    nr += 1
+                    calc_links_str += (
+                        "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />"
+                        % ("./gw/view_gw-ic.ipynb", gw_pk, "GW-IC", nr)
+                    )
+
+                extra_calc_links += calc_links_str
+
+            # --------------------------------------------------
+
+            # Add links to GW calcs.
+            if "Cp2kMoleculeOptGwWorkChain_pks" in st_extras:
+                calc_links_str = ""
+                nr = 0
+                for gw_pk in st_extras["Cp2kMoleculeOptGwWorkChain_pks"]:
+                    nr += 1
+                    calc_links_str += (
+                        "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />"
+                        % ("./gw/view_gw.ipynb", gw_pk, "GW", nr)
+                    )
+
+                extra_calc_links += calc_links_str
+
+            # --------------------------------------------------
+
+            # --------------------------------------------------
+            # Add links to AdsorptionEnergy calcs.
+            if "Cp2kAdsorptionEnergyWorkChain_pks" in st_extras:
+                calc_links_str = ""
+                nr = 0
+                for ade_pk in st_extras["Cp2kAdsorptionEnergyWorkChain_pks"]:
+                    nr += 1
+                    calc_links_str += (
+                        "<a target='_blank' href='%s?pk=%s'>%s %s</a><br />"
+                        % ("./view_ade.ipynb", ade_pk, "Ad.E", nr)
+                    )
+
+                extra_calc_links += calc_links_str
+
+            # --------------------------------------------------
+
+            extra_calc_area = (
+                "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'> %s </div>"
+                % extra_calc_links
+            )
 
             out_params = node.outputs.output_parameters
             abs_mag = "-"
             if "integrated_abs_spin_dens" in dict(out_params):
                 abs_mag = f"{out_params['integrated_abs_spin_dens'][-1]:.2f}"
 
-            # Append table row.
+            # append table row
             html += "<tr>"
             html += f"""<td><a target="_blank" href="../aiidalab-widgets-base/notebooks/process.ipynb?id={node.pk}">{node.pk}</a></td>"""
-            html += td(node.ctime.strftime("%Y-%m-%d %H:%M"))
+            html += "<td>%s</td>" % node.ctime.strftime("%Y-%m-%d %H:%M")
             try:
-                html += td(node.extras["formula"])
+                html += (
+                    "<td>%s</td>" % node.extras["formula"]
+                )  # opt_structure.get_formula()
             except KeyError:
-                html += td(opt_structure.get_formula())
-            html += td(node.description)
-            html += f"<td>{float(out_params['energy']) * HART_2_EV:.4f}</td>"
-            html += td(abs_mag)
+                html += "<td>%s</td>" % opt_structure.get_formula()
+            html += "<td>%s</td>" % node.description
+            html += "<td>%.4f</td>" % (float(out_params["energy"]) * AU_TO_EV)
+            html += f"<td>{abs_mag}</td>"
             if not self.fields_disable["cell"]:
                 cell = ""
                 for cellpar in [
@@ -290,37 +284,47 @@ class SearchCompletedWidget(ipw.VBox):
                     cell += " " + str(
                         node.outputs.output_parameters["motion_step_info"][cellpar][-1]
                     )
-                html += td(cell)
+                html += "<td>%s</td>" % cell
             if not self.fields_disable["cell_opt"]:
-                html += td(node.outputs.output_parameters["run_type"])
+                html += "<td>%s</td>" % node.outputs.output_parameters["run_type"]
             if not self.fields_disable["volume"]:
-                html += td(
-                    node.outputs.output_parameters["motion_step_info"][
+                html += (
+                    "<td>%f</td>"
+                    % node.outputs.output_parameters["motion_step_info"][
                         "cell_vol_angs3"
                     ][-1]
                 )
-            # Image with a link to structure export.
-            html += f'<td><a target="_blank" href="./export_structure.ipynb?uuid={opt_structure.uuid}">'
-            html += f'<img width="100px" src="data:image/png;base64, {thumbnail}" title="PK{opt_structure.pk}: {description}">'
+            # image with a link to structure export
+            html += (
+                '<td><a target="_blank" href="./export_structure.ipynb?uuid=%s">'
+                % opt_structure.uuid
+            )
+            html += (
+                '<img width="100px" src="data:image/png;base64,%s" title="PK%d: %s">'
+                % (thumbnail, opt_structure.pk, description)
+            )
             html += "</a></td>"
 
             if self.show_comments_check.value:
                 comment_area = "<div id='wrapper' style='overflow-y:auto; height:100px; line-height:1.5;'>"
-                comment_area += f'<a target="_blank" href="./comments.ipynb?pk={node.pk}">add/view</a><br>'
+                comment_area += (
+                    '<a target="_blank" href="./comments.ipynb?pk=%s">add/view</a><br>'
+                    % node.pk
+                )
                 for comment in node.get_comments():
                     comment_area += (
                         "<hr style='padding:0px; margin:0px;' />"
                         + comment.content.replace("\n", "<br>")
                     )
                 comment_area += "</div>"
-                html += td(comment_area)
+                html += "<td>%s</td>" % (comment_area)
 
             if not self.fields_disable["extras"]:
-                html += td(extra_calc_area)
+                html += "<td>%s</td>" % extra_calc_area
             html += "</td>"
             html += "</tr>"
 
         html += "</table>"
-        html += f"Found {qb.count()} matching entries.<br>"
+        html += "Found %d matching entries.<br>" % qb.count()
 
         self.results.value = html

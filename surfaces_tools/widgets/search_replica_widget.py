@@ -19,7 +19,6 @@ layout = {"width": "70%"}
 
 class SearchReplicaWidget(ipw.VBox):
     def __init__(self, **kwargs):
-
         self.preprocess_version = 0.16
 
         btn_style = {"description_width": "60px"}
@@ -80,7 +79,6 @@ class SearchReplicaWidget(ipw.VBox):
         self.drop_replica.options = options
 
     def on_show_btn_click(self, btn):
-
         selected_replica_calc = self.replica_calcs[self.drop_replica.value]
 
         self.order_replicas_by_cv_actual(selected_replica_calc)
@@ -171,13 +169,11 @@ class SearchReplicaWidget(ipw.VBox):
         plt.show()
 
     def generate_thumbnail_html(self, replica_calc):
-
         html_list = []
         check_list = []  # check boxes to show in final pk list
         wc_pk_str = str(replica_calc["wcs"][0].pk)
 
         for rep in replica_calc["replicas"]:
-
             cv_target, energy, struct_pk = rep
             struct_node = orm.load_node(struct_pk)
 
@@ -229,7 +225,6 @@ class SearchReplicaWidget(ipw.VBox):
         return html_list, check_list
 
     def get_replica_wcs(self, preprocessed=False):
-
         qb = orm.QueryBuilder()
 
         if preprocessed:
@@ -262,7 +257,6 @@ class SearchReplicaWidget(ipw.VBox):
         return qb.all()
 
     def parse_rep_wcs(self, wc_list, existing_rep_sets=None):
-
         replica_sets = OrderedDict()
 
         rep_set_template = {
@@ -400,7 +394,6 @@ class SearchReplicaWidget(ipw.VBox):
         return b64encode(raw).decode()
 
     def order_replicas_by_cv_actual(self, replica_calc):
-
         wc_pk_str = str(replica_calc["wcs"][0].pk)
 
         cv_actual_list = []
@@ -426,7 +419,6 @@ class SearchReplicaWidget(ipw.VBox):
         replica_calc["replicas"] = list(sorted_lists[1])
 
     def preprocess(self, replica_calc, overwrite_thumbnails=False):
-
         # Find all PKs of all work-calcs that contributed to this set
         print("wc pk: " + str([wc.pk for wc in replica_calc["wcs"]]))
 
@@ -453,7 +445,6 @@ class SearchReplicaWidget(ipw.VBox):
         cv_actual_list = []
 
         for i, rep in enumerate(replica_calc["replicas"]):
-
             cv_target, energy, struct_pk = rep
             struct = orm.load_node(struct_pk)
 
@@ -477,7 +468,6 @@ class SearchReplicaWidget(ipw.VBox):
 
         # Calculate the dist to prev and update extras.
         for i, rep in enumerate(replica_calc["replicas"]):
-
             cv_target, energy, struct_pk = rep
             struct = orm.load_node(struct_pk)
             cv_actual = cv_actual_list[i]
@@ -521,7 +511,6 @@ class SearchReplicaWidget(ipw.VBox):
             wc.set_extra("preproc_failed", wc_preproc_failed)
 
     def preprocess_replicas(self):
-
         with self.out_preproc:
             print("Retrieving unparsed replica calculations...")
             reps_not_preproc = self.parse_rep_wcs(

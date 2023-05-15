@@ -11,7 +11,6 @@ def find_ref_i(gw_ic_params):
 
 
 def select_orbitals(node, ref_i, n_occ=5, n_virt=5):
-
     gw_ic = node.outputs.gw_ic_parameters
     gw = node.outputs.gw_output_parameters
 
@@ -30,7 +29,6 @@ def select_orbitals(node, ref_i, n_occ=5, n_virt=5):
     sel_occs = []
 
     for i_spin in range(nspin):
-
         try:
             i_start = mos[i_spin].index(i_start_mo)
         except ValueError:
@@ -131,7 +129,6 @@ def make_levels_plot(node_list, n_occ=4, n_virt=4, energy_ref_i=0, ylim=None):
     pos = 0
 
     for node in node_list:
-
         ref_i = find_ref_i(node.outputs.gw_ic_parameters)
         sel = select_orbitals(node, ref_i, n_occ, n_virt)
 
@@ -143,14 +140,12 @@ def make_levels_plot(node_list, n_occ=4, n_virt=4, energy_ref_i=0, ylim=None):
         ens -= ens[0][sel["homo"][0] + energy_ref_i]
 
         for i_spin in range(nspin):
-
             if nspin == 2:
                 loc = [-0.4, -0.05] if i_spin == 0 else [0.05, 0.4]
             else:
                 loc = [-0.4, 0.4]
 
             for e, o in zip(ens[i_spin], occs[i_spin]):
-
                 color = "blue" if o < 0.5 else "red"
                 plt.plot([pos + loc[0], pos + loc[1]], [e, e], "-", color=color, lw=2.0)
 
