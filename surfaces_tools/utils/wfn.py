@@ -129,7 +129,6 @@ def structure_available_wfn(
             "aiida-BAND" + str(eff_replica_number).zfill(ndigits) + "-RESTART.wfn"
         )
     elif generating_workchain.label in ["CP2K_GeoOpt", "CP2K_CellOpt"]:
-
         # In all other cases (e.g. geo opt, replica, ...) use the standard name.
         wfn_name = "aiida-RESTART.wfn"
 

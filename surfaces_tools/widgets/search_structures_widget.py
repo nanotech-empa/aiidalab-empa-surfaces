@@ -19,6 +19,7 @@ VIEWERS = {
     "CP2K_Replica": "view_replica.ipynb",
 }
 
+
 def find_first_workchain(node):
     """Find the first workchain in the provenance that created the structure node."""
     lastcalling = None
@@ -31,13 +32,12 @@ def find_first_workchain(node):
         previous_node = lastcalling.caller
     if lastcalling is not None:
         return lastcalling.label, lastcalling.pk
-    return None , None
+    return None, None
+
 
 def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description="", tclass="tg-dark"):
     """Returns an image with a link to structure export."""
-    html = (
-        f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?pk={pk}">'
-    )
+    html = f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?pk={pk}">'
     html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
     html += "</a></td>"
     return html
@@ -45,9 +45,12 @@ def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description="", tclass="tg-d
 
 def link_to_viewer(description="", pk="", label=""):
     the_viewer = VIEWERS[label]
-    return f'<li><a target="_blank" href="{the_viewer}?pk={pk}"> {description} </a></li>'
+    return (
+        f'<li><a target="_blank" href="{the_viewer}?pk={pk}"> {description} </a></li>'
+    )
 
-def header(pk="", label="",tclass="tg-dark",last_modified=""):
+
+def header(pk="", label="", tclass="tg-dark", last_modified=""):
     if pk is None:
         return f"""<tr><td class="{tclass}" colspan=3> Structure created by input and last modified {last_modified}</td></tr>"""
     else:
@@ -76,7 +79,6 @@ def uuids_to_nodesdict(uuids):
 
 class SearchStructuresWidget(ipw.VBox):
     def __init__(self):
-
         # Date selection.
         dt_now = datetime.datetime.now()
         dt_from = dt_now - datetime.timedelta(days=20)
@@ -111,7 +113,6 @@ class SearchStructuresWidget(ipw.VBox):
         super().__init__([search_crit, button, self.results, self.info_out])
 
     def search(self):
-
         self.results.value = "searching..."
 
         try:  # If the date range is valid, use it for the search
@@ -131,7 +132,7 @@ class SearchStructuresWidget(ipw.VBox):
             orm.StructureData,
             filters={
                 "extras": {"has_key": "surfaces"},
-                "mtime":  {"and": [{"<=": end_date}, {">": start_date}]},
+                "mtime": {"and": [{"<=": end_date}, {">": start_date}]},
             },
         )
         qb.order_by({orm.StructureData: {"mtime": "desc"}})
@@ -150,9 +151,9 @@ class SearchStructuresWidget(ipw.VBox):
                     node.base.extras.set(
                         "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
                     )
-                
+
                 entry = {
-                    "creator" : find_first_workchain(node),
+                    "creator": find_first_workchain(node),
                     "pk": node.pk,
                     "nrows": nrows,
                     "mtime": node.mtime.strftime("%d/%m/%y"),
@@ -186,18 +187,23 @@ class SearchStructuresWidget(ipw.VBox):
         odd = -1
         tclass = ["", "tg-dark", "tg-llyw"]
         for entry in data:
-            nrows1 = entry["nrows"]
+            entry["nrows"]
             nrows_done = 0
-            html += header(pk=entry["creator"][1], label=entry["creator"][0],tclass=tclass[odd],last_modified=entry["mtime"])
+            html += header(
+                pk=entry["creator"][1],
+                label=entry["creator"][0],
+                tclass=tclass[odd],
+                last_modified=entry["mtime"],
+            )
             html += "<tr>"
-            #html += f"""<td class="{tclass[odd]}" rowspan={str(nrows1)}> {entry["mtime"]}  </td>"""
-            
+            # html += f"""<td class="{tclass[odd]}" rowspan={str(nrows1)}> {entry["mtime"]}  </td>"""
+
             for workflow in entry["workflows"]:
                 if nrows_done != 0:
                     html += "<tr>"
                 nrowsw = len(entry["workflows"][workflow])
-                html += f'<td class={tclass[odd]} rowspan={nrowsw}>  {workflow} </td>'
-                html += f'<td class={tclass[odd]} rowspan={nrowsw}>'
+                html += f"<td class={tclass[odd]} rowspan={nrowsw}>  {workflow} </td>"
+                html += f"<td class={tclass[odd]} rowspan={nrowsw}>"
                 html += "<ul>"
                 for node in entry["workflows"][workflow]:
                     html += link_to_viewer(
@@ -208,11 +214,12 @@ class SearchStructuresWidget(ipw.VBox):
                 html += "</ul></td>"
                 if nrows_done == 0:
                     html += thunmnail_raw(
-                        nrows=entry['nrows'],
+                        nrows=entry["nrows"],
                         thumbnail=entry["thumbnail"],
-                        pk=entry['pk'],
+                        pk=entry["pk"],
                         tclass=tclass[odd],
-                        description="")
+                        description="",
+                    )
                     html += "</tr>"
                     nrows_done += 1
                 for _ in range(1, nrowsw):
