@@ -11,7 +11,7 @@ def read_and_process_pdos_file(pdos_path):
         header = open(pdos_path).readline()
     except TypeError:
         header = pdos_path.readline()
-    try:
+    try:  # noqa: TC101
         kind = re.search(r"atomic kind.(\S+)", header).group(1)
     except Exception:
         kind = None

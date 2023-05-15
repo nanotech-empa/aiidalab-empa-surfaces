@@ -6,6 +6,16 @@ style = {"description_width": "120px"}
 layout = {"width": "70%"}
 
 
+class WrongCvInputError(Exception):
+    def __init__(self, cv, message=None):
+        raise_message = (
+            f"""Wrong input for the "{cv}" collective variable.""" + f" {message}"
+            if message
+            else ""
+        )
+        super().__init__(raise_message)
+
+
 class DistanceCV:
     def __init__(self, no_widget=False):
         self.spring_unit = "eV/angstrom^2"
@@ -42,10 +52,12 @@ class DistanceCV:
     def read_and_validate_inputs(self):
         try:
             a_list = [int(x) for x in self.text_colvar_atoms.value.split()]
-        except Exception:
-            raise OSError("Error: wrong input for distance cv.")
+        except Exception as exc:
+            raise WrongCvInputError(cv="distance") from exc
         if len(a_list) != 2:
-            raise OSError("Error: distance cv not two atoms.")
+            raise WrongCvInputError(
+                cv="distance", message="The distance cv needs two atoms."
+            )
         self.a_list = a_list
 
         self.input_received = True
@@ -135,10 +147,15 @@ class AnglePlanePlaneCV:
     def read_and_validate_inputs(self):
         try:
             self.p1_def = np.array([int(x) for x in self.text_plane1_def.value.split()])
-        except Exception:
-            raise OSError("Error: wrong input for plane 1 definition.")
+        except Exception as exc:
+            raise WrongCvInputError(
+                cv="plane-plane angle",
+                message="The definition of the 1st plane is wrong.",
+            ) from exc
         if len(self.p1_def) != 3:
-            raise OSError("Error: plane 1 needs 3 atoms.")
+            raise WrongCvInputError(
+                cv="plane-plane angle", message="The 1st plane needs 3 atoms."
+            )
 
         self.p2_def_type = self.toggle_plane2_type.value
 
@@ -147,19 +164,29 @@ class AnglePlanePlaneCV:
                 self.p2_def = np.array(
                     [int(x) for x in self.text_plane2_def.value.split()]
                 )
-            except Exception:
-                raise OSError("Error: wrong input for plane 2 definition.")
+            except Exception as exc:
+                raise WrongCvInputError(
+                    cv="plane-plane angle",
+                    message="The definition of the 2nd plane is wrong.",
+                ) from exc
             if len(self.p2_def) != 3:
-                raise OSError("Error: plane 2 needs 3 atoms.")
+                raise WrongCvInputError(
+                    cv="plane-plane angle", message="The 1st plane needs 3 atoms."
+                )
         else:
             try:
                 self.p2_def = np.array(
                     [float(x) for x in self.text_plane2_def.value.split()]
                 )
-            except Exception:
-                raise OSError("Error: wrong input for plane 2 definition.")
+            except Exception as exc:
+                raise WrongCvInputError(
+                    cv="plane-plane angle",
+                    message="The definition of the 2nd plane is wrong.",
+                ) from exc
             if len(self.p2_def) != 3:
-                raise OSError("Error: plane 2 normal needs 3 coordinates.")
+                raise WrongCvInputError(
+                    cv="plane-plane angle", message="The 2nd plane needs 3 coordinates."
+                )
 
         self.input_received = True
 
@@ -170,7 +197,7 @@ class AnglePlanePlaneCV:
         return vec / np.linalg.norm(vec)
 
     def _p1_normal(self, atoms):
-        # NB until here, the indexes use cp2k convention (starts from 1)
+        # NB until here, the indexes use cp2k convention (starts from 1).
         return self._cp2k_plane_normal(
             atoms[self.p1_def[0] - 1].position,
             atoms[self.p1_def[1] - 1].position,
@@ -178,7 +205,7 @@ class AnglePlanePlaneCV:
         )
 
     def _p2_normal(self, atoms):
-        # NB until here, the indexes use cp2k convention (starts from 1)
+        # NB until here, the indexes use cp2k convention (starts from 1).
         if self.p2_def_type == "ATOMS":
             return self._cp2k_plane_normal(
                 atoms[self.p2_def[0] - 1].position,
@@ -340,21 +367,20 @@ class BondRotationCV:
                     dl = np.array(
                         [int(x) - 1 for x in self.bond_point_textbs[i_p].value.split()]
                     )
-                except Exception:
-                    raise OSError(
-                        f"Error: wrong input for '{self.bond_point_texts[i_p]}'"
-                    )
+                except Exception as exc:
+                    raise WrongCvInputError(cv=self.bond_point_texts[i_p]) from exc
+
             else:
                 try:
                     dl = np.array(
                         [float(x) for x in self.bond_point_textbs[i_p].value.split()]
                     )
-                except Exception:
-                    raise OSError(
-                        f"Error: wrong input for '{self.bond_point_texts[i_p]}'"
-                    )
+                except Exception as exc:
+                    raise WrongCvInputError(cv=self.bond_point_texts[i_p]) from exc
                 if len(dl) != 3:
-                    raise OSError(f"Error: '{self.bond_point_texts[i_p]}' needs x,y,z")
+                    raise WrongCvInputError(
+                        cv=self.bond_point_texts[i_p], msg="It needs 3 x, y, z."
+                    )
             self.data_list.append(dl)
             self.data_txt_list.append(self.bond_point_textbs[i_p].value)
 

@@ -9,12 +9,22 @@ import re
 import numpy as np
 
 
+class DoesNotBeginWithIgorError(Exception):
+    def __init__(self):
+        super().__init__("File does not begin with 'IGOR'.")
+
+
+class MissingBeginStatementError(Exception):
+    def __init__(self):
+        super().__init__("Missing 'BEGIN' statement of data block.")
+
+
 class Axis:
     """Represents an axis of an IGOR wave"""
 
-    def __init__(self, symbol, min, delta, unit, wavename=None):
+    def __init__(self, symbol, minimum, delta, unit, wavename=None):
         self.symbol = symbol
-        self.min = min
+        self.minimum = minimum
         self.delta = delta
         self.unit = unit
         self.wavename = wavename
@@ -25,14 +35,7 @@ class Axis:
         Note: SetScale/P expects minimum value and step-size
         """
         delta = 0 if self.delta is None else self.delta
-        s = 'X SetScale/P {symb} {min},{delta}, "{unit}", {name};\n'.format(
-            symb=self.symbol,
-            min=self.min,
-            delta=delta,
-            unit=self.unit,
-            name=self.wavename,
-        )
-        return s
+        return f'X SetScale/P {self.symbol} {self.minimum},{delta}, "{self.unit}", {self.wavename};\n'
 
     def read(self, string):
         """Read axis from string
@@ -45,7 +48,7 @@ class Axis:
             'SetScale/?P? (.) ([+-\\.\\de]+),([+-\\.\\de]+),"(\\w+)",\\s*(\\w+)', string
         )
         self.symbol = match.group(1)
-        self.min = float(match.group(2))
+        self.minimum = float(match.group(2))
         self.delta = float(match.group(3))
         self.unit = match.group(4)
         self.wavename = match.group(5)
@@ -92,7 +95,7 @@ class Wave:
 
         line = lines.pop(0)
         if not line == "IGOR":
-            raise OSError("Files does not begin with 'IGOR'")
+            raise DoesNotBeginWithIgorError()
 
         line = lines.pop(0)
         while not re.match("WAVES", line):
@@ -104,9 +107,9 @@ class Wave:
 
         line = lines.pop(0)
         if not line == "BEGIN":
-            raise OSError("Missing 'BEGIN' statement of data block")
+            raise MissingBeginStatementError()
 
-        # read data
+        # Read data.
         datastring = ""
         line = lines.pop(0)
         while not re.match("END", line):
@@ -115,7 +118,7 @@ class Wave:
         data = np.array(datastring.split(), dtype=float)
         self.data = data.reshape(grid)
 
-        # read axes
+        # Read axes.
         line = lines.pop(0)
         matches = re.findall("SetScale.+?(?:;|$)", line)
         self.axes = []
@@ -135,8 +138,8 @@ class Wave:
         extent = []
         for i in range(len(grid)):
             ax = self.axes[i]
-            extent.append(ax.min)
-            extent.append(ax.min + ax.delta * grid[i])
+            extent.append(ax.minimum)
+            extent.append(ax.minimum + ax.delta * grid[i])
 
         return np.array(extent)
 
@@ -176,7 +179,7 @@ class Wave1d(Wave):
             p = self.parameters
             x = Axis(
                 symbol="x",
-                min=p["xmin"],
+                minimum=p["xmin"],
                 delta=p["xdelta"],
                 unit=p["xlabel"],
                 wavename=self.name,
@@ -241,14 +244,14 @@ class Wave2d(Wave):
 
             x = Axis(
                 symbol="x",
-                min=p["xmin"],
+                minimum=p["xmin"],
                 delta=p["xdelta"],
                 unit=p["xlabel"],
                 wavename=self.name,
             )
             y = Axis(
                 symbol="y",
-                min=p["ymin"],
+                minimum=p["ymin"],
                 delta=p["ydelta"],
                 unit=p["ylabel"],
                 wavename=self.name,
