@@ -17,6 +17,7 @@ VIEWERS = {
     "CP2K_Phonons": "view_phonons.ipynb",
     "CP2K_NEB": "view_neb.ipynb",
     "CP2K_Replica": "view_replica.ipynb",
+    "ReplicaWorkChain": "view_replica.ipynb",
 }
 
 
@@ -54,8 +55,12 @@ def header(pk="", label="", tclass="tg-dark", last_modified=""):
     if pk is None:
         return f"""<tr><td class="{tclass}" colspan=3> Structure created by input and last modified {last_modified}</td></tr>"""
     else:
-        the_viewer = VIEWERS[label]
-    return f"""<tr><td class="{tclass}" colspan=3>  <a target="_blank" href="{the_viewer}?pk={pk}">Structure created by {label} PK-{pk}</a> and last modified {last_modified}</td></tr>"""
+        try:
+            the_viewer = VIEWERS[label]
+        except KeyError:
+            return f"""<tr><td class="{tclass}" colspan=3> Structure created by {label} and last modified {last_modified}</td></tr>"""
+        else:
+            return f"""<tr><td class="{tclass}" colspan=3>  <a target="_blank" href="{the_viewer}?pk={pk}">Structure created by {label} PK-{pk}</a> and last modified {last_modified}</td></tr>"""
 
 
 def uuids_to_nodesdict(uuids):
