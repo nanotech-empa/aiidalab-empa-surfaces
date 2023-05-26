@@ -12,6 +12,7 @@ class OneColvar(ipw.HBox):
         units = {
             "distance": ["A", "eV/A^2", "40"],
             "angle": ["deg", "ev/deg^2", "2"],
+            "bond": ["deg", "ev/deg^2", "2"]
         }
         self.target_widget = ipw.Text(
             description="", style=style, layout={"width": "140px"}
@@ -55,6 +56,10 @@ class OneConstraint(ipw.HBox):
             self.children = self.children[:1]
             self.children += (OneColvar(cvtype="angle"),)
             try_guess = True
+        elif "bond" in change["new"]:
+            self.children = self.children[:1]
+            self.children += (OneColvar(cvtype="bond"),)
+            try_guess = True            
         elif "fixed" in change["new"] and len(self.children) > 1:
             self.children = self.children[:1]
             try_guess = False
@@ -175,6 +180,7 @@ class ConstraintsWidget(ipw.VBox):
         units = {
             "distance": ["[angstrom]", "[eV/angstrom^2]"],
             "angle": ["[deg]", "[ev/deg^2]"],
+            "bond": ["[deg]", "[ev/deg^2]"],
         }
         constraints = ""
         colvars = ""
@@ -184,7 +190,7 @@ class ConstraintsWidget(ipw.VBox):
                 constraints += " " + c.constraint_widget.value + " ,"
             else:
                 ncolvars += 1
-                cvtype = c.constraint_widget.value.split()[0].lower()
+                cvtype = c.constraint_widget.value.split()[0].lower().split('_')[0]
                 constraints += (
                     " "
                     + "collective "
