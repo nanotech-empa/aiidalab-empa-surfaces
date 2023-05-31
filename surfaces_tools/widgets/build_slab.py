@@ -27,6 +27,7 @@ class BuildSlab(ipw.VBox):
                 "Cu(110)O-2x1",
                 "Ag(111)",
                 "Cu(111)",
+                "NaCl(100)",
                 "hBN",
                 "PdGa_A_Pd1",
                 "PdGa_A_Pd3",

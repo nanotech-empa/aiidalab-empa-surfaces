@@ -49,7 +49,7 @@ dz_cu_h = 0.86502011  # Distance between Cu and H layer
 dz_cu_1_2 = 2.06853511  # Distance between Cu top layer and 2nd layer
 dz_cu_2_3 = 2.08397214  # Distance between Cu 2nd layer and 3rd layer (bulk)
 
-h_nb_x = 2.510999063
+h_bn_x = 2.510999063
 h_bn_y = 4.349177955
 h_bn_z = 6.842897412
 h_bn_unit = [
@@ -351,6 +351,20 @@ Au_110_4x1_top = [
     ["Au", 0.0, 0.0, 5.8965192],
 ]
 
+# NaCl(100)
+NaCl_100_Lx = 5.7357807389205
+NaCl_100_Lz = 5.7357807389205
+NaCl_100_unit = [
+    ["Na", 0.0, 0.0, 0],
+    ["Na", NaCl_100_Lx / 2, NaCl_100_Lx / 2, 0],
+    ["Na", 0, NaCl_100_Lx / 2, NaCl_100_Lz / 2],
+    ["Na", NaCl_100_Lx / 2, 0, NaCl_100_Lz / 2],
+    ["Cl", NaCl_100_Lx / 2, 0, 0],
+    ["Cl", 0, NaCl_100_Lx / 2, 0],
+    ["Cl", 0, 0, NaCl_100_Lz / 2],
+    ["Cl", NaCl_100_Lx / 2, NaCl_100_Lx / 2, NaCl_100_Lz / 2],
+]
+
 slab_lx_ly = {
     "Au(111)": [au_x, au_y],
     "Au(110)2x1": [Au_110_2x1_Lx, Au_110_2x1_Ly],
@@ -359,9 +373,10 @@ slab_lx_ly = {
     "Cu(110)O-2x1": [Cu_110_O_2x1_Lx, Cu_110_O_2x1_Ly],
     "Ag(111)": [ag_x, ag_y],
     "Cu(111)": [cu_x, cu_y],
+    "NaCl(100)": [NaCl_100_Lx, NaCl_100_Lx],
     "PdGa_A_Pd1": [PdGa_Lx, PdGa_Ly],
     "PdGa_A_Pd3": [PdGa_Lx, PdGa_Ly],
-    "hBN": [h_nb_x, h_bn_y],
+    "hBN": [h_bn_x, h_bn_y],
 }
 
 
@@ -537,17 +552,43 @@ def prepare_slab(mol, dx, dy, dz, phi, nx, ny, nz, which_surf):
             hbn.append(
                 ase.Atom(
                     a[0],
-                    (float(a[1]) * h_nb_x, float(a[2]) * h_bn_y, float(a[3]) * h_bn_z),
+                    (float(a[1]) * h_bn_x, float(a[2]) * h_bn_y, float(a[3]) * h_bn_z),
                 )
             )
-        hbn.cell = (h_nb_x, h_bn_y, h_bn_z)
+        hbn.cell = (h_bn_x, h_bn_y, h_bn_z)
         hbn.pbc = (True, True, True)
         # build nx x ny x nz bulk
         hbn = hbn.repeat((nx, ny, nz))
 
         # Add to cell vacuum.
-        hbn.cell = (h_nb_x * nx, h_bn_y * ny, h_bn_z * nz + 40.0)
+        hbn.cell = (h_bn_x * nx, h_bn_y * ny, h_bn_z * nz + 40.0)
         the_slab = sort(hbn, tags=hbn.get_positions()[:, 2] * -1)
+        the_slab.positions += np.array((0, 0, 10))
+        slab_z_max = np.max(the_slab.positions[:, 2])
+
+        cx, cy, cz = the_slab.cell.diagonal()
+    # NaCl(100)
+    elif which_surf == "NaCl(100)":
+        nacl = ase.Atoms()
+        for a in NaCl_100_unit:
+            nacl.append(
+                ase.Atom(
+                    a[0],
+                    (
+                        float(a[1]),
+                        float(a[2]),
+                        float(a[3]),
+                    ),
+                )
+            )
+        nacl.cell = (NaCl_100_Lx, NaCl_100_Lx, NaCl_100_Lz)
+        nacl.pbc = (True, True, True)
+        # build nx x ny x nz bulk
+        nacl = nacl.repeat((nx, ny, nz))
+
+        # Add to cell vacuum.
+        nacl.cell = (NaCl_100_Lx * nx, NaCl_100_Lx * ny, NaCl_100_Lz * nz + 40.0)
+        the_slab = sort(nacl, tags=nacl.get_positions()[:, 2] * -1)
         the_slab.positions += np.array((0, 0, 10))
         slab_z_max = np.max(the_slab.positions[:, 2])
 
