@@ -12,7 +12,8 @@ class OneColvar(ipw.HBox):
         units = {
             "distance": ["A", "eV/A^2", "40"],
             "angle": ["deg", "ev/deg^2", "2"],
-            "bond": ["deg", "ev/deg^2", "2"]
+            "bond": ["deg", "ev/deg^2", "2"],
+            "torsion": ["deg", "ev/deg^2", "2"],
         }
         self.target_widget = ipw.Text(
             description="", style=style, layout={"width": "140px"}
@@ -59,7 +60,11 @@ class OneConstraint(ipw.HBox):
         elif "bond" in change["new"]:
             self.children = self.children[:1]
             self.children += (OneColvar(cvtype="bond"),)
-            try_guess = True            
+            try_guess = True
+        elif "torsion" in change["new"]:
+            self.children = self.children[:1]
+            self.children += (OneColvar(cvtype="torsion"),)
+            try_guess = True
         elif "fixed" in change["new"] and len(self.children) > 1:
             self.children = self.children[:1]
             try_guess = False
@@ -155,6 +160,15 @@ class ConstraintsWidget(ipw.VBox):
                 <li>angle point atoms 2 3  point fix_point 8.36 6.78 5.0 point atoms 3 4</li>
             </ul>
             </p>
+            
+            <p>
+            Example of <b>torsion</b> colvar:<br>
+            four points are mandatory, the dihedral is defined by points 1 2 3 4<br>
+            <ul>
+                <li>torsion point atoms 8 point atoms 7 point atoms 16   point atoms 25</li>
+            </ul>
+            </p>            
+            
             <p>
             Example of <b>angle_plane_plan</b> colvar:<br>
             <ul>
@@ -181,6 +195,7 @@ class ConstraintsWidget(ipw.VBox):
             "distance": ["[angstrom]", "[eV/angstrom^2]"],
             "angle": ["[deg]", "[ev/deg^2]"],
             "bond": ["[deg]", "[ev/deg^2]"],
+            "torsion": ["[deg]", "[ev/deg^2]"],
         }
         constraints = ""
         colvars = ""
@@ -190,7 +205,7 @@ class ConstraintsWidget(ipw.VBox):
                 constraints += " " + c.constraint_widget.value + " ,"
             else:
                 ncolvars += 1
-                cvtype = c.constraint_widget.value.split()[0].lower().split('_')[0]
+                cvtype = c.constraint_widget.value.split()[0].lower().split("_")[0]
                 constraints += (
                     " "
                     + "collective "
