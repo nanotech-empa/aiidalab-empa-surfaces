@@ -569,16 +569,8 @@ class CellSectionWidget(ipw.Accordion):
     do_cell_opt = tr.Bool()
 
     def __init__(self):
-        self.cell_constraint = ipw.Dropdown(
-            description="Cell constr.",
-            options=["XYZ", "NONE", "X", "XY", "XZ", "Y", "YZ", "Z"],
-            value="NONE",
-            style=STYLE,
-            layout=LAYOUT2,
-        )
-
-        self.cell_sym = ipw.Dropdown(
-            description="symmetry",
+        self.cell_symmetry = ipw.Dropdown(
+            description="Cell symmetry:",
             options=[
                 "CUBIC",
                 "HEXAGONL",
@@ -593,61 +585,54 @@ class CellSectionWidget(ipw.Accordion):
             ],
             value="ORTHORHOMBIC",
             style=STYLE,
-            layout=LAYOUT,
         )
 
-        self.opt_cell = ipw.ToggleButton(
-            value=False,
-            description="Optimize cell",
-            style={"description_width": "120px"},
+        self.cell_constraint = ipw.Dropdown(
+            description="Cell constraints:",
+            options=["XYZ", "NONE", "X", "XY", "XZ", "Y", "YZ", "Z"],
+            value="NONE",
+            style=STYLE,
         )
 
-        def on_cell_opt(c=None):
-            self.do_cell_opt = self.opt_cell.value
-
-        self.opt_cell.observe(on_cell_opt, "value")
-
-        self.cell_free = ipw.ToggleButtons(
+        self.cell_freedom = ipw.Dropdown(
             options=["FREE", "KEEP_SYMMETRY", "KEEP_ANGLES", "KEEP_SPACE_GROUP"],
             description="Cell freedom",
             value="KEEP_SYMMETRY",
             style=STYLE,
-            layout=LAYOUT,
         )
 
-        super().__init__(selected_index=None)
+        self.opt_cell = ipw.Checkbox(
+            value=False,
+            description="Optimize cell",
+        )
+        tr.link((self, "do_cell_opt"), (self.opt_cell, "value"))
+
+        self.set_title(0, "Cell optimization")
+
+        super().__init__(
+            selected_index=None,
+            children=[
+                ipw.VBox(
+                    [
+                        self.cell_symmetry,
+                        self.cell_freedom,
+                        self.cell_constraint,
+                        self.opt_cell,
+                    ]
+                )
+            ],
+        )
 
     def return_dict(self):
-        sys_params = {"symmetry": self.cell_sym.value}
+        sys_params = {"symmetry": self.cell_symmetry.value}
         if self.opt_cell.value:
             sys_params["cell_opt"] = ""
         if self.cell_constraint.value != "NONE":
             sys_params["cell_opt_constraint"] = self.cell_constraint.value
-        if self.cell_free.value != "FREE":
-            sys_params[self.cell_free.value.lower()] = ""
+        if self.cell_freedom.value != "FREE":
+            sys_params[self.cell_freedom.value.lower()] = ""
 
         return {"sys_params": sys_params}
-
-    @tr.observe("details")
-    def _observe_details(self, _=None):
-        self._widgets_to_show()
-
-    @tr.observe("do_cell_opt")
-    def _observe_do_cell_opt(self, _=None):
-        self._widgets_to_show()
-
-    def _widgets_to_show(self):
-        if self.opt_cell.value:
-            self.set_title(0, "CELL details")
-            self.children = [
-                ipw.VBox([self.cell_sym, self.cell_free, self.cell_constraint])
-            ]
-        else:
-            self.set_title(0, "CELL details")
-            self.children = [self.cell_sym]
-
-        if self.details["system_type"] == "Molecule":
-            self.periodic.value = "NONE"
 
     def traits_to_link(self):
         return ["details", "do_cell_opt"]
