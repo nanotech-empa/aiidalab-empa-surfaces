@@ -20,6 +20,7 @@ LAYOUT2 = {"width": "35%"}
 class InputDetails(ipw.VBox):
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
     details = tr.Dict()
+    protocol = tr.Unicode()
     final_dictionary = tr.Dict()
     to_fix = tr.List()
     do_cell_opt = tr.Bool()
@@ -185,6 +186,7 @@ class StructureInfoWidget(ipw.Accordion):
 
 class ProtocolSelectionWidget(ipw.Dropdown):
     phonons = tr.Bool()
+    protocol = tr.Unicode()
 
     def __init__(self):
         options = [
@@ -192,6 +194,8 @@ class ProtocolSelectionWidget(ipw.Dropdown):
             ("Low accuracy", "low_accuracy"),
             ("Debug", "debug"),
         ]
+        
+        #tr.link((self, "protocol"), (self, "value"))
         super().__init__(
             value="standard",
             options=options,
@@ -218,10 +222,15 @@ class ProtocolSelectionWidget(ipw.Dropdown):
             self.value = "standard"
 
     def traits_to_link(self):
-        return ["phonons"]
-
+        return ["phonons", "protocol"]
+    
     def return_dict(self):
-        return {"dft_params": {"protocol": self.value}}
+        return {}
+    
+    @tr.observe("value")
+    def _observe_value(self, change=None):
+        self.protocol = change['new']
+
 
 
 class VdwSelectorWidget(ipw.ToggleButton):
