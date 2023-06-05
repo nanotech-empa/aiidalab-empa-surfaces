@@ -194,8 +194,8 @@ class ProtocolSelectionWidget(ipw.Dropdown):
             ("Low accuracy", "low_accuracy"),
             ("Debug", "debug"),
         ]
-        
-        #tr.link((self, "protocol"), (self, "value"))
+
+        # tr.link((self, "protocol"), (self, "value"))
         super().__init__(
             value="standard",
             options=options,
@@ -223,14 +223,13 @@ class ProtocolSelectionWidget(ipw.Dropdown):
 
     def traits_to_link(self):
         return ["phonons", "protocol"]
-    
+
     def return_dict(self):
         return {}
-    
+
     @tr.observe("value")
     def _observe_value(self, change=None):
-        self.protocol = change['new']
-
+        self.protocol = change["new"]
 
 
 class VdwSelectorWidget(ipw.ToggleButton):
