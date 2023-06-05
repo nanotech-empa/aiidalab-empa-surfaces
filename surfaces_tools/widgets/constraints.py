@@ -160,15 +160,15 @@ class ConstraintsWidget(ipw.VBox):
                 <li>angle point atoms 2 3  point fix_point 8.36 6.78 5.0 point atoms 3 4</li>
             </ul>
             </p>
-            
+
             <p>
             Example of <b>torsion</b> colvar:<br>
             four points are mandatory, the dihedral is defined by points 1 2 3 4<br>
             <ul>
                 <li>torsion point atoms 8 point atoms 7 point atoms 16   point atoms 25</li>
             </ul>
-            </p>            
-            
+            </p>
+
             <p>
             Example of <b>angle_plane_plan</b> colvar:<br>
             <ul>
