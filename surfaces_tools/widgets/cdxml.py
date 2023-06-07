@@ -4,7 +4,7 @@ import ase
 import ipywidgets as ipw
 import numpy as np
 import scipy
-import sklearn
+import sklearn.decomposition
 import traitlets as tr
 from ase import neighborlist
 
