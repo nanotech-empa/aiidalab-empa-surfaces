@@ -184,54 +184,6 @@ class StructureInfoWidget(ipw.Accordion):
         return {}
 
 
-class ProtocolSelectionWidget(ipw.Dropdown):
-    phonons = tr.Bool()
-    protocol = tr.Unicode()
-
-    def __init__(self):
-        options = [
-            ("Standard", "standard"),
-            ("Low accuracy", "low_accuracy"),
-            ("Debug", "debug"),
-        ]
-
-        # tr.link((self, "protocol"), (self, "value"))
-        super().__init__(
-            value="standard",
-            options=options,
-            description="Protocol:",
-            style={"description_width": "120px"},
-        )
-
-    @tr.observe("phonons")
-    def _observe_details(self, _=None):
-        if self.phonons:
-            self.options = [
-                ("Phonons", "phonons"),
-                ("Standard", "standard"),
-                ("Low accuracy", "low_accuracy"),
-                ("Debug", "debug"),
-            ]
-            self.value = "phonons"
-        else:
-            self.options = [
-                ("Standard", "standard"),
-                ("Low accuracy", "low_accuracy"),
-                ("Debug", "debug"),
-            ]
-            self.value = "standard"
-
-    def traits_to_link(self):
-        return ["phonons", "protocol"]
-
-    def return_dict(self):
-        return {}
-
-    @tr.observe("value")
-    def _observe_value(self, change=None):
-        self.protocol = change["new"]
-
-
 class VdwSelectorWidget(ipw.ToggleButton):
     def __init__(self):
         super().__init__(
@@ -656,7 +608,6 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         ConstraintsWidget,
         CellSectionWidget,
-        ProtocolSelectionWidget,
     ],
     "SlabXY": [
         DescriptionWidget,
@@ -664,7 +615,6 @@ SECTIONS_TO_DISPLAY = {
         UksSectionWidget,
         StructureInfoWidget,
         ConstraintsWidget,
-        ProtocolSelectionWidget,
     ],
     "Molecule": [
         StructureInfoWidget,
@@ -672,7 +622,6 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         ConstraintsWidget,
-        ProtocolSelectionWidget,
     ],
     "Replica": [
         DescriptionWidget,
@@ -681,7 +630,6 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         ConstraintsWidget,
         ReplicaWidget,
-        ProtocolSelectionWidget,
     ],
     "Neb": [
         DescriptionWidget,
@@ -690,7 +638,6 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         ConstraintsWidget,
         NebWidget,
-        ProtocolSelectionWidget,
     ],
     "Phonons": [
         DescriptionWidget,
@@ -699,6 +646,5 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         ConstraintsWidget,
         PhononsWidget,
-        ProtocolSelectionWidget,
     ],
 }
