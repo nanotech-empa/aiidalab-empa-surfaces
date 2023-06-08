@@ -2,7 +2,6 @@ import re
 
 import numpy as np
 from aiida import common, orm
-from aiida.common.exceptions import NotExistentAttributeError
 
 
 def find_first_workchain(node):
@@ -70,7 +69,7 @@ def structure_available_wfn(
     # Check if UKS or RKS and in ase of UKS if matching magnetization options.
     try:
         orig_dft_params = generating_workchain.inputs.dft_params.get_dict()
-    except NotExistentAttributeError:
+    except common.NotExistentAttributeError:
         return None
     was_uks = "uks" in orig_dft_params and orig_dft_params["uks"]
     is_uks = "uks" in dft_params and dft_params["uks"]
@@ -137,7 +136,7 @@ def structure_available_wfn(
         wfn_name = "aiida-RESTART.wfn"
 
     wfn_exists = False
-    try:
+    try:  # noqa: TC101, TRY101
         wfn_search_path = (
             generating_workchain.outputs.remote_folder.get_remote_path()
             + "/"
