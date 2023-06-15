@@ -352,8 +352,14 @@ Au_110_4x1_top = [
 ]
 
 # NaCl(100)
-NaCl_100_Lx = 5.7357807389205
-NaCl_100_Lz = 5.7357807389205
+NaCl_100_Lx = 5.6142796  # DZVP-MOLOPT-PBE-GTH-q1 UZH
+NaCl_100_Lz = 5.6142796
+NaCl_100_top = [
+    ["Na", 0.0, 0.0, NaCl_100_Lz],
+    ["Na", NaCl_100_Lx / 2, NaCl_100_Lx / 2, NaCl_100_Lz],
+    ["Cl", NaCl_100_Lx / 2, 0, NaCl_100_Lz + 0.1],
+    ["Cl", 0, NaCl_100_Lx / 2, NaCl_100_Lz + 0.1],
+]
 NaCl_100_unit = [
     ["Na", 0.0, 0.0, 0],
     ["Na", NaCl_100_Lx / 2, NaCl_100_Lx / 2, 0],
@@ -583,8 +589,19 @@ def prepare_slab(mol, dx, dy, dz, phi, nx, ny, nz, which_surf):
             )
         nacl.cell = (NaCl_100_Lx, NaCl_100_Lx, NaCl_100_Lz)
         nacl.pbc = (True, True, True)
-        # build nx x ny x nz bulk
-        nacl = nacl.repeat((nx, ny, nz))
+        # build a 1 x 1 x nz bulk
+        nacl = nacl.repeat((1, 1, nz))
+        nacl.cell = (NaCl_100_Lx, NaCl_100_Lx, NaCl_100_Lz * nz + 40.0)
+        # Add top layers with NaCl termination.
+        for a in NaCl_100_top:
+            nacl.append(
+                ase.Atom(
+                    a[0],
+                    (float(a[1]), float(a[2]), float(a[3]) + (nz - 1) * NaCl_100_Lz),
+                )
+            )
+        # replicate nx x ny
+        nacl = nacl.repeat((nx, ny, 1))
 
         # Add to cell vacuum.
         nacl.cell = (NaCl_100_Lx * nx, NaCl_100_Lx * ny, NaCl_100_Lz * nz + 40.0)
