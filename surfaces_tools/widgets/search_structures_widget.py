@@ -36,9 +36,11 @@ def find_first_workchain(node):
     return None, None
 
 
-def thunmnail_raw(nrows=1, thumbnail=None, pk=None, description="", tclass="tg-dark"):
+def thunmnail_raw(
+    nrows=1, thumbnail=None, pk=None, uuid=None, description="", tclass="tg-dark"
+):
     """Returns an image with a link to structure export."""
-    html = f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?pk={pk}">'
+    html = f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?uuid={uuid}">'
     html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
     html += "</a></td>"
     return html
@@ -160,6 +162,7 @@ class SearchStructuresWidget(ipw.VBox):
                 entry = {
                     "creator": find_first_workchain(node),
                     "pk": node.pk,
+                    "uuid": node.uuid,
                     "nrows": nrows,
                     "mtime": node.mtime.strftime("%d/%m/%y"),
                     "workflows": workflows,
@@ -222,6 +225,7 @@ class SearchStructuresWidget(ipw.VBox):
                         nrows=entry["nrows"],
                         thumbnail=entry["thumbnail"],
                         pk=entry["pk"],
+                        uuid=entry["uuid"],
                         tclass=tclass[odd],
                         description="",
                     )
