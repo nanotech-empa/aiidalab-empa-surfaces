@@ -144,7 +144,6 @@ class InputDetails(ipw.VBox):
 
 
 class DescriptionWidget(ipw.Text):
-    # DESCRIPTION OF CALCULATION
     def __init__(self):
         super().__init__(
             description="Process description: ",
@@ -407,10 +406,11 @@ class PhononsWidget(ipw.VBox):
         )
 
     def return_dict(self):
-        the_dict = {}
-        the_dict["phonons_params"] = {"nproc_rep": int(self.nproc_rep.value)}
-
-        return the_dict
+        return {
+            "phonons_params": {
+                "nproc_rep": int(self.nproc_rep.value),
+            }
+        }
 
     @tr.observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
@@ -445,7 +445,6 @@ class UksSectionWidget(ipw.Accordion):
     net_charge = tr.Int()
 
     def __init__(self):
-        # UKS
         self.uks_toggle = ipw.ToggleButton(
             value=False,
             description="UKS",
@@ -457,68 +456,67 @@ class UksSectionWidget(ipw.Accordion):
 
         self.spins = SpinsWidget()
         self.multiplicity = ipw.IntText(
-            value=0,
-            description="MULTIPLICITY",
+            value=1,
+            description="Multiplicity:",
             style={"description_width": "initial"},
             layout={"width": "140px"},
         )
 
         self.charge = ipw.IntText(
             value=0,
-            description="net charge",
+            description="Net charge:",
             style={"description_width": "initial"},
             layout={"width": "120px"},
         )
+        tr.link((self, "net_charge"), (self.charge, "value"))
+
+        self.set_title(0, "Spin-polarized calculation")
+
+        self.uks_box = [
+            ipw.VBox(
+                [
+                    ipw.HBox(
+                        [
+                            self.uks_toggle,
+                            self.charge,
+                            self.multiplicity,
+                        ]
+                    ),
+                    self.spins,
+                ]
+            )
+        ]
+        self.no_uks_box = [ipw.HBox([self.uks_toggle, self.charge])]
 
         super().__init__(selected_index=None)
 
+        self.children = self.no_uks_box
+
     def return_dict(self):
+        to_return = {
+            "uks": self.uks,
+            "charge": self.net_charge,
+        }
+
         if self.uks:
             magnetization_per_site = np.zeros(self.details["numatoms"])
             for spinset in self.spins.spinsets.children:
                 magnetization_per_site[
                     awb.utils.string_range_to_list(spinset.selection.value)[0]
                 ] = spinset.starting_magnetization.value
-            return {
-                "dft_params": {
-                    "uks": True,
+            to_return.append(
+                {
                     "multiplicity": self.multiplicity.value,
                     "magnetization_per_site": magnetization_per_site.astype(
                         np.int32
                     ).tolist(),
-                    "charge": self.charge.value,
                 }
-            }
-        else:
-            return {"dft_params": {"charge": self.charge.value}}
-
-    @tr.observe("details")
-    def _observe_details(self, _=None):
-        self._widgets_to_show()
+            )
+        return {"dft_params": to_return}
 
     @tr.observe("uks")
-    def _observe_uks(self, _=None):
-        self._widgets_to_show()
-
-    def _widgets_to_show(self):
-        self.set_title(0, "RKS/UKS")
-        if self.uks:
-            self.children = [
-                ipw.VBox(
-                    [
-                        ipw.HBox(
-                            [
-                                self.uks_toggle,
-                                self.multiplicity,
-                            ]
-                        ),
-                        self.spins,
-                        self.charge,
-                    ]
-                )
-            ]
-        else:
-            self.children = [ipw.VBox([self.uks_toggle, self.charge])]
+    def _observe_uks(self, value=None):
+        self.children = self.uks_box if value["new"] else self.no_uks_box
 
     def traits_to_link(self):
         return ["details", "uks", "net_charge"]

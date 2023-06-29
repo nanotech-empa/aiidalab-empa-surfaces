@@ -4,11 +4,11 @@ import ipywidgets as ipw
 class OneSpinSet(ipw.HBox):
     def __init__(self):
         self.selection = ipw.Text(
-            description="Atoms",
+            description="Atoms indices:",
             style={"description_width": "initial"},
         )
         self.starting_magnetization = ipw.IntText(
-            description="Magnetization value",
+            description="Magnetization value:",
             style={"description_width": "initial"},
         )
 
@@ -16,8 +16,6 @@ class OneSpinSet(ipw.HBox):
 
 
 class SpinsWidget(ipw.VBox):
-    # details = trt.Dict()
-
     def __init__(self):
         self.spinsets = ipw.VBox()
 
