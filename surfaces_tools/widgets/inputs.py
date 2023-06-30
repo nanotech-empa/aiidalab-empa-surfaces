@@ -420,7 +420,6 @@ class PhononsWidget(ipw.VBox):
     def _observe_details(self, _=None):
         self.n_replica.value = 3
         three_times_natoms = self.details["numatoms"] * 3
-        # factors of 3 * Natoms
         self.n_replica.options = set(
             reduce(
                 list.__add__,
@@ -504,7 +503,7 @@ class UksSectionWidget(ipw.Accordion):
                 magnetization_per_site[
                     awb.utils.string_range_to_list(spinset.selection.value)[0]
                 ] = spinset.starting_magnetization.value
-            to_return.append(
+            to_return.update(
                 {
                     "multiplicity": self.multiplicity.value,
                     "magnetization_per_site": magnetization_per_site.astype(
