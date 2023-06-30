@@ -262,6 +262,12 @@ class NebWidget(ipw.VBox):
             style={"description_width": "initial"},
             layout={"width": "140px"},
         )
+        self.rotate_frames = ipw.ToggleButton(
+            description="Rotate Frames",
+            value=False,
+            style={"description_width": "initial"},
+            layout={"width": "140px"},
+        )
         self.optimize_endpoints = ipw.ToggleButton(
             description="Optimize Endpoints",
             value=False,
@@ -313,8 +319,9 @@ class NebWidget(ipw.VBox):
             children=[
                 self.restart_from,
                 self.replica_pks,
-                self.align_frames,
-                self.optimize_endpoints,
+                ipw.HBox(
+                    [self.optimize_endpoints, self.align_frames, self.rotate_frames]
+                ),
                 self.band_type,
                 self.k_spring,
                 self.nproc_rep,
@@ -326,9 +333,12 @@ class NebWidget(ipw.VBox):
 
     def return_dict(self):
         align_frames = ".FALSE."
+        rotate_frames = ".FALSE."
         optimize_endpoints = ".FALSE."
         if self.align_frames.value:
             align_frames = ".TRUE."
+        if self.rotate_frames.value:
+            rotate_frames = ".TRUE."
         if self.optimize_endpoints.value:
             optimize_endpoints = ".TRUE."
         the_dict = {}
@@ -336,6 +346,7 @@ class NebWidget(ipw.VBox):
             the_dict["restart_from"] = orm.load_node(self.restart_from.value).uuid
         the_dict["neb_params"] = {
             "align_frames": align_frames,
+            "rotate_frames": rotate_frames,
             "band_type": self.band_type.value,
             "k_spring": self.k_spring.value,
             "nproc_rep": int(self.nproc_rep.value),
