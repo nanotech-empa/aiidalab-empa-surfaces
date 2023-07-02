@@ -72,7 +72,7 @@ class OneConstraint(ipw.HBox):
             try:
                 cv_value = cp2k_utils.compute_colvars(change["new"], self.ase_atoms)
                 self.children[1].target_widget.value = str(round(cv_value[0][1], 3))
-            except IndexError:
+            except (IndexError, KeyError, ValueError) as e:
                 pass
 
 
