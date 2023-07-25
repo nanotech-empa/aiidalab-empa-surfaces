@@ -443,31 +443,31 @@ class UksSectionWidget(ipw.Accordion):
     uks = tr.Bool()
     net_charge = tr.Int()
 
-    def __init__(self):
-        self.uks_toggle = ipw.ToggleButton(
+    def __init__(self, charge_visibility="visible", multiplicity_visibility="visible"):
+        self.uks_toggle = ipw.Checkbox(
             value=False,
             description="UKS",
             tooltip="Activate UKS",
-            style={"description_width": "80px"},
+            style={"description_width": "initial"},
         )
-
         tr.link((self, "uks"), (self.uks_toggle, "value"))
 
         self.spins = SpinsWidget()
-        self.multiplicity = ipw.IntText(
-            value=1,
-            description="Multiplicity:",
-            style={"description_width": "initial"},
-            layout={"width": "140px"},
-        )
 
         self.charge = ipw.IntText(
             value=0,
             description="Net charge:",
             style={"description_width": "initial"},
-            layout={"width": "120px"},
+            layout={"width": "120px", "visibility": charge_visibility},
         )
         tr.link((self, "net_charge"), (self.charge, "value"))
+
+        self.multiplicity = ipw.IntText(
+            value=1,
+            description="Multiplicity:",
+            style={"description_width": "initial"},
+            layout={"width": "140px", "visibility": multiplicity_visibility},
+        )
 
         self.set_title(0, "Spin-polarized calculation")
 
