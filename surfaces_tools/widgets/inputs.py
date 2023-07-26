@@ -449,6 +449,7 @@ class UksSectionWidget(ipw.Accordion):
             description="UKS",
             tooltip="Activate UKS",
             style={"description_width": "initial"},
+            layout={"width": "60px"},
         )
         tr.link((self, "uks"), (self.uks_toggle, "value"))
 
