@@ -87,7 +87,7 @@ class FragmentList(ipw.VBox):
     selection_string = traitlets.Unicode()
     uks = traitlets.Bool(False)
 
-    def __init__(self):
+    def __init__(self, add_fragment_visibility="visible"):
         # Fragment selection.
         self.new_fragment_name = ipw.Text(
             value="",
@@ -113,7 +113,8 @@ class FragmentList(ipw.VBox):
                         self.new_fragment_name,
                         self.new_fragment_indices,
                         self.add_new_fragment_button,
-                    ]
+                    ],
+                    layout={"visibility": add_fragment_visibility},
                 ),
                 self.fragment_add_message,
                 self.fragment_output,

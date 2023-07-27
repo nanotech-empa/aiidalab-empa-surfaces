@@ -9,8 +9,7 @@ from ase import Atoms
 from IPython.display import clear_output, display
 
 from ..utils.cp2k_input_validity import validate_input
-from .constraints import ConstraintsWidget
-from .spins import SpinsWidget
+from . import constraints, stack
 
 STYLE = {"description_width": "120px"}
 LAYOUT = {"width": "70%"}
@@ -453,7 +452,22 @@ class UksSectionWidget(ipw.Accordion):
         )
         tr.link((self, "uks"), (self.uks_toggle, "value"))
 
-        self.spins = SpinsWidget()
+        # Spins
+        class OneSpinWidget(stack.HorizontalItemWidget):
+            def __init__(self):
+                self.selection = ipw.Text(
+                    description="Atoms indices:",
+                    style={"description_width": "initial"},
+                )
+                self.starting_magnetization = ipw.IntText(
+                    description="Magnetization value:",
+                    style={"description_width": "initial"},
+                )
+                super().__init__(children=[self.selection, self.starting_magnetization])
+
+        self.spins = stack.VerticalStackWidget(
+            item_class=OneSpinWidget, add_button_text="Add spin set"
+        )
 
         self.charge = ipw.IntText(
             value=0,
@@ -604,7 +618,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
         CellSectionWidget,
     ],
     "SlabXY": [
@@ -612,21 +626,21 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
     ],
     "Molecule": [
         StructureInfoWidget,
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
     ],
     "Replica": [
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
         ReplicaWidget,
     ],
     "Neb": [
@@ -634,7 +648,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
         NebWidget,
     ],
     "Phonons": [
@@ -642,7 +656,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
         PhononsWidget,
     ],
 }
