@@ -514,7 +514,7 @@ class UksSectionWidget(ipw.Accordion):
 
         if self.uks:
             magnetization_per_site = np.zeros(self.details["numatoms"])
-            for spinset in self.spins.spinsets.children:
+            for spinset in self.spins.items:
                 magnetization_per_site[
                     awb.utils.string_range_to_list(spinset.selection.value)[0]
                 ] = spinset.starting_magnetization.value
