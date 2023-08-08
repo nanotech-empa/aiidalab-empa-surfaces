@@ -12,6 +12,11 @@ from ..utils.cp2k_input_validity import validate_input
 from .constraints import ConstraintsWidget
 from .spins import SpinsWidget
 
+
+def cp2k_bool(value):
+    return ".TRUE." if value else ".FALSE."
+
+
 STYLE = {"description_width": "120px"}
 LAYOUT = {"width": "70%"}
 LAYOUT2 = {"width": "35%"}
@@ -332,27 +337,18 @@ class NebWidget(ipw.VBox):
         )
 
     def return_dict(self):
-        align_frames = ".FALSE."
-        rotate_frames = ".FALSE."
-        optimize_endpoints = ".FALSE."
-        if self.align_frames.value:
-            align_frames = ".TRUE."
-        if self.rotate_frames.value:
-            rotate_frames = ".TRUE."
-        if self.optimize_endpoints.value:
-            optimize_endpoints = ".TRUE."
         the_dict = {}
         if self.restart_from.value != "":
             the_dict["restart_from"] = orm.load_node(self.restart_from.value).uuid
         the_dict["neb_params"] = {
-            "align_frames": align_frames,
-            "rotate_frames": rotate_frames,
+            "align_frames": cp2k_bool(self.align_frames.value),
+            "rotate_frames": cp2k_bool(self.rotate_frames.value),
             "band_type": self.band_type.value,
             "k_spring": self.k_spring.value,
             "nproc_rep": int(self.nproc_rep.value),
             "number_of_replica": int(self.n_replica.value),
             "nsteps_it": int(self.nsteps_it.value),
-            "optimize_end_points": optimize_endpoints,
+            "optimize_end_points": cp2k_bool(self.optimize_endpoints.value),
         }
 
         the_dict["replica_uuids"] = [
