@@ -18,7 +18,7 @@ def get_start_widget(appbase, jupbase):
     <tr>
 
     <td valign="top"><ul>
-        <li><a href="{appbase}/submit_calculations.ipynb" target="_blank">Geometry optimization</a>
+        <li><a href="{appbase}/submit_geometry_optimization.ipynb" target="_blank">Geometry optimization</a>
         <li><a href="{appbase}/submit_adsorption_energy.ipynb" target="_blank">Adsorption energy</a>
         <li><a href="{appbase}/submit_phonons.ipynb" target="_blank">Phonons</a>
         <li><a href="{appbase}/submit_reactions.ipynb" target="_blank">Reactions</a>
@@ -33,7 +33,7 @@ def get_start_widget(appbase, jupbase):
     <!--
     <td valign="top"><ul>
         <li><a href="{appbase}/submit_gw.ipynb" target="_blank">GW</a>
-        <li><a href="{appbase}/submit_gw-ic.ipynb" target="_blank">GW-IC</a>
+        <li><a href="{appbase}/submit_gw_ic.ipynb" target="_blank">GW-IC</a>
     </ul></td>
     -->
 

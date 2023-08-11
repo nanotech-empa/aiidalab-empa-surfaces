@@ -6,10 +6,10 @@ from aiida_nanotech_empa.utils import common_utils
 from IPython.display import clear_output
 
 VIEWERS = {
-    "CP2K_AdsorptionE": "view_ade.ipynb",
-    "CP2K_GeoOpt": "view_geoopt.ipynb",
-    "CP2K_CellOpt": "view_geoopt.ipynb",
-    "CP2K_ORBITALS": "view_orb.ipynb",
+    "CP2K_AdsorptionE": "view_adsorption_energy.ipynb",
+    "CP2K_GeoOpt": "view_geometry_optimization.ipynb",
+    "CP2K_CellOpt": "view_geometry_optimization.ipynb",
+    "CP2K_ORBITALS": "view_orbitals.ipynb",
     "CP2K_PDOS": "view_pdos.ipynb",
     "CP2K_STM": "view_stm.ipynb",
     "CP2K_AFM": "view_afm.ipynb",
