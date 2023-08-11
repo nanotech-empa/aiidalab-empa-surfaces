@@ -9,8 +9,7 @@ from ase import Atoms
 from IPython.display import clear_output, display
 
 from ..utils.cp2k_input_validity import validate_input
-from .constraints import ConstraintsWidget
-from .spins import SpinsWidget
+from . import constraints, stack
 
 
 def cp2k_bool(value):
@@ -149,7 +148,6 @@ class InputDetails(ipw.VBox):
 
 
 class DescriptionWidget(ipw.Text):
-    # DESCRIPTION OF CALCULATION
     def __init__(self):
         super().__init__(
             description="Process description: ",
@@ -414,10 +412,11 @@ class PhononsWidget(ipw.VBox):
         )
 
     def return_dict(self):
-        the_dict = {}
-        the_dict["phonons_params"] = {"nproc_rep": int(self.nproc_rep.value)}
-
-        return the_dict
+        return {
+            "phonons_params": {
+                "nproc_rep": int(self.nproc_rep.value),
+            }
+        }
 
     @tr.observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
@@ -427,7 +426,6 @@ class PhononsWidget(ipw.VBox):
     def _observe_details(self, _=None):
         self.n_replica.value = 3
         three_times_natoms = self.details["numatoms"] * 3
-        # factors of 3 * Natoms
         self.n_replica.options = set(
             reduce(
                 list.__add__,
@@ -451,81 +449,95 @@ class UksSectionWidget(ipw.Accordion):
     uks = tr.Bool()
     net_charge = tr.Int()
 
-    def __init__(self):
-        # UKS
-        self.uks_toggle = ipw.ToggleButton(
+    def __init__(self, charge_visibility="visible", multiplicity_visibility="visible"):
+        self.uks_toggle = ipw.Checkbox(
             value=False,
             description="UKS",
             tooltip="Activate UKS",
-            style={"description_width": "80px"},
+            style={"description_width": "initial"},
+            layout={"width": "60px"},
         )
-
         tr.link((self, "uks"), (self.uks_toggle, "value"))
 
-        self.spins = SpinsWidget()
-        self.multiplicity = ipw.IntText(
-            value=0,
-            description="MULTIPLICITY",
-            style={"description_width": "initial"},
-            layout={"width": "140px"},
+        # Spins
+        class OneSpinWidget(stack.HorizontalItemWidget):
+            def __init__(self):
+                self.selection = ipw.Text(
+                    description="Atoms indices:",
+                    style={"description_width": "initial"},
+                )
+                self.starting_magnetization = ipw.IntText(
+                    description="Magnetization value:",
+                    style={"description_width": "initial"},
+                )
+                super().__init__(children=[self.selection, self.starting_magnetization])
+
+        self.spins = stack.VerticalStackWidget(
+            item_class=OneSpinWidget, add_button_text="Add spin set"
         )
 
         self.charge = ipw.IntText(
             value=0,
-            description="net charge",
+            description="Net charge:",
             style={"description_width": "initial"},
-            layout={"width": "120px"},
+            layout={"width": "120px", "visibility": charge_visibility},
         )
+        tr.link((self, "net_charge"), (self.charge, "value"))
+
+        self.multiplicity = ipw.IntText(
+            value=1,
+            description="Multiplicity:",
+            style={"description_width": "initial"},
+            layout={"width": "140px", "visibility": multiplicity_visibility},
+        )
+
+        self.set_title(0, "Spin-polarized calculation")
+
+        self.uks_box = [
+            ipw.VBox(
+                [
+                    ipw.HBox(
+                        [
+                            self.uks_toggle,
+                            self.charge,
+                            self.multiplicity,
+                        ]
+                    ),
+                    self.spins,
+                ]
+            )
+        ]
+        self.no_uks_box = [ipw.HBox([self.uks_toggle, self.charge])]
 
         super().__init__(selected_index=None)
 
+        self.children = self.no_uks_box
+
     def return_dict(self):
+        to_return = {
+            "uks": self.uks,
+            "charge": self.net_charge,
+        }
+
         if self.uks:
             magnetization_per_site = np.zeros(self.details["numatoms"])
-            for spinset in self.spins.spinsets.children:
+            for spinset in self.spins.items:
                 magnetization_per_site[
                     awb.utils.string_range_to_list(spinset.selection.value)[0]
                 ] = spinset.starting_magnetization.value
-            return {
-                "dft_params": {
-                    "uks": True,
+            to_return.update(
+                {
                     "multiplicity": self.multiplicity.value,
                     "magnetization_per_site": magnetization_per_site.astype(
                         np.int32
                     ).tolist(),
-                    "charge": self.charge.value,
                 }
-            }
-        else:
-            return {"dft_params": {"charge": self.charge.value}}
-
-    @tr.observe("details")
-    def _observe_details(self, _=None):
-        self._widgets_to_show()
+            )
+        return {"dft_params": to_return}
 
     @tr.observe("uks")
-    def _observe_uks(self, _=None):
-        self._widgets_to_show()
-
-    def _widgets_to_show(self):
-        self.set_title(0, "RKS/UKS")
-        if self.uks:
-            self.children = [
-                ipw.VBox(
-                    [
-                        ipw.HBox(
-                            [
-                                self.uks_toggle,
-                                self.multiplicity,
-                            ]
-                        ),
-                        self.spins,
-                        self.charge,
-                    ]
-                )
-            ]
-        else:
-            self.children = [ipw.VBox([self.uks_toggle, self.charge])]
+    def _observe_uks(self, value=None):
+        self.children = self.uks_box if value["new"] else self.no_uks_box
 
     def traits_to_link(self):
         return ["details", "uks", "net_charge"]
@@ -613,7 +625,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
         CellSectionWidget,
     ],
     "SlabXY": [
@@ -621,21 +633,21 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
     ],
     "Molecule": [
         StructureInfoWidget,
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
     ],
     "Replica": [
         DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
         ReplicaWidget,
     ],
     "Neb": [
@@ -643,7 +655,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
         NebWidget,
     ],
     "Phonons": [
@@ -651,7 +663,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
-        ConstraintsWidget,
+        constraints.ConstraintsWidget,
         PhononsWidget,
     ],
 }
