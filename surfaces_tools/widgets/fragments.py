@@ -153,7 +153,8 @@ class FragmentList(ipw.VBox):
         """Update the list of fragments."""
         if change["new"]:
             self.fragment_output.children = change["new"]
-            ipw.dlink((self, "uks"), (self.fragments[-1], "uks"))
+            for fragment in self.fragments:
+                ipw.dlink((self, "uks"), (fragment, "uks"))
             self.fragments[-1].master_class = self
         else:
             self.fragment_output.children = []
