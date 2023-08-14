@@ -609,7 +609,6 @@ SECTIONS_TO_DISPLAY = {
     "None": [],
     "Wire": [],
     "Bulk": [
-        DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
@@ -617,7 +616,6 @@ SECTIONS_TO_DISPLAY = {
         CellSectionWidget,
     ],
     "SlabXY": [
-        DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
@@ -625,13 +623,11 @@ SECTIONS_TO_DISPLAY = {
     ],
     "Molecule": [
         StructureInfoWidget,
-        DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
         constraints.ConstraintsWidget,
     ],
     "Replica": [
-        DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
@@ -639,7 +635,6 @@ SECTIONS_TO_DISPLAY = {
         ReplicaWidget,
     ],
     "Neb": [
-        DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
@@ -647,7 +642,6 @@ SECTIONS_TO_DISPLAY = {
         NebWidget,
     ],
     "Phonons": [
-        DescriptionWidget,
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
