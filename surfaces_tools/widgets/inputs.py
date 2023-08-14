@@ -25,7 +25,6 @@ class InputDetails(ipw.VBox):
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
     details = tr.Dict()
     protocol = tr.Unicode()
-    final_dictionary = tr.Dict()
     to_fix = tr.List()
     do_cell_opt = tr.Bool()
     uks = tr.Bool()
@@ -87,7 +86,6 @@ class InputDetails(ipw.VBox):
         self.uks = False
         with self.output:
             clear_output()
-
             if self.details:
                 sys_type = self.details["system_type"]
                 if self.neb:
@@ -96,7 +94,6 @@ class InputDetails(ipw.VBox):
                     sys_type = "Replica"
                 if self.phonons:
                     sys_type = "Phonons"
-
             else:
                 sys_type = "None"
 
@@ -112,39 +109,30 @@ class InputDetails(ipw.VBox):
             display(ipw.VBox(add_children + self.displayed_sections))
 
     def return_final_dictionary(self):
-        tmp_dict = {}
+        final_dictionary = {
+            "elements": self.details["all_elements"],
+            "system_type": self.details["system_type"],
+        }
 
-        # PUT LIST OF ELEMENTS IN DICTIONARY
-        tmp_dict["elements"] = self.details["all_elements"]
-
-        # RETRIEVE ALL WIDGET VALUES
+        # Retrieve all widgets values.
         for section in self.displayed_sections:
             to_add = section.return_dict()
             if to_add:
                 for key in to_add.keys():
-                    if key in tmp_dict.keys():
-                        tmp_dict[key].update(to_add[key])
+                    if key in final_dictionary.keys():
+                        final_dictionary[key].update(to_add[key])
                     else:
-                        tmp_dict[key] = to_add[key]
+                        final_dictionary[key] = to_add[key]
 
-        # System type
-
-        tmp_dict["system_type"] = self.details["system_type"]
-
-        # Molecule
+        # If its a molecule, make non-periodic.
         if self.details["system_type"] == "Molecule":
-            tmp_dict["dft_params"]["periodic"] = "NONE"
+            final_dictionary["dft_params"]["periodic"] = "NONE"
 
-        # CHECK input validity
-        can_submit, error_msg = validate_input(self.details, tmp_dict)
-
-        # CREATE PLAIN INPUT
-        if can_submit:
-            self.final_dictionary = tmp_dict
+        # Check input validity.
+        can_submit, error_msg = validate_input(self.details, final_dictionary)
 
         # print(self.final_dictionary)
-        # RETURN DICT of widgets details
-        return can_submit, error_msg, self.final_dictionary
+        return can_submit, error_msg, final_dictionary
 
 
 class DescriptionWidget(ipw.Text):
