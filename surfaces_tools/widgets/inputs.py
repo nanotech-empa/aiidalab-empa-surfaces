@@ -196,23 +196,23 @@ class ReplicaWidget(ipw.VBox):
         self.restart_from = ipw.Text(
             description="Restart from PK:",
             value="",
-            style={"description_width": "initial"},
+            style={"description_width": "120px"},
             layout={"width": "340px"},
         )
         self.CVs_targets = ipw.Text(
             description="CVs targets",
             value="",
-            style={"description_width": "initial"},
-            layout={"width": "540px"},
+            style={"description_width": "120px"},
+            layout={"width": "70%"},
         )
         self.CVs_increments = ipw.Text(
             description="CVs increments",
             value="",
-            style={"description_width": "initial"},
-            layout={"width": "540px"},
+            style={"description_width": "120px"},
+            layout={"width": "70%"},
         )
         super().__init__(
-            children=[self.restart_from, self.CVs_targets, self.CVs_increments],
+            children=[self.CVs_targets, self.CVs_increments, self.restart_from],
         )
 
     def return_dict(self):
@@ -236,34 +236,34 @@ class NebWidget(ipw.VBox):
 
     def __init__(self):
         self.restart_from = ipw.Text(
-            description="Restart from PK:",
+            description="Restart from PKs:",
             value="",
-            style={"description_width": "initial"},
-            layout={"width": "540px"},
+            style={"description_width": "150px"},
+            layout={"width": "90%"},
         )
         self.replica_pks = ipw.Text(
             description="Replica PKs:",
             value="",
-            style={"description_width": "initial"},
-            layout={"width": "540px"},
+            style={"description_width": "150px"},
+            layout={"width": "90%"},
         )
-        self.align_frames = ipw.ToggleButton(
+        self.align_frames = ipw.Checkbox(
             description="Align Frames",
             value=False,
             style={"description_width": "initial"},
-            layout={"width": "140px"},
+            layout={"width": "25%"},
         )
-        self.rotate_frames = ipw.ToggleButton(
+        self.rotate_frames = ipw.Checkbox(
             description="Rotate Frames",
             value=False,
             style={"description_width": "initial"},
-            layout={"width": "140px"},
+            layout={"width": "25%"},
         )
-        self.optimize_endpoints = ipw.ToggleButton(
+        self.optimize_endpoints = ipw.Checkbox(
             description="Optimize Endpoints",
             value=False,
             style={"description_width": "initial"},
-            layout={"width": "140px"},
+            layout={"width": "25%"},
         )
         self.band_type = ipw.Dropdown(
             options=["CI-NEB"],
@@ -282,25 +282,26 @@ class NebWidget(ipw.VBox):
             description="# processors / rep",
             value="324",
             style={"description_width": "initial"},
-            layout={"width": "240px"},
+            layout={"width": "150px"},
         )
         self.n_replica = ipw.IntText(
             description="# of replica",
             value="15",
             style={"description_width": "initial"},
-            layout={"width": "240px"},
+            layout={"width": "150px"},
         )
         self.n_replica_per_group = ipw.Dropdown(
             description="# rep / group",
             options=[1, 3, 5],
             value=1,
             style={"description_width": "initial"},
+            layout={"width": "150px"},
         )
         self.nsteps_it = ipw.Text(
             description="Steps before CI",
             value="5",
             style={"description_width": "initial"},
-            layout={"width": "240px"},
+            layout={"width": "150px"},
         )
 
         self.n_replica.observe(self.on_n_replica_change, "value")
@@ -313,12 +314,26 @@ class NebWidget(ipw.VBox):
                 ipw.HBox(
                     [self.optimize_endpoints, self.align_frames, self.rotate_frames]
                 ),
-                self.band_type,
-                self.k_spring,
-                self.nproc_rep,
-                self.n_replica,
-                self.n_replica_per_group,
-                self.nsteps_it,
+                ipw.HBox(
+                    [
+                        ipw.VBox(
+                            [
+                                self.band_type,
+                                self.k_spring,
+                            ],
+                            layout={"width": "50%"},
+                        ),
+                        ipw.VBox(
+                            [
+                                self.nproc_rep,
+                                self.n_replica,
+                                self.n_replica_per_group,
+                                self.nsteps_it,
+                            ],
+                            layout={"width": "50%"},
+                        ),
+                    ]
+                ),
             ],
         )
 
