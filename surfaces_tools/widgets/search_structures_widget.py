@@ -65,12 +65,14 @@ def header(pk="", label="", tclass="tg-dark", last_modified=""):
             return f"""<tr><td class="{tclass}" colspan=3>  <a target="_blank" href="{the_viewer}?pk={pk}">Structure created by {label} PK-{pk}</a> and last modified {last_modified}</td></tr>"""
 
 
-def uuids_to_nodesdict(uuids):
+def uuids_to_nodesdict(uuids=[], keywords=[]):
     workflows = {}
     nworkflows = 0
+    descriptions = ""
     for uuid in uuids:
         try:
             node = orm.load_node(uuid)
+            descriptions += node.description.lower() + " "
             nodeisobsolete = "obsolete" in node.extras and node.extras["obsolete"]
             if node.label in VIEWERS and not nodeisobsolete:
                 nworkflows += 1
@@ -81,6 +83,8 @@ def uuids_to_nodesdict(uuids):
         except common.NotExistent:
             pass
 
+    if any([keyword not in descriptions for keyword in keywords]):
+        return 0, {}
     return nworkflows, workflows
 
 
@@ -102,9 +106,22 @@ class SearchStructuresWidget(ipw.VBox):
             style={"description_width": "60px"},
             layout={"width": "225px"},
         )
-
+        self.date_type = ipw.Dropdown(
+            options=["mtime", "ctime"],
+            value="mtime",
+            style={"description_width": "60px"},
+            layout={"width": "225px"},
+        )
         self.date_text = ipw.HTML(value="<p>Select the date range:</p>", width="150px")
-        search_crit = ipw.HBox([self.date_text, self.date_start, self.date_end])
+        self.keywords = ipw.Text(description="Keywords: ", layout={"width": "225px"})
+        search_crit = ipw.HBox(
+            [
+                ipw.HBox(
+                    [self.date_text, self.date_start, self.date_end, self.date_type]
+                ),
+                self.keywords,
+            ]
+        )
         button = ipw.Button(description="Search")
 
         self.results = ipw.HTML()
@@ -139,10 +156,10 @@ class SearchStructuresWidget(ipw.VBox):
             orm.StructureData,
             filters={
                 "extras": {"has_key": "surfaces"},
-                "mtime": {"and": [{"<=": end_date}, {">": start_date}]},
+                self.date_type.value: {"and": [{"<=": end_date}, {">": start_date}]},
             },
         )
-        qb.order_by({orm.StructureData: {"mtime": "desc"}})
+        qb.order_by({orm.StructureData: {self.date_type.value: "desc"}})
 
         # For each structure in QB create a dictionary with info on the workflows computed on it.
         data = []
@@ -151,7 +168,10 @@ class SearchStructuresWidget(ipw.VBox):
             extras = node.extras["surfaces"]
             nworkflows = 0
             if isinstance(extras, list):
-                nworkflows, workflows = uuids_to_nodesdict(node.extras["surfaces"])
+                nworkflows, workflows = uuids_to_nodesdict(
+                    uuids=node.extras["surfaces"],
+                    keywords=self.keywords.value.lower().split(),
+                )
             if nworkflows > 0:
                 nrows = nworkflows
                 if "thumbnail" not in node.extras:
@@ -165,6 +185,7 @@ class SearchStructuresWidget(ipw.VBox):
                     "uuid": node.uuid,
                     "nrows": nrows,
                     "mtime": node.mtime.strftime("%d/%m/%y"),
+                    "ctime": node.ctime.strftime("%d/%m/%y"),
                     "workflows": workflows,
                     "thumbnail": node.extras["thumbnail"],
                 }
