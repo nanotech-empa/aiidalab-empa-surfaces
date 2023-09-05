@@ -9,7 +9,7 @@ class HorizontalItemWidget(ipw.HBox):
     def __init__(self, *args, **kwargs):
         # Delete button.
         self.delete_button = ipw.Button(
-            description="Delete", button_style="danger", layout={"width": "60px"}
+            description="x", button_style="danger", layout={"width": "30px"}
         )
         self.delete_button.on_click(self.delete_myself)
 
@@ -66,3 +66,6 @@ class VerticalStackWidget(ipw.VBox):
             return
         self.items = self.items[:index] + self.items[index + 1 :]
         del item
+
+    def length(self):
+        return len(self.items)

@@ -30,7 +30,7 @@ def read_and_process_pdos_file(pdos_path):
     return out_data, kind
 
 
-def process_pdos_files(scf_calc, newversion):
+def process_pdos_files(scf_calc, newversion=True):
     if newversion:
         retr_files = scf_calc.outputs.slab_retrieved.list_object_names()
         retr_folder = scf_calc.outputs.slab_retrieved
