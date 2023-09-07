@@ -260,13 +260,13 @@ class SearchStructuresWidget(ipw.VBox):
                 html += f"<td class={tclass[odd]} rowspan={nrowsw}>"
                 html += "<ul>"
                 for node in entry["workflows"][workflow]:
-                    label = "TBD"
-                    if node.label != "":
-                        label = node.label
+                    label = node.label
+                    if node.label not in VIEWERS:
+                        label = "TBD"
                     html += link_to_viewer(
                         description=f"PK-{node.pk} {node.description}",
                         pk=node.pk,
-                        label=node.label,
+                        label=label,
                     )
                 html += "</ul></td>"
                 if nrows_done == 0:
