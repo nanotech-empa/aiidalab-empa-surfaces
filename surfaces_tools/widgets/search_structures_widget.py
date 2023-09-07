@@ -261,7 +261,7 @@ class SearchStructuresWidget(ipw.VBox):
                 html += "<ul>"
                 for node in entry["workflows"][workflow]:
                     label = node.label
-                    if node.label not in VIEWERS:
+                    if label not in VIEWERS:
                         label = "TBD"
                     html += link_to_viewer(
                         description=f"PK-{node.pk} {node.description}",
