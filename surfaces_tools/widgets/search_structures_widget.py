@@ -105,20 +105,22 @@ class SearchStructuresWidget(ipw.VBox):
             style={"description_width": "60px"},
             layout={"width": "225px"},
         )
-        self.date_type = ipw.Dropdown(
-            options=["mtime", "ctime"],
+        self.date_type = ipw.RadioButtons(
+            options=[("Modification t", "mtime"), ("Creation t", "ctime")],
             value="mtime",
             style={"description_width": "60px"},
             layout={"width": "225px"},
         )
         self.date_text = ipw.HTML(value="<p>Select the date range:</p>", width="150px")
+        # keywords selection
         self.keywords = ipw.Text(description="Keywords: ", layout={"width": "225px"})
-        search_crit = ipw.HBox(
+        self.and_or = ipw.RadioButtons(options=["and", "or"], value="and")
+        search_crit = ipw.VBox(
             [
                 ipw.HBox(
                     [self.date_text, self.date_start, self.date_end, self.date_type]
                 ),
-                self.keywords,
+                ipw.HBox([self.keywords, self.and_or]),
             ]
         )
         button = ipw.Button(description="Search")
@@ -163,7 +165,7 @@ class SearchStructuresWidget(ipw.VBox):
                     ],
                     # self.date_type.value: {"and": [{"<=": end_date}, {">": start_date}]},
                     "description": {
-                        "and": [
+                        self.and_or.value: [
                             {"ilike": f"%{keyword}%"} for keyword in search_keywords
                         ]
                     },
