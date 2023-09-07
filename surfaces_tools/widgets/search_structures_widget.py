@@ -260,6 +260,9 @@ class SearchStructuresWidget(ipw.VBox):
                 html += f"<td class={tclass[odd]} rowspan={nrowsw}>"
                 html += "<ul>"
                 for node in entry["workflows"][workflow]:
+                    label = "TBD"
+                    if node.label != "":
+                        label = node.label
                     html += link_to_viewer(
                         description=f"PK-{node.pk} {node.description}",
                         pk=node.pk,
