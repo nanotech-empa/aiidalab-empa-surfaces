@@ -200,7 +200,8 @@ class SearchStructuresWidget(ipw.VBox):
                 nrows = nworkflows
                 if "thumbnail" not in structure.extras:
                     structure.base.extras.set(
-                        "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
+                        "thumbnail",
+                        common_utils.thumbnail(ase_struc=structure.get_ase()),
                     )
 
                 entry = {
