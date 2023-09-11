@@ -73,8 +73,8 @@ def default_vis_func(structure):
         },
         "w": {
             "ids": "set_ids",
-            "aspectRatio": 3.5,
-            "highlight_aspectRatio": 3.6,
+            "aspectRatio": 5.5,
+            "highlight_aspectRatio": 5.6,
             "highlight_color": "red",
             "highlight_opacity": 0.6,
             "name": "wire",
