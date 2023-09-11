@@ -175,7 +175,7 @@ class StructureInfoWidget(ipw.Accordion):
         return {}
 
 
-class VdwSelectorWidget(ipw.ToggleButton):
+class VdwSelectorWidget(ipw.Checkbox):
     def __init__(self):
         super().__init__(
             value=True,
@@ -186,6 +186,21 @@ class VdwSelectorWidget(ipw.ToggleButton):
 
     def return_dict(self):
         return {"dft_params": {"vdw": self.value}}
+
+    def traits_to_link(self):
+        return []
+
+
+class ForcePeriodicWidget(ipw.Checkbox):
+    def __init__(self):
+        super().__init__(
+            value=False,
+            description="Keep periodic",
+            # style={"description_width": "120px"},
+        )
+
+    def return_dict(self):
+        return {"dft_params": {"forceperiodic": self.value}}
 
     def traits_to_link(self):
         return []
@@ -622,7 +637,12 @@ class CellSectionWidget(ipw.Accordion):
 
 SECTIONS_TO_DISPLAY = {
     "None": [],
-    "Wire": [],
+    "Wire": [
+        VdwSelectorWidget,
+        UksSectionWidget,
+        StructureInfoWidget,
+        constraints.ConstraintsWidget,
+    ],
     "Bulk": [
         VdwSelectorWidget,
         UksSectionWidget,
@@ -641,6 +661,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         constraints.ConstraintsWidget,
+        ForcePeriodicWidget,
     ],
     "Replica": [
         VdwSelectorWidget,
