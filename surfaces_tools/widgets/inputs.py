@@ -125,7 +125,10 @@ class InputDetails(ipw.VBox):
                         final_dictionary[key] = to_add[key]
 
         # If its a molecule, make non-periodic.
-        if self.details["system_type"] == "Molecule":
+        if (
+            self.details["system_type"] == "Molecule"
+            and "forceperiodic" not in final_dictionary["dft_params"].keys()
+        ):
             final_dictionary["dft_params"]["periodic"] = "NONE"
 
         # Check input validity.
@@ -200,7 +203,10 @@ class ForcePeriodicWidget(ipw.Checkbox):
         )
 
     def return_dict(self):
-        return {"dft_params": {"forceperiodic": self.value}}
+        if self.value:
+            return {"dft_params": {"forceperiodic": self.value}}
+        else:
+            return {}
 
     def traits_to_link(self):
         return []
