@@ -55,7 +55,8 @@ class VerticalStackWidget(ipw.VBox):
         """Update the list of fragments."""
         if change["new"]:
             self.items_output.children = change["new"]
-            self.items[-1].stack_class = self
+            for item in change["new"]:
+                item.stack_class = self
         else:
             self.items_output.children = []
 
