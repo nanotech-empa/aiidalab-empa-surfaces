@@ -125,7 +125,10 @@ class InputDetails(ipw.VBox):
                         final_dictionary[key] = to_add[key]
 
         # If its a molecule, make non-periodic.
-        if self.details["system_type"] == "Molecule":
+        if (
+            self.details["system_type"] == "Molecule"
+            and "forceperiodic" not in final_dictionary["dft_params"].keys()
+        ):
             final_dictionary["dft_params"]["periodic"] = "NONE"
 
         # Check input validity.
@@ -175,7 +178,7 @@ class StructureInfoWidget(ipw.Accordion):
         return {}
 
 
-class VdwSelectorWidget(ipw.ToggleButton):
+class VdwSelectorWidget(ipw.Checkbox):
     def __init__(self):
         super().__init__(
             value=True,
@@ -186,6 +189,24 @@ class VdwSelectorWidget(ipw.ToggleButton):
 
     def return_dict(self):
         return {"dft_params": {"vdw": self.value}}
+
+    def traits_to_link(self):
+        return []
+
+
+class ForcePeriodicWidget(ipw.Checkbox):
+    def __init__(self):
+        super().__init__(
+            value=False,
+            description="Keep periodic",
+            # style={"description_width": "120px"},
+        )
+
+    def return_dict(self):
+        if self.value:
+            return {"dft_params": {"forceperiodic": self.value}}
+        else:
+            return {}
 
     def traits_to_link(self):
         return []
@@ -622,7 +643,12 @@ class CellSectionWidget(ipw.Accordion):
 
 SECTIONS_TO_DISPLAY = {
     "None": [],
-    "Wire": [],
+    "Wire": [
+        VdwSelectorWidget,
+        UksSectionWidget,
+        StructureInfoWidget,
+        constraints.ConstraintsWidget,
+    ],
     "Bulk": [
         VdwSelectorWidget,
         UksSectionWidget,
@@ -641,6 +667,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         constraints.ConstraintsWidget,
+        ForcePeriodicWidget,
     ],
     "Replica": [
         VdwSelectorWidget,

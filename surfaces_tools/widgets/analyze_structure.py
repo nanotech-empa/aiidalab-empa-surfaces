@@ -348,22 +348,22 @@ class StructureAnalyzer(tr.HasTraits):
             cases = ["w"]
             if not self.only_sys_type:
                 summary += "Wire along z contains: \n"
-                slabatoms = list(range(len(atoms)))
+                wireatoms = list(range(len(atoms)))
         if vacuum_y and vacuum_z and (not vacuum_x):
             is_a_wire = True
             sys_type = "Wire"
             cases = ["w"]
             if not self.only_sys_type:
                 summary += "Wire along x contains: \n"
-                slabatoms = list(range(len(atoms)))
+                wireatoms = list(range(len(atoms)))
         if vacuum_x and vacuum_z and (not vacuum_y):
             is_a_wire = True
             sys_type = "Wire"
             cases = ["w"]
             if not self.only_sys_type:
                 summary += "Wire along y contains: \n"
-                slabatoms = list(range(len(atoms)))
-                wireatoms = slabatoms
+                wireatoms = list(range(len(atoms)))
+                # wireatoms = slabatoms
         is_a_slab = not (is_a_bulk or is_a_molecule or is_a_wire)
         if self.only_sys_type:
             if is_a_slab:
