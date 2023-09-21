@@ -28,7 +28,6 @@ def get_start_widget(appbase, jupbase):
     <td valign="top"><ul>
         <li><a href="{appbase}/submit_spm.ipynb" target="_blank">Scanning probe microscopy</a>
         <li><a href="{appbase}/submit_pdos.ipynb" target="_blank">Projected density of states</a>
-        <li><a href="{appbase}/submit_pdos2.ipynb" target="_blank">Projected density of states2</a>
     </ul></td>
 
     <!--
