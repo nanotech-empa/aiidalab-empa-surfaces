@@ -5,50 +5,17 @@ import math
 import ipywidgets as ipw
 import matplotlib.pyplot as plt
 import numpy as np
-from aiida import orm
+import traitlets as tl
+from aiida import common, orm
 from IPython.display import clear_output, display
 
 from ..utils import pdos_postprocess, spm
 from . import stack
 
 
-def generate_custom_color_palette(n_colors):
-    # Define the color points in RGB format
-    colors = [
-        (0, 0, 255),  # Blue (#0000ff)
-        (0, 255, 255),  # Cyan (#00ffff)
-        (0, 255, 0),  # Green (#00ff00)
-        (255, 255, 0),  # Yellow (#ffff00)
-        (255, 0, 0),  # Red (#ff0000)
-    ]
-
-    # Initialize an empty array to store RGB colors
-    color_palette = np.zeros((n_colors, 3), dtype=np.uint8)
-
-    # Determine how many points are needed between each color transition
-    points_per_segment = n_colors // (len(colors) - 1)
-
-    for i in range(len(colors) - 1):
-        start_color = colors[i]
-        end_color = colors[i + 1]
-
-        for j in range(points_per_segment):
-            # Interpolate the color components (R, G, B)
-            r = int(
-                np.interp(j, [0, points_per_segment], [start_color[0], end_color[0]])
-            )
-            g = int(
-                np.interp(j, [0, points_per_segment], [start_color[1], end_color[1]])
-            )
-            b = int(
-                np.interp(j, [0, points_per_segment], [start_color[2], end_color[2]])
-            )
-
-            # Store the RGB color in the array
-            index = i * points_per_segment + j
-            color_palette[index] = (r, g, b)
-
-    return color_palette[::-1]
+def get_colors(colors, n_points):
+    colors = np.linspace(colors[0], colors[1], n_points).astype(int)
+    return [f"#{r:02x}{g:02x}{b:02x}" for r, g, b in colors]
 
 
 def make_image_link(figure, text="PNG", data_format="png"):
@@ -69,12 +36,9 @@ def make_image_link(figure, text="PNG", data_format="png"):
 
 def make_txt_link(collected_data):
     headers, data = collected_data
-
     header = ", ".join(headers)
-
     tempio = io.BytesIO()
     np.savetxt(tempio, data, header=header, fmt="%.4e", delimiter=", ")
-
     enc_file = base64.b64encode(tempio.getvalue()).decode()
 
     filename = "pdos.txt"
@@ -82,24 +46,33 @@ def make_txt_link(collected_data):
     html = f'<a download="{filename}" href="'
     html += f'data:chemical/txt;name={filename};base64,{enc_file}"'
     html += ' id="export_link"'
-    html += ' target="_blank">Export txt</a>'
+    html += ' target="_blank">TXT</a>'
 
     return html
 
 
-class PdosSelectionWidget(stack.HorizontalItemWidget):
-    def __init__(self, data, selected_index=0, spin=0, color="black", factor=1.0):
-        n_spins = len(list(data.values())[0])
-        self._data = data
-        labels = list(data.keys())
-        self._series_selection = ipw.Dropdown(
-            options=labels,
-            label=labels[selected_index],
+class _BaseSelectionWidget(stack.HorizontalItemWidget):
+    data = tl.Dict(allow_none=True)
+    options = tl.Union([tl.Dict(), tl.List()], allow_none=True)
+
+    def __init__(self, spin=0, color="black", factor=1.0, **kwargs):
+        self._spin_selector = ipw.ToggleButtons(
+            options=[("up", 0), ("down", 1)],
+            value=spin,
+            description="Spin:",
+            disabled=False,
+            style={"description_width": "auto", "button_width": "60px"},
+            layout=ipw.Layout(width="180px"),
+        )
+
+        self._data_selection = ipw.Dropdown(
+            options=[],
             description="Series:",
             disabled=False,
             style={"description_width": "auto"},
-            layout=ipw.Layout(width="200px"),
+            layout=ipw.Layout(width="250px"),
         )
+
         self._color_picker = ipw.ColorPicker(
             concise=False,
             description="Color:",
@@ -108,6 +81,7 @@ class PdosSelectionWidget(stack.HorizontalItemWidget):
             style={"description_width": "auto"},
             layout=ipw.Layout(width="200px"),
         )
+
         self._norm_factor = ipw.FloatText(
             value=factor,
             step=0.01,
@@ -117,44 +91,193 @@ class PdosSelectionWidget(stack.HorizontalItemWidget):
             layout=ipw.Layout(width="150px"),
         )
 
-        self._spin_selector = ipw.ToggleButtons(
-            options=[("up", 0), ("down", 1)],
-            value=spin,
-            description="Spin:",
-            disabled=n_spins == 1,
-            style={"description_width": "auto", "button_width": "60px"},
-            layout=ipw.Layout(width="180px"),
-        )
-
         super().__init__(
             children=[
-                self._series_selection,
-                self._color_picker,
                 self._spin_selector,
+                self._data_selection,
+                self._color_picker,
                 self._norm_factor,
             ]
         )
 
-    def return_all_values(self):
-        return (
-            self._series_selection.value,
-            self._color_picker.value,
-            self._norm_factor.value,
-            self._spin_selector.value,
-            self._data[self._series_selection.value][self._spin_selector.value],
-        )
 
+class _BaseStackWidget(stack.VerticalStackWidget):
+    data = tl.Dict(allow_none=True)
+    options = tl.Union([tl.Dict(), tl.List()], allow_none=True)
 
-class PdosStackWidget(stack.VerticalStackWidget):
     def add_item(self, _):
         self.items += (
-            PdosSelectionWidget(
-                data=self.series,
-                selected_index=0,
+            self.item_class(
                 color="black",
                 factor=1.0,
             ),
         )
+        tl.dlink((self, "options"), (self.items[-1], "options"))
+        tl.dlink((self, "data"), (self.items[-1], "data"))
+
+
+class PdosSelectionWidget(_BaseSelectionWidget):
+    def __init__(self, spin=0, color="black", factor=1.0, **kwargs):
+        super().__init__(spin, color, factor, **kwargs)
+        tl.dlink((self, "options"), (self._data_selection, "options"))
+
+    def return_all_values(self):
+        return (
+            self._data_selection.label,
+            self._color_picker.value,
+            self._norm_factor.value,
+            self._spin_selector.value,
+            self.data[self._data_selection.value][self._spin_selector.value],
+        )
+
+    @tl.observe("data")
+    def _on_data_change(self, change):
+        if change["new"]:
+            # If there is only one spin, disable the spin selector.
+            if len(self.data["tdos"]) == 1:
+                self._spin_selector.disabled = True
+                self._spin_selector.value = 0
+
+
+class PdosStackWidget(_BaseStackWidget):
+    workchain = tl.Instance(orm.WorkChainNode, allow_none=True)
+
+    @tl.observe("workchain")
+    def _on_workchain_change(self, change):
+        workchain = change["new"]
+        data = pdos_postprocess.process_pdos_files(workchain)
+
+        self.options = {
+            "Total DOS": "tdos",
+            "Molecule PDOS": "mol",
+            **{
+                f"kind {name.split('_')[-1]}": name
+                for name in data
+                if name.startswith("kind_")
+            },
+        }
+
+        labels_are_present = (
+            "molecule" in workchain.inputs.pdos_lists[0]
+            and len(workchain.inputs.pdos_lists) > 1
+        )
+
+        if labels_are_present:
+            labels = [sel[1] for sel in workchain.inputs.pdos_lists[1:]]
+            self.options.update(
+                {
+                    labels[int(name[4:]) - 2]: name
+                    for name in data
+                    if name.startswith("sel")
+                }
+            )
+        else:
+            self.options.update(
+                {
+                    f"selection {name.split('_')[-1]}": name
+                    for name in data
+                    if name.startswith("sel")
+                }
+            )
+
+        # Trigger the data change.
+        self.data = data
+
+    @tl.observe("data")
+    def _on_data_change(self, change):
+        n_spin = len(self.data["tdos"])
+        if self.data:
+            self.items = ()
+            for spin in range(n_spin):
+                total_pdos = PdosSelectionWidget(color="lightgray", factor=0.02)
+                tl.dlink((self, "data"), (total_pdos, "data"))
+                tl.dlink((self, "options"), (total_pdos, "options"))
+                total_pdos._data_selection.label = "Total DOS"
+                total_pdos._spin_selector.value = spin
+
+                molecule_pdos = PdosSelectionWidget(
+                    color="black",
+                )
+                tl.dlink((self, "data"), (molecule_pdos, "data"))
+                tl.dlink((self, "options"), (molecule_pdos, "options"))
+                molecule_pdos._data_selection.label = "Molecule PDOS"
+
+                self.items += (total_pdos, molecule_pdos)
+
+
+class OverlapSelectionWidget(_BaseSelectionWidget):
+    def __init__(self, spin=0, color="black", factor=1.0, **kwargs):
+        super().__init__(spin, color, factor, **kwargs)
+        self._spin_selector.observe(self._on_spin_change, names="value")
+
+    @tl.observe("options")
+    def _on_spin_change(self, _=None):
+        self._data_selection.options = self.options[self._spin_selector.value]
+
+    def return_all_values(self):
+        return (
+            self._data_selection.label,
+            self._color_picker.value,
+            self._norm_factor.value,
+            self._spin_selector.value,
+            self.data["overlap_matrix"][self._spin_selector.value][
+                :, self._data_selection.value
+            ],
+        )
+
+    @tl.observe("data")
+    def _on_data_change(self, change):
+        if change["new"]:
+            # If there is only one spin, disable the spin selector.
+            if self.data["nspin_g2"] == 1:
+                self._spin_selector.disabled = True
+                self._spin_selector.value = 0
+
+
+class OverlapStackWidget(_BaseStackWidget):
+    @tl.observe("data")
+    def _on_data_change(self, change):
+        n_spin = self.data["nspin_g2"]
+        options = []
+        for spin in range(n_spin):
+            n_orbitals = len(self.data["orb_indexes_g2"][spin])
+            options.append(
+                {
+                    pdos_postprocess.get_full_orbital_label(spin, i, self.data): i
+                    for i in range(n_orbitals)
+                }
+            )
+
+        self.options = options
+
+        color_palette_homo = (
+            (255, 0, 0),  # Red (#ff0000)
+            (255, 255, 0),  # Yellow (#ffff00)
+        )
+        color_palette_lumo = (
+            (200, 255, 255),  # No idea (#00ffff)
+            (30, 100, 200),  # something blueish (#0000ff)
+        )
+
+        items = ()
+        for spin in range(n_spin):
+            n_homo = sum("HOMO" in s for s in self.options[spin])
+            colors_homo = get_colors(color_palette_homo, n_homo)
+            n_lumo = sum("LUMO" in s for s in self.options[spin])
+            colors_lumo = get_colors(color_palette_lumo, n_lumo)
+            for i, key in enumerate(self.options[spin].keys()):
+                overlap_item = OverlapSelectionWidget(
+                    color=colors_homo[i] if "HOMO" in key else colors_lumo[i - n_homo],
+                    spin=spin,
+                    factor=1.0,
+                )
+
+                tl.dlink((self, "data"), (overlap_item, "data"))
+                tl.dlink((self, "options"), (overlap_item, "options"))
+                overlap_item._data_selection.label = key
+                items += (overlap_item,)
+
+        self.items = items
 
 
 class PdosOverlapViewerWidget(ipw.VBox):
@@ -167,7 +290,6 @@ class PdosOverlapViewerWidget(ipw.VBox):
             max=0.2,
             step=0.01,
             description="Broadening fwhm (eV):",
-            disabled=False,
             continuous_update=False,
             orientation="horizontal",
             readout=True,
@@ -181,7 +303,6 @@ class PdosOverlapViewerWidget(ipw.VBox):
             max=0.0,
             step=0.1,
             description="Energy range (eV):",
-            disabled=False,
             continuous_update=False,
             orientation="horizontal",
             readout=True,
@@ -195,11 +316,14 @@ class PdosOverlapViewerWidget(ipw.VBox):
             item_class=PdosSelectionWidget, add_button_text="Add PDOS"
         )
 
-        self._overlap = PdosStackWidget(
-            item_class=PdosSelectionWidget, add_button_text="Add Overlap"
+        self._overlap = OverlapStackWidget(
+            item_class=OverlapSelectionWidget, add_button_text="Add Overlap"
         )
         plot_button = ipw.Button(description="Plot")
         plot_button.on_click(self.make_plot)
+
+        self.cumulative_plot = ipw.Checkbox(description="Cumulative plot", value=True)
+
         clear_button = ipw.Button(description="Clear")
         clear_button.on_click(self.clear_plot)
 
@@ -211,99 +335,31 @@ class PdosOverlapViewerWidget(ipw.VBox):
                 self._plot_output,
                 self._projections,
                 self._overlap,
-                ipw.HBox([plot_button, clear_button]),
+                ipw.HBox([plot_button, self.cumulative_plot, clear_button]),
             ]
         )
 
     def load_data(self, reference=None):
         workchain = orm.load_node(pk=reference)
+
+        try:
+            self._geometry_info.value = spm.get_slab_calc_info(
+                workchain.inputs.structure
+            )
+        except common.NotExistentAttributeError:
+            self._geometry_info.value = spm.get_slab_calc_info(
+                workchain.inputs.slabsys_structure
+            )
+
+        # Dealing with the projections data.
+        self._projections.workchain = workchain
+
+        # Dealing with the overlap data.
         overlap_calculation = spm.get_calc_by_label(workchain, "overlap")
-        labels_are_present = (
-            "molecule" in workchain.inputs.pdos_lists[0]
-            and len(workchain.inputs.pdos_lists) > 1
-        )
-
-        self._geometry_info.value = spm.get_slab_calc_info(workchain.inputs.structure)
-        dos_data = pdos_postprocess.process_pdos_files(workchain)
-        dos_options = {
-            "Total DOS": dos_data[
-                "tdos"
-            ],  # Contains both spin channels [spin1, spin2] if spin-polarized, otherwise [spin1]
-            "molecule PDOS": dos_data["mol"],
-            **{
-                f"kind {k.split('_')[-1]}": dos_data[k]
-                for k in dos_data
-                if k.startswith("kind_")
-            },
-        }
-
-        if not labels_are_present:
-            dos_options.update(
-                {
-                    f"selection {k.split('_')[-1]}": dos_data[k]
-                    for k in dos_data
-                    if k.startswith("sel")
-                }
-            )
-        else:
-            labels = [sel[1] for sel in workchain.inputs.pdos_lists[1:]]
-            dos_options.update(
-                {
-                    labels[int(k[4:]) - 2]: dos_data[k]
-                    for k in dos_data
-                    if k.startswith("sel")
-                }
-            )
-
-        self._projections.series = dos_options
-
-        self._projections.items = [
-            PdosSelectionWidget(
-                data=dos_options,
-                selected_index=0,
-                color="lightgray",
-                factor=0.02,
-            ),
-            PdosSelectionWidget(
-                data=dos_options,
-                selected_index=1,
-                color="black",
-            ),
-        ]
-
         with overlap_calculation.outputs.retrieved.open(
             "overlap.npz", mode="rb"
         ) as fhandle:
-            self._overlap_data = pdos_postprocess.load_overlap_npz(fhandle.name)
-
-        orbital_labels = pdos_postprocess.get_full_orbital_labels(self._overlap_data)
-
-        overlaps = []
-
-        # Transform (spin, point, orbital) to (orbital, spin, point) and create a dictionary.
-        data_array = np.transpose(
-            np.array(self._overlap_data["overlap_matrix"]), (2, 0, 1)
-        )
-        n_orbitals = data_array.shape[0]
-        data_dict = {
-            label: data_array[i_orb] for i_orb, label in enumerate(orbital_labels[0])
-        }
-        self._overlap.series = data_dict
-
-        # Generate a color palette and assign it to the initial set of orbitals.
-        color_palette = generate_custom_color_palette(n_orbitals)
-
-        for orbital in range(n_orbitals):
-            r, g, b = color_palette[orbital]
-            overlaps.append(
-                PdosSelectionWidget(
-                    data=data_dict,
-                    selected_index=orbital,
-                    color=f"#{r:02x}{g:02x}{b:02x}",
-                )
-            )
-
-        self._overlap.items = overlaps
+            self._overlap.data = pdos_postprocess.load_overlap_npz(fhandle.name)
 
         # Initialize selections.
         energy_lim = [
@@ -317,7 +373,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
     def make_plot(self, _=None):
         with self._plot_output:
             fig, collected_data = self._create_the_plot()
-            links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_txt_link(collected_data)}"""
+            links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_txt_link(collected_data)}."""
             display(ipw.HTML(links))
 
     def clear_plot(self, _=None):
@@ -347,12 +403,12 @@ class PdosOverlapViewerWidget(ipw.VBox):
         self._plot_overlaps(ax1, ylim, energy_arr, collect_data, collect_data_headers)
 
         plt.legend(
-            ncol=self._overlap_data["nspin_g2"],
+            ncol=self._overlap.data["nspin_g2"],
             loc="center left",
             bbox_to_anchor=(1.01, 0.5),
         )
         plt.xlim([np.min(energy_arr), np.max(energy_arr)])
-        if self._overlap_data["nspin_g2"] == 1:
+        if self._overlap.data["nspin_g2"] == 1:
             ylim[0] = 0.0
         plt.ylim(ylim)
         plt.axhline(0.0, color="k", lw=2.0, zorder=200)
@@ -407,6 +463,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
             collect_data = np.vstack([collect_data, series])
 
     def _plot_overlaps(self, ax1, ylim, energy_arr, collect_data, collect_data_headers):
+        cumulative_plot = [None, None]
         for i_serie, line_serie in enumerate(self._overlap.items):
             (
                 label,
@@ -420,7 +477,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
                 label = rf"${norm_factor:.1f}\cdot$ {label}"
 
             series = pdos_postprocess.create_series_w_broadening(
-                self._overlap_data["energies_g1"][spin],
+                self._overlap.data["energies_g1"][spin],
                 data,
                 energy_arr,
                 self._fwhm_slider.value,
@@ -428,10 +485,15 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
             series *= norm_factor
 
+            if self.cumulative_plot.value and cumulative_plot[spin] is not None:
+                cumulative_plot[spin] += series
+            else:
+                cumulative_plot[spin] = series
+
             ax1.fill_between(
                 energy_arr,
                 0.0,
-                series * (-2 * spin + 1),
+                cumulative_plot[spin] * (-2 * spin + 1),
                 facecolor=picked_color,
                 alpha=1.0,
                 zorder=-i_serie + 100,
@@ -440,8 +502,3 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
             collect_data_headers.append(f"{label} s{spin}")
             collect_data = np.vstack([collect_data, series])
-
-            if spin == 0 and self._overlap_data["nspin_g2"] == 2:
-                # Add empty legend entries to align the spin channels.
-                for _i in range(self._overlap.length()):
-                    ax1.fill_between([0.0], 0.0, [0.0], color="w", alpha=0, label=" ")
