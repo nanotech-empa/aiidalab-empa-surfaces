@@ -330,13 +330,13 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
         super().__init__(
             [
-                self._fwhm_slider,
-                self._energy_range_slider,
                 self._geometry_info,
                 self._plot_output,
+                self._fwhm_slider,
+                self._energy_range_slider,
+                ipw.HBox([plot_button, self.cumulative_plot, clear_button]),
                 self._projections,
                 self._overlap,
-                ipw.HBox([plot_button, self.cumulative_plot, clear_button]),
             ]
         )
 
