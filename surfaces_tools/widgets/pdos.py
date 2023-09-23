@@ -201,6 +201,7 @@ class PdosStackWidget(_BaseStackWidget):
                 tl.dlink((self, "data"), (molecule_pdos, "data"))
                 tl.dlink((self, "options"), (molecule_pdos, "options"))
                 molecule_pdos._data_selection.label = "Molecule PDOS"
+                molecule_pdos._spin_selector.value = spin
 
                 self.items += (total_pdos, molecule_pdos)
 
