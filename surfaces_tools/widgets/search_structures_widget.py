@@ -42,7 +42,7 @@ def thunmnail_raw(
 ):
     """Returns an image with a link to structure export."""
     html = f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?uuid={uuid}">'
-    html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
+    html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="input structure PK:{pk} {description}">'
     html += "</a></td>"
     return html
 
