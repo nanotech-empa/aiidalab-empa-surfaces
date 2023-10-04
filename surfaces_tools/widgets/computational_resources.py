@@ -285,6 +285,38 @@ class ResourcesEstimatorWidget(ipw.VBox):
                     "threads": 1,
                 },
             },
+            "Wire": {
+                50: {
+                    "nodes": 4,
+                    "tasks_per_node": self.max_tasks_per_node,
+                    "threads": 1,
+                },
+                200: {
+                    "nodes": 12,
+                    "tasks_per_node": self.max_tasks_per_node,
+                    "threads": 1,
+                },
+                1400: {
+                    "nodes": 27,
+                    "tasks_per_node": self.max_tasks_per_node,
+                    "threads": 1,
+                },
+                3000: {
+                    "nodes": 48,
+                    "tasks_per_node": self.max_tasks_per_node,
+                    "threads": 1,
+                },
+                4000: {
+                    "nodes": 75,
+                    "tasks_per_node": self.max_tasks_per_node,
+                    "threads": 1,
+                },
+                10000: {
+                    "nodes": 108,
+                    "tasks_per_node": self.max_tasks_per_node,
+                    "threads": 1,
+                },
+            },
             "Bulk": {
                 50: {
                     "nodes": 4,
