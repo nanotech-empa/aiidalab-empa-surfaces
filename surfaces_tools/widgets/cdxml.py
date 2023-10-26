@@ -16,18 +16,18 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
     def __init__(self, title="CDXML to GNR", description="Upload Structure"):
         self.title = title
-        try:
-            import openbabel  # noqa: F401
-        except ImportError:
-            super().__init__(
-                [
-                    ipw.HTML(
-                        "The CdxmlUpload2GnrWidget requires the OpenBabel library, "
-                        "but the library was not found."
-                    )
-                ]
-            )
-            return
+        # try:
+        #     import openbabel  # noqa: F401
+        # except ImportError:
+        #     super().__init__(
+        #         [
+        #             ipw.HTML(
+        #                 "The CdxmlUpload2GnrWidget requires the OpenBabel library, "
+        #                 "but the library was not found."
+        #             )
+        #         ]
+        #     )
+        #     return
 
         self.mols = None
         self.original_structure = None
@@ -41,7 +41,8 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         </a>"""
         )
 
-        self.file_upload.observe(self._on_file_upload, names="value")
+        # self.file_upload.observe(self._on_file_upload, names="value")
+        self.file_upload.observe(self._on_file_upload_rdkit_version, names="value")
 
         self.allmols = ipw.Dropdown(
             options=[None], description="Select mol", value=None, disabled=True
@@ -103,6 +104,22 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         return atoms
 
     @staticmethod
+    def rdkit2ase(mol):
+        """Converts rdkit molecule into ase Atoms"""
+        species = [ase.data.chemical_symbols[atm.GetAtomicNum()] for atm in mol.GetAtoms()]
+        pos = np.asarray([atm_positions for atm_positions in mol.GetConformer().GetPositions()])
+        pca = sklearn.decomposition.PCA(n_components=3)
+        posnew = pca.fit_transform(pos)
+        atoms = ase.Atoms(species, positions=posnew)
+        sys_size = np.ptp(atoms.positions, axis=0)
+        atoms.rotate(-90, "z")  # cdxml are rotated
+        atoms.pbc = True
+        atoms.cell = sys_size + 10
+        atoms.center()
+
+        return atoms
+
+    @staticmethod
     def add_h(atoms):
         """Add missing hydrogen atoms."""
 
@@ -146,6 +163,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 cdxml_file_string = self.file_upload.value[fname]["content"].decode(
                     "ascii"
                 )
+
                 self.mols = re.findall(
                     "<fragment(.*?)/fragment", cdxml_file_string, re.DOTALL
                 )
@@ -161,12 +179,51 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 self.allmols.disabled = False
 
             break
+    
+    def _on_file_upload_rdkit_version(self, change=None):
+        """When file upload button is pressed."""
+        from rdkit import Chem
+        from collections import Counter
+
+        self.mols = {}
+        listmols = []
+        molid = 0
+        for fname, _item in change["new"].items():
+            frmt = fname.split(".")[-1]
+            if frmt == "cdxml":
+                cdxml_file_string = self.file_upload.value[fname]["content"].decode(
+                    "ascii"
+                )
+
+                mol_supplier = Chem.MolsFromCDXML(cdxml_file_string)
+
+                for mol in mol_supplier:
+                    # Count the atoms in the molecule
+                    atom_counts = Counter([atom.GetSymbol() for atom in mol.GetAtoms()])
+
+                    # Build the molecular formula
+                    formula = ""
+                    for atom_symbol, count in atom_counts.items():
+                        formula += atom_symbol
+                        if count > 1:
+                            formula += str(count)
+
+                    self.mols[molid] = mol
+                    listmols.append((str(molid) + ": " + formula, molid))
+                    molid += 1
+
+                self.allmols.options = listmols
+
+                self.allmols.disabled = False
+
+            break
 
     def _on_sketch_selected(self, change=None):
         self.structure = None  # needed to empty view in second viewer
         if self.mols is None or self.allmols.value is None:
             return
-        atoms = self.pybel2ase(self.mols[self.allmols.value])
+        # atoms = self.pybel2ase(self.mols[self.allmols.value])
+        atoms = self.rdkit2ase(self.mols[self.allmols.value])
         factor = self.guess_scaling_factor(atoms)
         atoms = self.scale(atoms, factor)
         atoms = self.add_h(atoms)
