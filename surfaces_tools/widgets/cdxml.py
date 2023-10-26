@@ -106,8 +106,12 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
     @staticmethod
     def rdkit2ase(mol):
         """Converts rdkit molecule into ase Atoms"""
-        species = [ase.data.chemical_symbols[atm.GetAtomicNum()] for atm in mol.GetAtoms()]
-        pos = np.asarray([atm_positions for atm_positions in mol.GetConformer().GetPositions()])
+        species = [
+            ase.data.chemical_symbols[atm.GetAtomicNum()] for atm in mol.GetAtoms()
+        ]
+        pos = np.asarray(
+            [atm_positions for atm_positions in mol.GetConformer().GetPositions()]
+        )
         pca = sklearn.decomposition.PCA(n_components=3)
         posnew = pca.fit_transform(pos)
         atoms = ase.Atoms(species, positions=posnew)
@@ -179,11 +183,12 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 self.allmols.disabled = False
 
             break
-    
+
     def _on_file_upload_rdkit_version(self, change=None):
         """When file upload button is pressed."""
-        from rdkit import Chem
         from collections import Counter
+
+        from rdkit import Chem
 
         self.mols = {}
         listmols = []
