@@ -1,5 +1,5 @@
 import collections
-import re
+
 import ase
 import ipywidgets as ipw
 import numpy as np
@@ -81,9 +81,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         species = [
             ase.data.chemical_symbols[atm.GetAtomicNum()] for atm in mol.GetAtoms()
         ]
-        pos = np.asarray(
-            [atm_positions for atm_positions in mol.GetConformer().GetPositions()]
-        )
+        pos = np.asarray(list(mol.GetConformer().GetPositions()))
         pca = sklearn.decomposition.PCA(n_components=3)
         posnew = pca.fit_transform(pos)
         atoms = ase.Atoms(species, positions=posnew)
@@ -125,7 +123,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             atoms.append(ase.Atom("H", vec))
 
         return atoms
-    
+
     def _on_file_upload_rdkit_version(self, change=None):
         """When file upload button is pressed."""
         self.mols = {}
