@@ -7,6 +7,8 @@ import scipy
 import sklearn.decomposition
 import traitlets as tr
 from ase import neighborlist
+import rdkit
+import collections
 
 
 class CdxmlUpload2GnrWidget(ipw.VBox):
@@ -16,19 +18,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
     def __init__(self, title="CDXML to GNR", description="Upload Structure"):
         self.title = title
-        # try:
-        #     import openbabel  # noqa: F401
-        # except ImportError:
-        #     super().__init__(
-        #         [
-        #             ipw.HTML(
-        #                 "The CdxmlUpload2GnrWidget requires the OpenBabel library, "
-        #                 "but the library was not found."
-        #             )
-        #         ]
-        #     )
-        #     return
-
         self.mols = None
         self.original_structure = None
         self.selection = set()
@@ -88,22 +77,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         return atoms
 
     @staticmethod
-    def pybel2ase(mol):
-        """Converts pybel molecule into ase Atoms"""
-        species = [ase.data.chemical_symbols[atm.atomicnum] for atm in mol.atoms]
-        pos = np.asarray([atm.coords for atm in mol.atoms])
-        pca = sklearn.decomposition.PCA(n_components=3)
-        posnew = pca.fit_transform(pos)
-        atoms = ase.Atoms(species, positions=posnew)
-        sys_size = np.ptp(atoms.positions, axis=0)
-        atoms.rotate(-90, "z")  # cdxml are rotated
-        atoms.pbc = True
-        atoms.cell = sys_size + 10
-        atoms.center()
-
-        return atoms
-
-    @staticmethod
     def rdkit2ase(mol):
         """Converts rdkit molecule into ase Atoms"""
         species = [ase.data.chemical_symbols[atm.GetAtomicNum()] for atm in mol.GetAtoms()]
@@ -149,42 +122,9 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             atoms.append(ase.Atom("H", vec))
 
         return atoms
-
-    def _on_file_upload(self, change=None):
-        """When file upload button is pressed."""
-        from openbabel import pybel as pb
-
-        self.mols = None
-        listmols = []
-        molid = 0
-        for fname, _item in change["new"].items():
-            frmt = fname.split(".")[-1]
-            if frmt == "cdxml":
-                cdxml_file_string = self.file_upload.value[fname]["content"].decode(
-                    "ascii"
-                )
-
-                self.mols = re.findall(
-                    "<fragment(.*?)/fragment", cdxml_file_string, re.DOTALL
-                )
-                for m in self.mols:
-                    m = pb.readstring("cdxml", "<fragment" + m + "/fragment>")
-                    self.mols[molid] = m
-                    listmols.append(
-                        (str(molid) + ": " + m.formula, molid)
-                    )  # m MUST BE a pb object!!!
-                    molid += 1
-                self.allmols.options = listmols
-
-                self.allmols.disabled = False
-
-            break
     
     def _on_file_upload_rdkit_version(self, change=None):
         """When file upload button is pressed."""
-        from rdkit import Chem
-        from collections import Counter
-
         self.mols = {}
         listmols = []
         molid = 0
@@ -195,11 +135,11 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                     "ascii"
                 )
 
-                mol_supplier = Chem.MolsFromCDXML(cdxml_file_string)
+                mol_supplier = rdkit.Chem.MolsFromCDXML(cdxml_file_string)
 
                 for mol in mol_supplier:
                     # Count the atoms in the molecule
-                    atom_counts = Counter([atom.GetSymbol() for atom in mol.GetAtoms()])
+                    atom_counts = collections.Counter([atom.GetSymbol() for atom in mol.GetAtoms()])
 
                     # Build the molecular formula
                     formula = ""
@@ -222,7 +162,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         self.structure = None  # needed to empty view in second viewer
         if self.mols is None or self.allmols.value is None:
             return
-        # atoms = self.pybel2ase(self.mols[self.allmols.value])
         atoms = self.rdkit2ase(self.mols[self.allmols.value])
         factor = self.guess_scaling_factor(atoms)
         atoms = self.scale(atoms, factor)
