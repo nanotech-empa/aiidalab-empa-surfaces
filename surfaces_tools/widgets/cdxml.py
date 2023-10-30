@@ -1,14 +1,14 @@
+import collections
 import re
 
 import ase
 import ipywidgets as ipw
 import numpy as np
+import rdkit
 import scipy
 import sklearn.decomposition
 import traitlets as tr
 from ase import neighborlist
-import rdkit
-import collections
 
 
 class CdxmlUpload2GnrWidget(ipw.VBox):
@@ -156,11 +156,11 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 self.allmols.disabled = False
 
             break
-    
+
     def _on_file_upload_rdkit_version(self, change=None):
         """When file upload button is pressed."""
+
         from rdkit import Chem
-        from collections import Counter
 
         self.mols = {}
         listmols = []
@@ -176,7 +176,9 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
                 for mol in mol_supplier:
                     # Count the atoms in the molecule
-                    atom_counts = collections.Counter([atom.GetSymbol() for atom in mol.GetAtoms()])
+                    atom_counts = collections.Counter(
+                        [atom.GetSymbol() for atom in mol.GetAtoms()]
+                    )
 
                     # Build the molecular formula
                     formula = ""
