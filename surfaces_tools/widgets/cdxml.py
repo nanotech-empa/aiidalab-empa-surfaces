@@ -126,41 +126,9 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             atoms.append(ase.Atom("H", vec))
 
         return atoms
-
-    def _on_file_upload(self, change=None):
-        """When file upload button is pressed."""
-        from openbabel import pybel as pb
-
-        self.mols = None
-        listmols = []
-        molid = 0
-        for fname, _item in change["new"].items():
-            frmt = fname.split(".")[-1]
-            if frmt == "cdxml":
-                cdxml_file_string = self.file_upload.value[fname]["content"].decode(
-                    "ascii"
-                )
-
-                self.mols = re.findall(
-                    "<fragment(.*?)/fragment", cdxml_file_string, re.DOTALL
-                )
-                for m in self.mols:
-                    m = pb.readstring("cdxml", "<fragment" + m + "/fragment>")
-                    self.mols[molid] = m
-                    listmols.append(
-                        (str(molid) + ": " + m.formula, molid)
-                    )  # m MUST BE a pb object!!!
-                    molid += 1
-                self.allmols.options = listmols
-
-                self.allmols.disabled = False
-
-            break
     
     def _on_file_upload_rdkit_version(self, change=None):
         """When file upload button is pressed."""
-        from rdkit import Chem
-        from collections import Counter
 
         self.mols = {}
         listmols = []
