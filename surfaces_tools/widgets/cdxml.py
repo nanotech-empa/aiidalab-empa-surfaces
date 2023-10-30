@@ -79,8 +79,12 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
     @staticmethod
     def rdkit2ase(mol):
         """Converts rdkit molecule into ase Atoms"""
-        species = [ase.data.chemical_symbols[atm.GetAtomicNum()] for atm in mol.GetAtoms()]
-        pos = np.asarray([atm_positions for atm_positions in mol.GetConformer().GetPositions()])
+        species = [
+            ase.data.chemical_symbols[atm.GetAtomicNum()] for atm in mol.GetAtoms()
+        ]
+        pos = np.asarray(
+            [atm_positions for atm_positions in mol.GetConformer().GetPositions()]
+        )
         pca = sklearn.decomposition.PCA(n_components=3)
         posnew = pca.fit_transform(pos)
         atoms = ase.Atoms(species, positions=posnew)
@@ -122,9 +126,42 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             atoms.append(ase.Atom("H", vec))
 
         return atoms
+
+    def _on_file_upload(self, change=None):
+        """When file upload button is pressed."""
+        from openbabel import pybel as pb
+
+        self.mols = None
+        listmols = []
+        molid = 0
+        for fname, _item in change["new"].items():
+            frmt = fname.split(".")[-1]
+            if frmt == "cdxml":
+                cdxml_file_string = self.file_upload.value[fname]["content"].decode(
+                    "ascii"
+                )
+
+                self.mols = re.findall(
+                    "<fragment(.*?)/fragment", cdxml_file_string, re.DOTALL
+                )
+                for m in self.mols:
+                    m = pb.readstring("cdxml", "<fragment" + m + "/fragment>")
+                    self.mols[molid] = m
+                    listmols.append(
+                        (str(molid) + ": " + m.formula, molid)
+                    )  # m MUST BE a pb object!!!
+                    molid += 1
+                self.allmols.options = listmols
+
+                self.allmols.disabled = False
+
+            break
     
     def _on_file_upload_rdkit_version(self, change=None):
         """When file upload button is pressed."""
+        from rdkit import Chem
+        from collections import Counter
+
         self.mols = {}
         listmols = []
         molid = 0
