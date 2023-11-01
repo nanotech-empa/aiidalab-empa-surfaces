@@ -27,7 +27,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         </a>"""
         )
 
-        self.file_upload.observe(self._on_file_upload_rdkit_version, names="value")
+        self.file_upload.observe(self._on_file_upload, names="value")
 
         self._structure_selector = ipw.Dropdown(
             options=[None], description="Select mol", value=None, disabled=True
@@ -130,7 +130,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
         return message, atoms
 
-    def _on_file_upload_rdkit_version(self, change=None):
+    def _on_file_upload(self, change=None):
         """When file upload button is pressed."""
         self._structure_selector.options = [None]
         self._structure_selector.disabled = True
