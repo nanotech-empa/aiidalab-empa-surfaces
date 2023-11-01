@@ -1,5 +1,3 @@
-import collections
-
 import ase
 import ipywidgets as ipw
 import numpy as np
@@ -139,19 +137,9 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 mol_supplier = rdkit.Chem.MolsFromCDXML(cdxml_file_string)
 
                 for mol in mol_supplier:
-                    # Count the atoms in the molecule
-                    atom_counts = collections.Counter(
-                        [atom.GetSymbol() for atom in mol.GetAtoms()]
-                    )
-
-                    # Build the molecular formula
-                    formula = ""
-                    for atom_symbol, count in atom_counts.items():
-                        formula += atom_symbol
-                        if count > 1:
-                            formula += str(count)
-
-                    self.mols[molid] = mol
+                    atoms = self.rdkit2ase(mol)
+                    formula = atoms.get_chemical_formula()
+                    self.mols[molid] = atoms
                     listmols.append((str(molid) + ": " + formula, molid))
                     molid += 1
 
@@ -165,7 +153,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         self.structure = None  # needed to empty view in second viewer
         if self.mols is None or self.allmols.value is None:
             return
-        atoms = self.rdkit2ase(self.mols[self.allmols.value])
+        atoms = self.mols[self.allmols.value]
         factor = self.guess_scaling_factor(atoms)
         atoms = self.scale(atoms, factor)
         atoms = self.add_h(atoms)
