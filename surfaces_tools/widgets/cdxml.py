@@ -15,8 +15,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
     def __init__(self, title="CDXML to GNR", description="Upload Structure"):
         self.title = title
-        self.mols = None
-        self.original_structure = None
         self.selection = set()
         self.file_upload = ipw.FileUpload(
             description=description, multiple=False, layout={"width": "initial"}
@@ -124,36 +122,29 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
     def _on_file_upload_rdkit_version(self, change=None):
         """When file upload button is pressed."""
-        self.mols = {}
-        listmols = []
-        molid = 0
         for fname, _item in change["new"].items():
             frmt = fname.split(".")[-1]
             if frmt == "cdxml":
                 cdxml_file_string = self.file_upload.value[fname]["content"].decode(
                     "ascii"
                 )
-
-                mol_supplier = rdkit.Chem.MolsFromCDXML(cdxml_file_string)
-
-                for mol in mol_supplier:
-                    atoms = self.rdkit2ase(mol)
-                    formula = atoms.get_chemical_formula()
-                    self.mols[molid] = atoms
-                    listmols.append((str(molid) + ": " + formula, molid))
-                    molid += 1
-
-                self.allmols.options = listmols
-
+                options = [
+                    self.rdkit2ase(mol)
+                    for mol in rdkit.Chem.MolsFromCDXML(cdxml_file_string)
+                ]
+                self.allmols.options = [
+                    (str(i) + ": " + mol.get_chemical_formula(), mol)
+                    for i, mol in enumerate(options)
+                ]
                 self.allmols.disabled = False
 
             break
 
     def _on_sketch_selected(self, change=None):
         self.structure = None  # needed to empty view in second viewer
-        if self.mols is None or self.allmols.value is None:
+        if self.allmols.value is None:
             return
-        atoms = self.mols[self.allmols.value]
+        atoms = self.allmols.value
         factor = self.guess_scaling_factor(atoms)
         atoms = self.scale(atoms, factor)
         atoms = self.add_h(atoms)
