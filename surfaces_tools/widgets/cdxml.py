@@ -15,7 +15,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
     def __init__(self, title="CDXML to GNR", description="Upload Structure"):
         self.title = title
-        self.selection = set()
         self.file_upload = ipw.FileUpload(
             description=description, multiple=False, layout={"width": "initial"}
         )
@@ -25,15 +24,22 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         </a>"""
         )
 
-        # self.file_upload.observe(self._on_file_upload, names="value")
         self.file_upload.observe(self._on_file_upload_rdkit_version, names="value")
 
         self.allmols = ipw.Dropdown(
             options=[None], description="Select mol", value=None, disabled=True
         )
         self.allmols.observe(self._on_sketch_selected, names="value")
+        self.output_message = ipw.HTML(value="")
 
-        super().__init__(children=[self.file_upload, supported_formats, self.allmols])
+        super().__init__(
+            children=[
+                self.file_upload,
+                supported_formats,
+                self.allmols,
+                self.output_message,
+            ]
+        )
 
     @staticmethod
     def guess_scaling_factor(atoms):
@@ -92,6 +98,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
     @staticmethod
     def add_h(atoms):
         """Add missing hydrogen atoms."""
+        message = ""
 
         n_l = neighborlist.NeighborList(
             [ase.data.covalent_radii[a.number] for a in atoms],
@@ -106,7 +113,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 if atm.symbol == "C" or atm.symbol == "N":
                     need_hydrogen.append(atm.index)
 
-        print("Added missing Hydrogen atoms: ", need_hydrogen)
+        message = f"Added missing Hydrogen atoms: {need_hydrogen}."
 
         for atm in need_hydrogen:
             vec = np.zeros(3)
@@ -118,27 +125,32 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             vec = -vec / np.linalg.norm(vec) * 1.1 + atoms[atm].position
             atoms.append(ase.Atom("H", vec))
 
-        return atoms
+        return message, atoms
 
     def _on_file_upload_rdkit_version(self, change=None):
         """When file upload button is pressed."""
-        for fname, _item in change["new"].items():
-            frmt = fname.split(".")[-1]
-            if frmt == "cdxml":
-                cdxml_file_string = self.file_upload.value[fname]["content"].decode(
-                    "ascii"
-                )
-                options = [
-                    self.rdkit2ase(mol)
-                    for mol in rdkit.Chem.MolsFromCDXML(cdxml_file_string)
-                ]
-                self.allmols.options = [
-                    (str(i) + ": " + mol.get_chemical_formula(), mol)
-                    for i, mol in enumerate(options)
-                ]
-                self.allmols.disabled = False
+        self.allmols.options = [None]
+        self.allmols.disabled = True
+        fname, item = next(iter(change["new"].items()))
 
-            break
+        # Check the file format
+        frmt = fname.split(".")[-1]
+        if frmt != "cdxml":
+            self.output_message.value = f"Unsupported file format: {frmt}"
+            return
+
+        try:
+            options = [
+                self.rdkit2ase(mol)
+                for mol in rdkit.Chem.MolsFromCDXML(item["content"].decode("ascii"))
+            ]
+            self.allmols.options = [
+                (f"{i}: " + mol.get_chemical_formula(), mol)
+                for i, mol in enumerate(options)
+            ]
+            self.allmols.disabled = False
+        except Exception as exc:
+            self.output_message.value = f"Error reading file: {exc}"
 
     def _on_sketch_selected(self, change=None):
         self.structure = None  # needed to empty view in second viewer
@@ -147,6 +159,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         atoms = self.allmols.value
         factor = self.guess_scaling_factor(atoms)
         atoms = self.scale(atoms, factor)
-        atoms = self.add_h(atoms)
+        self.output_message.value, atoms = self.add_h(atoms)
         self.structure = atoms
         self.file_upload.value.clear()
