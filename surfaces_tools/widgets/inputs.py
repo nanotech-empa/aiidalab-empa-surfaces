@@ -641,6 +641,70 @@ class CellSectionWidget(ipw.Accordion):
         return ["details", "do_cell_opt"]
 
 
+class DiagonalisationSmearingWidget(ipw.HBox):
+    def __init__(self, **kwargs):
+        self.enable_diagonalisation = ipw.Checkbox(
+            value=False,
+            description="Self-consistent diagonalisation",
+            style={"description_width": "initial"},
+            layout={"width": "240px"},
+        )
+        self.enable_diagonalisation.observe(
+            self._observe_enable_diagonalisation, "value"
+        )
+        self.enable_diagonalisation.observe(self.enable_or_disable_widgets, "value")
+
+        self.enable_smearing = ipw.ToggleButton(
+            value=False,
+            description="Enable Fermi-Dirac smearing",
+            style={"description_width": "initial"},
+            layout={"width": "450px"},
+        )
+        self.enable_smearing.observe(self.enable_or_disable_widgets, "value")
+
+        self.smearing_temperature = ipw.FloatText(
+            value=150.0,
+            description="Temperature [K]",
+            disabled=True,
+            style={"description_width": "initial"},
+            layout={"width": "200px"},
+        )
+        self.force_multiplicity = ipw.Checkbox(
+            value=True, description="Force multiplicity", disabled=True
+        )
+        self.smearing_box = ipw.VBox(
+            children=[
+                self.enable_smearing,
+                ipw.HBox(children=[self.smearing_temperature, self.force_multiplicity]),
+            ]
+        )
+
+        super().__init__(
+            children=[
+                self.enable_diagonalisation,
+            ],
+            **kwargs,
+        )
+
+    def _observe_enable_diagonalisation(self, _=None):
+        if self.enable_diagonalisation.value:
+            self.children = [
+                self.enable_diagonalisation,
+                self.smearing_box,
+            ]
+        else:
+            self.children = [self.enable_diagonalisation]
+
+    def enable_or_disable_widgets(self, _=None):
+        self.enable_smearing.disabled = not self.enable_diagonalisation.value
+        self.smearing_temperature.disabled = not self.enable_smearing.value
+        self.force_multiplicity.disabled = not self.enable_smearing.value
+
+    @property
+    def smearing_enabled(self):
+        return self.enable_diagonalisation and self.enable_smearing.value
+
+
 SECTIONS_TO_DISPLAY = {
     "None": [],
     "Wire": [
