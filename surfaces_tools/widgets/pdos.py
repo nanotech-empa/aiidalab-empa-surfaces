@@ -369,7 +369,7 @@ class PdosStackWidget(_BaseStackWidget):
         workchain = change["new"]
         try:
             data = process_pdos_files(workchain)
-        except (KeyError, common.exceptions.NotExistentAttribute):
+        except (KeyError, common.exceptions.NotExistentAttributeError):
             data = process_pdos_files(workchain, newversion=False)
 
         self.options = {
