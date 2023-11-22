@@ -367,7 +367,10 @@ class PdosStackWidget(_BaseStackWidget):
     @tl.observe("workchain")
     def _on_workchain_change(self, change):
         workchain = change["new"]
-        data = process_pdos_files(workchain)
+        try:
+            data = process_pdos_files(workchain)
+        except (KeyError, aiida.common.exceptions.NotExistentAttribute):
+            data = process_pdos_files(workchain, newversion=False)
 
         self.options = {
             "Total DOS": "tdos",
