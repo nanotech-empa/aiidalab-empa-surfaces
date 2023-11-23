@@ -40,13 +40,16 @@ def read_and_process_pdos_file(pdos_path):
     return out_data, kind
 
 
-def process_pdos_files(scf_calc, newversion=True):
+def process_pdos_files(pdos_wk, newversion=True):
     if newversion:
-        retr_files = scf_calc.outputs.slab_retrieved.list_object_names()
-        retr_folder = scf_calc.outputs.slab_retrieved
+        retr_files = pdos_wk.outputs.slab_retrieved.list_object_names()
+        retr_folder = pdos_wk.outputs.slab_retrieved
     else:
-        retr_files = scf_calc.outputs.retrieved.list_object_names()
-        retr_folder = scf_calc.outputs.retrieved
+        for wk in pdos_wk.called_descendants:
+            if wk.label == "slab_scf":
+                slab_scf = wk
+        retr_files = slab_scf.outputs.retrieved.list_object_names()
+        retr_folder = slab_scf.outputs.retrieved
 
     nspin = 1
     for file in retr_files:
