@@ -40,14 +40,14 @@ def read_and_process_pdos_file(pdos_path):
     return out_data, kind
 
 
-def process_pdos_files(pdos_wk, newversion=True):
+def process_pdos_files(pdos_wkorkchain, newversion=True):
     if newversion:
-        retr_files = pdos_wk.outputs.slab_retrieved.list_object_names()
-        retr_folder = pdos_wk.outputs.slab_retrieved
+        retr_files = pdos_wkorkchain.outputs.slab_retrieved.list_object_names()
+        retr_folder = pdos_wkorkchain.outputs.slab_retrieved
     else:
-        for wk in pdos_wk.called_descendants:
-            if wk.label == "slab_scf":
-                slab_scf = wk
+        for process in pdos_wkorkchain.called_descendants:
+            if process.label == "slab_scf":
+                slab_scf = process
         retr_files = slab_scf.outputs.retrieved.list_object_names()
         retr_folder = slab_scf.outputs.retrieved
 
@@ -372,7 +372,7 @@ class PdosStackWidget(_BaseStackWidget):
         workchain = change["new"]
         try:
             data = process_pdos_files(workchain)
-        except (KeyError, common.exceptions.NotExistentAttributeError):
+        except (KeyError, common.NotExistentAttributeError):
             data = process_pdos_files(workchain, newversion=False)
 
         self.options = {
