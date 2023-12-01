@@ -40,13 +40,16 @@ def read_and_process_pdos_file(pdos_path):
     return out_data, kind
 
 
-def process_pdos_files(scf_calc, newversion=True):
+def process_pdos_files(pdos_workchain, newversion=True):
     if newversion:
-        retr_files = scf_calc.outputs.slab_retrieved.list_object_names()
-        retr_folder = scf_calc.outputs.slab_retrieved
+        retr_files = pdos_workchain.outputs.slab_retrieved.list_object_names()
+        retr_folder = pdos_workchain.outputs.slab_retrieved
     else:
-        retr_files = scf_calc.outputs.retrieved.list_object_names()
-        retr_folder = scf_calc.outputs.retrieved
+        for process in pdos_workchain.called_descendants:
+            if process.label == "slab_scf":
+                slab_scf = process
+        retr_files = slab_scf.outputs.retrieved.list_object_names()
+        retr_folder = slab_scf.outputs.retrieved
 
     nspin = 1
     for file in retr_files:
@@ -369,7 +372,7 @@ class PdosStackWidget(_BaseStackWidget):
         workchain = change["new"]
         try:
             data = process_pdos_files(workchain)
-        except (KeyError, aiida.common.exceptions.NotExistentAttribute):
+        except (KeyError, common.NotExistentAttributeError):
             data = process_pdos_files(workchain, newversion=False)
 
         self.options = {
