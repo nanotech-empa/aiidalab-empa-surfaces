@@ -40,12 +40,12 @@ def read_and_process_pdos_file(pdos_path):
     return out_data, kind
 
 
-def process_pdos_files(pdos_wkorkchain, newversion=True):
+def process_pdos_files(pdos_workchain, newversion=True):
     if newversion:
-        retr_files = pdos_wkorkchain.outputs.slab_retrieved.list_object_names()
-        retr_folder = pdos_wkorkchain.outputs.slab_retrieved
+        retr_files = pdos_workchain.outputs.slab_retrieved.list_object_names()
+        retr_folder = pdos_workchain.outputs.slab_retrieved
     else:
-        for process in pdos_wkorkchain.called_descendants:
+        for process in pdos_workchain.called_descendants:
             if process.label == "slab_scf":
                 slab_scf = process
         retr_files = slab_scf.outputs.retrieved.list_object_names()
