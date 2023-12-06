@@ -243,7 +243,6 @@ class SearchStructuresWidget(ipw.VBox):
         structure_nodes = list(set(structure_nodes))
         edges = list(set(edges))
         roots = list(set(roots))
-        print(roots)
         dash_structure_nodes = [
             {
                 "data": {
