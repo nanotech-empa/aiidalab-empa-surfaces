@@ -273,11 +273,11 @@ class SearchStructuresWidget(ipw.VBox):
             }
             for source, target in edges
         ]
-        print("WORKCHAINS")
-        print(dash_workchain_nodes)
-        print("STRUCTURES")
-        print(dash_structure_nodes)
-        print("EDGES")
-        print(dash_edges)
-        print("ROOTS")
-        print(roots)
+        # print("WORKCHAINS")
+        print("workchains=", dash_workchain_nodes)
+        # print("STRUCTURES")
+        print("structures=", dash_structure_nodes)
+        # print("EDGES")
+        print("edges=", dash_edges)
+        # print("ROOTS")
+        print("roots=", roots)
