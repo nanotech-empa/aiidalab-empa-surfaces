@@ -213,7 +213,7 @@ class SearchStructuresWidget(ipw.VBox):
                 ).size
 
                 structure_nodes.append(
-                    (str(structure.pk), 100, int(100 * thumbnail_h / thumbnail_w))
+                    (str(structure.pk), 200, int(200 * thumbnail_h / thumbnail_w))
                 )
                 creator_label, creator_pk, creator_description = find_first_workchain(
                     structure
@@ -239,6 +239,10 @@ class SearchStructuresWidget(ipw.VBox):
         # print(structure_nodes)
         # print(workchain_nodes)
         # print(edges)
+        workchain_nodes = list(set(workchain_nodes))
+        structure_nodes = list(set(structure_nodes))
+        edges = list(set(edges))
+        roots = list(set(roots))
         print(roots)
         dash_structure_nodes = [
             {
