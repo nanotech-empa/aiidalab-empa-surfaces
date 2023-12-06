@@ -203,6 +203,11 @@ class SearchStructuresWidget(ipw.VBox):
         for structure in structures:
             workflows_uuids = structure.extras["surfaces"]
             if len(workflows_uuids) > 0:
+                if "thumbnail" not in structure.extras:
+                    structure.base.extras.set(
+                        "thumbnail",
+                        common_utils.thumbnail(ase_struc=structure.get_ase()),
+                    )
                 thumbnail_w, thumbnail_h = Image.open(
                     io.BytesIO(base64.b64decode(structure.extras["thumbnail"]))
                 ).size
@@ -228,11 +233,6 @@ class SearchStructuresWidget(ipw.VBox):
                     except common.NotExistent:
                         pass
 
-                if "thumbnail" not in structure.extras:
-                    structure.base.extras.set(
-                        "thumbnail",
-                        common_utils.thumbnail(ase_struc=structure.get_ase()),
-                    )
         sources = [edge[0] for edge in edges]
         targets = [edge[1] for edge in edges]
         roots = [source for source in sources if source not in targets]
