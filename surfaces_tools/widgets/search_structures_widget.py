@@ -1,4 +1,7 @@
 import datetime
+import base64
+import io
+from PIL import Image
 
 import ipywidgets as ipw
 from aiida import common, orm
@@ -18,6 +21,7 @@ VIEWERS = {
     "CP2K_NEB": "view_neb.ipynb",
     "CP2K_Replica": "view_replica.ipynb",
     "ReplicaWorkChain": "view_replica.ipynb",
+    "TBD": "view_workflow.ipynb",
 }
 
 
@@ -32,8 +36,8 @@ def find_first_workchain(node):
         lastcalling = previous_node
         previous_node = lastcalling.caller
     if lastcalling is not None:
-        return lastcalling.label, lastcalling.pk
-    return None, None
+        return lastcalling.label, lastcalling.pk, lastcalling.description
+    return None, None, ""
 
 
 def thunmnail_raw(
@@ -41,7 +45,7 @@ def thunmnail_raw(
 ):
     """Returns an image with a link to structure export."""
     html = f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?uuid={uuid}">'
-    html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
+    html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="input structure PK:{pk} {description}">'
     html += "</a></td>"
     return html
 
@@ -65,19 +69,21 @@ def header(pk="", label="", tclass="tg-dark", last_modified=""):
             return f"""<tr><td class="{tclass}" colspan=3>  <a target="_blank" href="{the_viewer}?pk={pk}">Structure created by {label} PK-{pk}</a> and last modified {last_modified}</td></tr>"""
 
 
-def uuids_to_nodesdict(uuids):
+def uuids_to_nodesdict(uuids=[]):
     workflows = {}
     nworkflows = 0
+
     for uuid in uuids:
         try:
             node = orm.load_node(uuid)
-            nodeisobsolete = "obsolete" in node.extras and node.extras["obsolete"]
-            if node.label in VIEWERS and not nodeisobsolete:
-                nworkflows += 1
-                if node.label in workflows:
-                    workflows[node.label].append(node)
-                else:
-                    workflows[node.label] = [node]
+            workchain_label = "TBD"
+            if node.label in VIEWERS:
+                workchain_label = node.label
+            nworkflows += 1
+            if workchain_label in workflows:
+                workflows[workchain_label].append(node)
+            else:
+                workflows[workchain_label] = [node]
         except common.NotExistent:
             pass
 
@@ -102,9 +108,24 @@ class SearchStructuresWidget(ipw.VBox):
             style={"description_width": "60px"},
             layout={"width": "225px"},
         )
-
+        self.date_type = ipw.RadioButtons(
+            options=[("Modification t", "mtime"), ("Creation t", "ctime")],
+            value="mtime",
+            style={"description_width": "60px"},
+            layout={"width": "225px"},
+        )
         self.date_text = ipw.HTML(value="<p>Select the date range:</p>", width="150px")
-        search_crit = ipw.HBox([self.date_text, self.date_start, self.date_end])
+        # keywords selection
+        self.keywords = ipw.Text(description="Keywords: ", layout={"width": "225px"})
+        self.and_or = ipw.RadioButtons(options=["and", "or"], value="and")
+        search_crit = ipw.VBox(
+            [
+                ipw.HBox(
+                    [self.date_text, self.date_start, self.date_end, self.date_type]
+                ),
+                ipw.HBox([self.keywords, self.and_or]),
+            ]
+        )
         button = ipw.Button(description="Search")
 
         self.results = ipw.HTML()
@@ -132,109 +153,128 @@ class SearchStructuresWidget(ipw.VBox):
             start_date = end_date - datetime.timedelta(days=20)
             self.date_start.value = start_date.strftime("%Y-%m-%d")
             self.date_end.value = end_date.strftime("%Y-%m-%d")
-
-        # Search with QB structures with extra "surfaces".
-        qb = orm.QueryBuilder()
-        qb.append(
-            orm.StructureData,
-            filters={
-                "extras": {"has_key": "surfaces"},
-                "mtime": {"and": [{"<=": end_date}, {">": start_date}]},
-            },
-        )
-        qb.order_by({orm.StructureData: {"mtime": "desc"}})
-
-        # For each structure in QB create a dictionary with info on the workflows computed on it.
-        data = []
-        for node in qb.all(flat=True):
-            # print("node ", node.pk, " extras ", node.extras["surfaces"])
-            extras = node.extras["surfaces"]
-            nworkflows = 0
-            if isinstance(extras, list):
-                nworkflows, workflows = uuids_to_nodesdict(node.extras["surfaces"])
-            if nworkflows > 0:
-                nrows = nworkflows
-                if "thumbnail" not in node.extras:
-                    node.base.extras.set(
-                        "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
-                    )
-
-                entry = {
-                    "creator": find_first_workchain(node),
-                    "pk": node.pk,
-                    "uuid": node.uuid,
-                    "nrows": nrows,
-                    "mtime": node.mtime.strftime("%d/%m/%y"),
-                    "workflows": workflows,
-                    "thumbnail": node.extras["thumbnail"],
-                }
-                data.append(entry)
-        # populate the table with the data
-        # aiida_results td,th {padding: 2px}
-        html = """
-<style type="text/css">
-.tg  {border-collapse:collapse;border-spacing:0;}
-.tg td{border-color:black;border-style:solid;border-width:2px;font-family:Arial, sans-serif;font-size:14px;
-  overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
-  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
-.tg .tg-dark{background-color:#f1f7f7;border-color:inherit;text-align:left;vertical-align:middle}
-.tg .tg-llyw{background-color:#fefee2;border-color:inherit;text-align:left;vertical-align:middle}
-.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:middle}
-</style>
-<table class="tg">
-<thead>
-<tr>
-    <th class="tg-dark">Calc. Type</th>
-    <th class="tg-dark" >Description</th>
-    <th class="tg-dark" >Thumbnail</th>
-</tr>
-</thead>
-<tbody>
-"""
-        odd = -1
-        tclass = ["", "tg-dark", "tg-llyw"]
-        for entry in data:
-            entry["nrows"]
-            nrows_done = 0
-            html += header(
-                pk=entry["creator"][1],
-                label=entry["creator"][0],
-                tclass=tclass[odd],
-                last_modified=entry["mtime"],
+        search_keywords = self.keywords.value.split()
+        # list of workchains with matching description, not obsolete and not failed
+        if len(search_keywords) != 0:
+            qb = orm.QueryBuilder()
+            qb.append(
+                orm.WorkChainNode,
+                tag="wc",
+                filters={
+                    "attributes.exit_status": {"==": 0},
+                    "or": [
+                        {"extras": {"!has_key": "obsolete"}},
+                        {"extras.obsolete": {"==": False}},
+                    ],
+                    # self.date_type.value: {"and": [{"<=": end_date}, {">": start_date}]},
+                    "description": {
+                        self.and_or.value: [
+                            {"ilike": f"%{keyword}%"} for keyword in search_keywords
+                        ]
+                    },
+                },
             )
-            html += "<tr>"
-            # html += f"""<td class="{tclass[odd]}" rowspan={str(nrows1)}> {entry["mtime"]}  </td>"""
+            qb.append(orm.StructureData, with_outgoing="wc")
+            structures = qb.all(flat=True)
+        else:
+            # Search with QB structures with extra "surfaces" not empty.
+            qb = orm.QueryBuilder()
+            qb.append(
+                orm.StructureData,
+                filters={
+                    "and": [
+                        {"extras": {"has_key": "surfaces"}},
+                        {"extras.surfaces": {"longer": 0}},
+                    ],
+                    self.date_type.value: {
+                        "and": [{"<=": end_date}, {">": start_date}]
+                    },
+                },
+                # project=["extras.surfaces", "mtime", "ctime"],
+            )
+            qb.order_by({orm.StructureData: {self.date_type.value: "desc"}})
+            structures = qb.all(flat=True)
 
-            for workflow in entry["workflows"]:
-                if nrows_done != 0:
-                    html += "<tr>"
-                nrowsw = len(entry["workflows"][workflow])
-                html += f"<td class={tclass[odd]} rowspan={nrowsw}>  {workflow} </td>"
-                html += f"<td class={tclass[odd]} rowspan={nrowsw}>"
-                html += "<ul>"
-                for node in entry["workflows"][workflow]:
-                    html += link_to_viewer(
-                        description=f"PK-{node.pk} {node.description}",
-                        pk=node.pk,
-                        label=node.label,
-                    )
-                html += "</ul></td>"
-                if nrows_done == 0:
-                    html += thunmnail_raw(
-                        nrows=entry["nrows"],
-                        thumbnail=entry["thumbnail"],
-                        pk=entry["pk"],
-                        uuid=entry["uuid"],
-                        tclass=tclass[odd],
-                        description="",
-                    )
-                    html += "</tr>"
-                    nrows_done += 1
-                for _ in range(1, nrowsw):
-                    html += "<tr></tr>"
-                    nrows_done += 1
-            odd *= -1
-        html += "</tbody></table>"
+        # For each structure obtained with the queries and teh connected workchains, create dash nodes.
+        structure_nodes = []
+        workchain_nodes = []
+        edges = []
+        roots = []
+        for structure in structures:
+            workflows_uuids = structure.extras["surfaces"]
+            if len(workflows_uuids) > 0:
+                thumbnail_w, thumbnail_h = Image.open(
+                    io.BytesIO(base64.b64decode(structure.extras["thumbnail"]))
+                ).size
 
-        self.results.value = html
+                structure_nodes.append(
+                    (str(structure.pk), 100, int(100 * thumbnail_h / thumbnail_w))
+                )
+                creator_label, creator_pk, creator_description = find_first_workchain(
+                    structure
+                )
+                if creator_pk is not None:
+                    workchain_nodes.append(
+                        (str(creator_pk), creator_label, creator_description)
+                    )
+                    edges.append((workchain_nodes[-1][0], structure_nodes[-1][0]))
+                for uuid in workflows_uuids:
+                    try:
+                        workchain = orm.load_node(uuid)
+                        workchain_nodes.append(
+                            (str(workchain.pk), workchain.label, workchain.description)
+                        )
+                        edges.append((structure_nodes[-1][0], workchain_nodes[-1][0]))
+                    except common.NotExistent:
+                        pass
+
+                if "thumbnail" not in structure.extras:
+                    structure.base.extras.set(
+                        "thumbnail",
+                        common_utils.thumbnail(ase_struc=structure.get_ase()),
+                    )
+        sources = [edge[0] for edge in edges]
+        targets = [edge[1] for edge in edges]
+        roots = [source for source in sources if source not in targets]
+        # print(structure_nodes)
+        # print(workchain_nodes)
+        # print(edges)
+        print(roots)
+        dash_structure_nodes = [
+            {
+                "data": {
+                    "id": spk,
+                    "label": spk,
+                    "width": sw,
+                    "height": sh,
+                },
+                "classes": "structure",
+            }
+            for spk, sw, sh in structure_nodes
+        ]
+        dash_workchain_nodes = [
+            {
+                "data": {"id": wpk, "label": wdescription},
+                "classes": wtype,
+            }
+            for wpk, wtype, wdescription in workchain_nodes
+        ]
+
+        dash_edges = [
+            {
+                "data": {
+                    "source": source,
+                    "target": target,
+                    "label": source + "-->" + target,
+                }
+            }
+            for source, target in edges
+        ]
+        print("WORKCHAINS")
+        print(dash_workchain_nodes)
+        print("STRUCTURES")
+        print(dash_structure_nodes)
+        print("EDGES")
+        print(dash_edges)
+        print("ROOTS")
+        print(roots)
