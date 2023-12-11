@@ -287,8 +287,12 @@ class SearchStructuresWidget(ipw.VBox):
         ]
         dash_workchain_nodes = [
             {
-                "data": {"id": wpk, "label": wdescription, "viewer": VIEWERS[wtype]},
-                "parent": wp,
+                "data": {
+                    "id": wpk,
+                    "label": wdescription,
+                    "viewer": VIEWERS[wtype],
+                    "parent": wp,
+                },
                 "classes": wtype,
             }
             for wpk, wtype, wdescription, wp in workchain_nodes
