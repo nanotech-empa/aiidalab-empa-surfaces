@@ -215,6 +215,8 @@ class SearchStructuresWidget(ipw.VBox):
                 creator_label, creator_pk, creator_description = find_first_workchain(
                     structure
                 )
+                if creator_label == "":
+                    creator_label = "TBD"
                 if creator_pk is not None:
                     the_parent = "P" + str(creator_pk)
                     workchain_nodes.append(
@@ -240,10 +242,13 @@ class SearchStructuresWidget(ipw.VBox):
                 for uuid in workflows_uuids:
                     try:
                         workchain = orm.load_node(uuid)
+                        label = workchain.label
+                        if label == "":
+                            label = "TBD"
                         workchain_nodes.append(
                             (
                                 str(workchain.pk),
-                                workchain.label,
+                                label,
                                 workchain.description,
                                 the_parent,
                             )
