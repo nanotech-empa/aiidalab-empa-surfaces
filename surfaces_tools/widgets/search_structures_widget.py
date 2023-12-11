@@ -12,6 +12,7 @@ VIEWERS = {
     "CP2K_AdsorptionE": "view_adsorption_energy.ipynb",
     "CP2K_GeoOpt": "view_geometry_optimization.ipynb",
     "CP2K_CellOpt": "view_geometry_optimization.ipynb",
+    "Cp2kBulkOptWorkChain": "view_geometry_optimization.ipynb",
     "CP2K_ORBITALS": "view_orbitals.ipynb",
     "CP2K_PDOS": "view_pdos.ipynb",
     "CP2K_STM": "view_stm.ipynb",
