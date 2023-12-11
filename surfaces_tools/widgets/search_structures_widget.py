@@ -269,7 +269,7 @@ class SearchStructuresWidget(ipw.VBox):
         edges = list(set(edges))
         roots = list(set(roots))
         dast_parent_nodes = [
-            {"data": {"id": "P" + root[-1], "label": "PARENT"}} for root in roots
+            {"data": {"id": "P" + str(root), "label": "PARENT"}} for root in roots
         ]
         dash_structure_nodes = [
             {
