@@ -212,22 +212,41 @@ class SearchStructuresWidget(ipw.VBox):
                     io.BytesIO(base64.b64decode(structure.extras["thumbnail"]))
                 ).size
 
-                structure_nodes.append(
-                    (str(structure.pk), 200, int(200 * thumbnail_h / thumbnail_w))
-                )
                 creator_label, creator_pk, creator_description = find_first_workchain(
                     structure
                 )
                 if creator_pk is not None:
+                    the_parent = "P" + str(creator_pk)
                     workchain_nodes.append(
-                        (str(creator_pk), creator_label, creator_description)
+                        (
+                            str(creator_pk),
+                            creator_label,
+                            creator_description,
+                            the_parent,
+                        )
                     )
+
                     edges.append((workchain_nodes[-1][0], structure_nodes[-1][0]))
+                else:
+                    the_parent = "P" + str(structure.pk)
+                structure_nodes.append(
+                    (
+                        str(structure.pk),
+                        200,
+                        int(200 * thumbnail_h / thumbnail_w),
+                        the_parent,
+                    )
+                )
                 for uuid in workflows_uuids:
                     try:
                         workchain = orm.load_node(uuid)
                         workchain_nodes.append(
-                            (str(workchain.pk), workchain.label, workchain.description)
+                            (
+                                str(workchain.pk),
+                                workchain.label,
+                                workchain.description,
+                                the_parent,
+                            )
                         )
                         edges.append((structure_nodes[-1][0], workchain_nodes[-1][0]))
                     except common.NotExistent:
@@ -243,6 +262,9 @@ class SearchStructuresWidget(ipw.VBox):
         structure_nodes = list(set(structure_nodes))
         edges = list(set(edges))
         roots = list(set(roots))
+        dast_parent_nodes = [
+            {"data": {"id": root[-1], "label": "PARENT"}} for root in roots
+        ]
         dash_structure_nodes = [
             {
                 "data": {
@@ -250,6 +272,7 @@ class SearchStructuresWidget(ipw.VBox):
                     "label": spk,
                     "width": sw,
                     "height": sh,
+                    "viewer": "export_structure.ipynb",
                 },
                 "classes": "structure",
             }
@@ -257,7 +280,7 @@ class SearchStructuresWidget(ipw.VBox):
         ]
         dash_workchain_nodes = [
             {
-                "data": {"id": wpk, "label": wdescription},
+                "data": {"id": wpk, "label": wdescription, "viewer": VIEWERS[wtype]},
                 "classes": wtype,
             }
             for wpk, wtype, wdescription in workchain_nodes
@@ -279,5 +302,6 @@ class SearchStructuresWidget(ipw.VBox):
         print("structures=", dash_structure_nodes)
         # print("EDGES")
         print("edges=", dash_edges)
+        print("parents=", dast_parent_nodes)
         # print("ROOTS")
         print("roots=", roots)
