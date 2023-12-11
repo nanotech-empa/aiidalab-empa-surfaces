@@ -273,17 +273,19 @@ class SearchStructuresWidget(ipw.VBox):
                     "width": sw,
                     "height": sh,
                     "viewer": "export_structure.ipynb",
+                    "parent": sp,
                 },
                 "classes": "structure",
             }
-            for spk, sw, sh in structure_nodes
+            for spk, sw, sh, sp in structure_nodes
         ]
         dash_workchain_nodes = [
             {
                 "data": {"id": wpk, "label": wdescription, "viewer": VIEWERS[wtype]},
+                "parent": wp,
                 "classes": wtype,
             }
-            for wpk, wtype, wdescription in workchain_nodes
+            for wpk, wtype, wdescription, wp in workchain_nodes
         ]
 
         dash_edges = [
