@@ -1,6 +1,6 @@
 ---
 ci:
-    autoupdat_schedule: quarterly
+    autoupdate_schedule: quarterly
 
 repos:
     - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -17,16 +17,16 @@ repos:
           - id: isort
             args: [--profile, black, --filter-files]
     - repo: https://github.com/PyCQA/autoflake
-      rev: v2.2.0
+      rev: v2.2.1
       hooks:
           - id: autoflake
     - repo: https://github.com/asottile/pyupgrade
-      rev: v3.10.1
+      rev: v3.14.0
       hooks:
           - id: pyupgrade
             args: [--py38-plus]
     - repo: https://github.com/psf/black
-      rev: 23.7.0
+      rev: 23.9.1
       hooks:
           - id: black
             language_version: python3 # Should be a command that runs python3.6+
@@ -58,10 +58,19 @@ repos:
       hooks:
           - id: yamlfmt
     - repo: https://github.com/asottile/setup-cfg-fmt
-      rev: v2.4.0
+      rev: v2.5.0
       hooks:
           - id: setup-cfg-fmt
     - repo: https://github.com/kynan/nbstripout
       rev: 0.6.1
       hooks:
           - id: nbstripout
+
+    - repo: https://github.com/nbQA-dev/nbQA
+      rev: 1.7.0
+      hooks:
+          - id: nbqa-pyupgrade
+            args: [--py38-plus]
+          - id: nbqa-isort
+            args: [--profile=black]
+          - id: nbqa-black
