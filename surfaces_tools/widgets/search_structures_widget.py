@@ -304,7 +304,8 @@ class SearchStructuresWidget(ipw.VBox):
                     "source": source,
                     "target": target,
                     "label": source + "-->" + target,
-                }
+                },
+                "classes": "edges",
             }
             for source, target in edges
         ]
