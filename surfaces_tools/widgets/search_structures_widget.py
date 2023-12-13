@@ -26,6 +26,26 @@ VIEWERS = {
 }
 
 
+def find_connected_components(graph):
+    visited = set()
+    components = []
+
+    def dfs(node, component):
+        if node not in visited:
+            visited.add(node)
+            component.append(node)
+            for neighbor in graph[node]:
+                dfs(neighbor, component)
+
+    for node in graph:
+        if node not in visited:
+            component = []
+            dfs(node, component)
+            components.append(component)
+
+    return components
+
+
 def find_first_workchain(node):
     """Find the first workchain in the provenance that created the structure node."""
     lastcalling = None
@@ -197,8 +217,8 @@ class SearchStructuresWidget(ipw.VBox):
             structures = qb.all(flat=True)
 
         # For each structure obtained with the queries and teh connected workchains, create dash nodes.
-        structure_nodes = []
-        workchain_nodes = []
+        dash_nodes = []
+        nodes = {}
         edges = []
         roots = []
         for structure in structures:
@@ -216,87 +236,80 @@ class SearchStructuresWidget(ipw.VBox):
                 creator_label, creator_pk, creator_description = find_first_workchain(
                     structure
                 )
-                if creator_label == "":
-                    creator_label = "TBD"
-                if creator_pk is not None:
-                    the_parent = "P" + str(creator_pk)
-                    workchain_nodes.append(
-                        (
-                            str(creator_pk),
-                            creator_label,
-                            creator_description,
-                            the_parent,
-                        )
-                    )
 
-                    edges.append((workchain_nodes[-1][0], structure_nodes[-1][0]))
-                else:
-                    the_parent = "P" + str(structure.pk)
-                structure_nodes.append(
-                    (
-                        str(structure.pk),
-                        200,
-                        int(200 * thumbnail_h / thumbnail_w),
-                        the_parent,
-                    )
-                )
+                if creator_pk is not None:  # is always a workchain
+                    if creator_label == "":
+                        creator_label = "TBD"
+                    nodes[str(creator_pk)] = {
+                        "label": creator_description,
+                        "width": "200",
+                        "height": "100",
+                        "viewer": VIEWERS[creator_label],
+                        "classes": creator_label,
+                    }
+
+                    edges.append((creator_pk, structure.pk))
+
+                nodes[str[structure.pk]] = {
+                    "label": str(structure.pk),
+                    "width": "200",
+                    "height": str(int(200 * thumbnail_h / thumbnail_w)),
+                    "viewer": "export_structure.ipynb",
+                    "classes": "structure",
+                }
+
                 for uuid in workflows_uuids:
                     try:
                         workchain = orm.load_node(uuid)
                         label = workchain.label
                         if label == "":
                             label = "TBD"
-                        workchain_nodes.append(
-                            (
-                                str(workchain.pk),
-                                label,
-                                workchain.description,
-                                the_parent,
-                            )
-                        )
-                        edges.append((structure_nodes[-1][0], workchain_nodes[-1][0]))
+                        nodes[str(workchain.pk)] = {
+                            "label": workchain.description,
+                            "width": "200",
+                            "height": "100",
+                            "viewer": VIEWERS[label],
+                            "classes": label,
+                        }
+                        edges.append((structure.pk, workchain.pk))
                     except common.NotExistent:
                         pass
-
+        edges = list(set(edges))
         sources = [edge[0] for edge in edges]
         targets = [edge[1] for edge in edges]
         roots = [source for source in sources if source not in targets]
-        # print(structure_nodes)
-        # print(workchain_nodes)
-        # print(edges)
-        workchain_nodes = list(set(workchain_nodes))
-        structure_nodes = list(set(structure_nodes))
-        edges = list(set(edges))
         roots = list(set(roots))
-        dast_parent_nodes = [
-            {"data": {"id": "P" + str(root), "label": "PARENT"}} for root in roots
-        ]
-        dash_structure_nodes = [
-            {
-                "data": {
-                    "id": spk,
-                    "label": spk,
-                    "width": sw,
-                    "height": sh,
-                    "viewer": "export_structure.ipynb",
-                    "parent": sp,
-                },
-                "classes": "structure",
-            }
-            for spk, sw, sh, sp in structure_nodes
-        ]
-        dash_workchain_nodes = [
-            {
-                "data": {
-                    "id": wpk,
-                    "label": wdescription,
-                    "viewer": VIEWERS[wtype],
-                    "parent": wp,
-                },
-                "classes": wtype,
-            }
-            for wpk, wtype, wdescription, wp in workchain_nodes
-        ]
+
+        # Create an adjacency list representation of the graph
+        graph = {}
+        for pair in edges:
+            for num in pair:
+                if num not in graph:
+                    graph[num] = []
+            graph[pair[0]].append(pair[1])
+            graph[pair[1]].append(pair[0])
+
+        clusters = find_connected_components(graph)
+
+        dash_parent_nodes = []
+        for id, cluster in enumerate(clusters):
+            for node_id in cluster:
+                dash_parent_nodes.append(
+                    {"data": {"id": "P" + str(id), "label": "PARENT" + str(id)}}
+                )
+                dash_nodes.append(
+                    {
+                        "data": {
+                            "id": str(node_id),
+                            "label": nodes[str(node_id)]["label"],
+                            "width": nodes[str(node_id)]["width"],
+                            "height": nodes[str(node_id)]["height"],
+                            "viewer": nodes[str(node_id)]["viewer"],
+                            "parent": "P" + str(id),
+                        },
+                        "classes": nodes[str(node_id)]["classes"],
+                    }
+                )
 
         dash_edges = [
             {
@@ -309,12 +322,11 @@ class SearchStructuresWidget(ipw.VBox):
             }
             for source, target in edges
         ]
-        # print("WORKCHAINS")
-        print("workchains=", dash_workchain_nodes)
-        # print("STRUCTURES")
-        print("structures=", dash_structure_nodes)
+        # print nodes
+        print("dash_nodes=", dash_nodes)
         # print("EDGES")
         print("edges=", dash_edges)
-        print("parents=", dast_parent_nodes)
+        # print("PARENTS")
+        print("parents=", dash_parent_nodes)
         # print("ROOTS")
         print("roots=", roots)
