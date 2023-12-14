@@ -250,7 +250,7 @@ class SearchStructuresWidget(ipw.VBox):
 
                     edges.append((creator_pk, structure.pk))
 
-                nodes[str[structure.pk]] = {
+                nodes[str(structure.pk)] = {
                     "label": str(structure.pk),
                     "width": "200",
                     "height": str(int(200 * thumbnail_h / thumbnail_w)),
