@@ -16,7 +16,7 @@ class HorizontalItemWidget(ipw.HBox):
         children = kwargs.pop("children", [])
         children.append(self.delete_button)
 
-        super().__init__(children=children, *args, **kwargs)
+        super().__init__(*args, children=children, **kwargs)
 
     def delete_myself(self, _):
         self.stack_class.delete_item(self)
