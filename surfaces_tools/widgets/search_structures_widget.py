@@ -18,6 +18,7 @@ VIEWERS = {
     "CP2K_NEB": "view_neb.ipynb",
     "CP2K_Replica": "view_replica.ipynb",
     "ReplicaWorkChain": "view_replica.ipynb",
+    "TBD": "view_workflow.ipynb",
 }
 
 
@@ -41,7 +42,7 @@ def thunmnail_raw(
 ):
     """Returns an image with a link to structure export."""
     html = f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?uuid={uuid}">'
-    html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
+    html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="input structure PK:{pk} {description}">'
     html += "</a></td>"
     return html
 
@@ -65,19 +66,21 @@ def header(pk="", label="", tclass="tg-dark", last_modified=""):
             return f"""<tr><td class="{tclass}" colspan=3>  <a target="_blank" href="{the_viewer}?pk={pk}">Structure created by {label} PK-{pk}</a> and last modified {last_modified}</td></tr>"""
 
 
-def uuids_to_nodesdict(uuids):
+def uuids_to_nodesdict(uuids=[]):
     workflows = {}
     nworkflows = 0
+
     for uuid in uuids:
         try:
             node = orm.load_node(uuid)
-            nodeisobsolete = "obsolete" in node.extras and node.extras["obsolete"]
-            if node.label in VIEWERS and not nodeisobsolete:
-                nworkflows += 1
-                if node.label in workflows:
-                    workflows[node.label].append(node)
-                else:
-                    workflows[node.label] = [node]
+            workchain_label = "TBD"
+            if node.label in VIEWERS:
+                workchain_label = node.label
+            nworkflows += 1
+            if workchain_label in workflows:
+                workflows[workchain_label].append(node)
+            else:
+                workflows[workchain_label] = [node]
         except common.NotExistent:
             pass
 
@@ -102,9 +105,24 @@ class SearchStructuresWidget(ipw.VBox):
             style={"description_width": "60px"},
             layout={"width": "225px"},
         )
-
+        self.date_type = ipw.RadioButtons(
+            options=[("Modification t", "mtime"), ("Creation t", "ctime")],
+            value="mtime",
+            style={"description_width": "60px"},
+            layout={"width": "225px"},
+        )
         self.date_text = ipw.HTML(value="<p>Select the date range:</p>", width="150px")
-        search_crit = ipw.HBox([self.date_text, self.date_start, self.date_end])
+        # keywords selection
+        self.keywords = ipw.Text(description="Keywords: ", layout={"width": "225px"})
+        self.and_or = ipw.RadioButtons(options=["and", "or"], value="and")
+        search_crit = ipw.VBox(
+            [
+                ipw.HBox(
+                    [self.date_text, self.date_start, self.date_end, self.date_type]
+                ),
+                ipw.HBox([self.keywords, self.and_or]),
+            ]
+        )
         button = ipw.Button(description="Search")
 
         self.results = ipw.HTML()
@@ -132,41 +150,71 @@ class SearchStructuresWidget(ipw.VBox):
             start_date = end_date - datetime.timedelta(days=20)
             self.date_start.value = start_date.strftime("%Y-%m-%d")
             self.date_end.value = end_date.strftime("%Y-%m-%d")
-
-        # Search with QB structures with extra "surfaces".
-        qb = orm.QueryBuilder()
-        qb.append(
-            orm.StructureData,
-            filters={
-                "extras": {"has_key": "surfaces"},
-                "mtime": {"and": [{"<=": end_date}, {">": start_date}]},
-            },
-        )
-        qb.order_by({orm.StructureData: {"mtime": "desc"}})
-
-        # For each structure in QB create a dictionary with info on the workflows computed on it.
+        search_keywords = self.keywords.value.split()
+        # list of workchains with matching description, not obsolete and not failed
+        if len(search_keywords) != 0:
+            qb = orm.QueryBuilder()
+            qb.append(
+                orm.WorkChainNode,
+                tag="wc",
+                filters={
+                    "attributes.exit_status": {"==": 0},
+                    "or": [
+                        {"extras": {"!has_key": "obsolete"}},
+                        {"extras.obsolete": {"==": False}},
+                    ],
+                    # self.date_type.value: {"and": [{"<=": end_date}, {">": start_date}]},
+                    "description": {
+                        self.and_or.value: [
+                            {"ilike": f"%{keyword}%"} for keyword in search_keywords
+                        ]
+                    },
+                },
+            )
+            qb.append(orm.StructureData, with_outgoing="wc")
+            structures = qb.all(flat=True)
+        else:
+            # Search with QB structures with extra "surfaces" not empty.
+            qb = orm.QueryBuilder()
+            qb.append(
+                orm.StructureData,
+                filters={
+                    "and": [
+                        {"extras": {"has_key": "surfaces"}},
+                        {"extras.surfaces": {"longer": 0}},
+                    ],
+                    self.date_type.value: {
+                        "and": [{"<=": end_date}, {">": start_date}]
+                    },
+                },
+                # project=["extras.surfaces", "mtime", "ctime"],
+            )
+            qb.order_by({orm.StructureData: {self.date_type.value: "desc"}})
+            structures = qb.all(flat=True)
+        # For each structure obtained with the queries, create a dictionary with info on the workflows computed on it.
         data = []
-        for node in qb.all(flat=True):
+        for structure in structures:
             # print("node ", node.pk, " extras ", node.extras["surfaces"])
-            extras = node.extras["surfaces"]
+            workflows_uuids = structure.extras["surfaces"]
             nworkflows = 0
-            if isinstance(extras, list):
-                nworkflows, workflows = uuids_to_nodesdict(node.extras["surfaces"])
+            nworkflows, workflows = uuids_to_nodesdict(uuids=workflows_uuids)
             if nworkflows > 0:
                 nrows = nworkflows
-                if "thumbnail" not in node.extras:
-                    node.base.extras.set(
-                        "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
+                if "thumbnail" not in structure.extras:
+                    structure.base.extras.set(
+                        "thumbnail",
+                        common_utils.thumbnail(ase_struc=structure.get_ase()),
                     )
 
                 entry = {
-                    "creator": find_first_workchain(node),
-                    "pk": node.pk,
-                    "uuid": node.uuid,
+                    "creator": find_first_workchain(structure),
+                    "pk": structure.pk,
+                    "uuid": structure.uuid,
                     "nrows": nrows,
-                    "mtime": node.mtime.strftime("%d/%m/%y"),
+                    "mtime": structure.mtime.strftime("%d/%m/%y"),
+                    "ctime": structure.ctime.strftime("%d/%m/%y"),
                     "workflows": workflows,
-                    "thumbnail": node.extras["thumbnail"],
+                    "thumbnail": structure.extras["thumbnail"],
                 }
                 data.append(entry)
         # populate the table with the data
@@ -214,10 +262,13 @@ class SearchStructuresWidget(ipw.VBox):
                 html += f"<td class={tclass[odd]} rowspan={nrowsw}>"
                 html += "<ul>"
                 for node in entry["workflows"][workflow]:
+                    label = node.label
+                    if label not in VIEWERS:
+                        label = "TBD"
                     html += link_to_viewer(
                         description=f"PK-{node.pk} {node.description}",
                         pk=node.pk,
-                        label=node.label,
+                        label=label,
                     )
                 html += "</ul></td>"
                 if nrows_done == 0:
