@@ -9,7 +9,7 @@ from ase import Atoms
 from IPython.display import clear_output, display
 
 from ..utils.cp2k_input_validity import validate_input
-from . import constraints, stack
+from . import analyze_structure, constraints, stack
 
 
 def cp2k_bool(value):
@@ -22,6 +22,7 @@ LAYOUT2 = {"width": "35%"}
 
 
 class InputDetails(ipw.VBox):
+    structure = tr.Instance(Atoms, allow_none=True)  # needed for colvars
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
     details = tr.Dict()
     protocol = tr.Unicode()
@@ -42,8 +43,6 @@ class InputDetails(ipw.VBox):
         tr.Int()
     )  # To be linked to resources used only if neb = True
 
-    ase_atoms = tr.Instance(Atoms, allow_none=True)  # needed for colvars
-
     def __init__(
         self,
     ):
@@ -57,6 +56,10 @@ class InputDetails(ipw.VBox):
         self.output = ipw.Output()
         self.displayed_sections = []
         # self.neb = False
+
+        self.strusture_analyzer = analyze_structure.StructureAnalyzer()
+        tr.dlink((self, "structure"), (self.strusture_analyzer, "structure"))
+        tr.dlink((self.strusture_analyzer, "details"), (self, "details"))
 
         super().__init__(children=[self.output])
 

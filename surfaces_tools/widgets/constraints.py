@@ -37,13 +37,13 @@ class OneColvar(ipw.HBox):
 
 
 class OneConstraint(ipw.HBox):
-    def __init__(self, ase_atoms=None):
+    def __init__(self, structure=None):
         self.constraint_widget = ipw.Text(
             description="Constraint",
             style={"description_width": "initial"},
         )
         self.constraint_widget.observe(self._observe_constraint, names="value")
-        self.ase_atoms = ase_atoms
+        self.structure = structure
 
         super().__init__([self.constraint_widget])
 
@@ -68,9 +68,9 @@ class OneConstraint(ipw.HBox):
         elif "fixed" in change["new"] and len(self.children) > 1:
             self.children = self.children[:1]
             try_guess = False
-        if try_guess and self.ase_atoms is not None:
+        if try_guess and self.structure is not None:
             try:
-                cv_value = cp2k_utils.compute_colvars(change["new"], self.ase_atoms)
+                cv_value = cp2k_utils.compute_colvars(change["new"], self.structure)
                 self.children[1].target_widget.value = str(round(cv_value[0][1], 3))
             except (IndexError, KeyError, ValueError):
                 pass
@@ -78,7 +78,7 @@ class OneConstraint(ipw.HBox):
 
 class ConstraintsWidget(ipw.VBox):
     details = tr.Dict()
-    ase_atoms = tr.Instance(Atoms, allow_none=True)
+    structure = tr.Instance(Atoms, allow_none=True)
 
     def __init__(self):
         self.constraints = ipw.VBox()
@@ -129,7 +129,7 @@ class ConstraintsWidget(ipw.VBox):
             self.add_constraint()
 
     def add_constraint(self, b=None):
-        self.constraints.children += (OneConstraint(ase_atoms=self.ase_atoms),)
+        self.constraints.children += (OneConstraint(structure=self.structure),)
         if (
             len(self.constraints.children) == 1
             and self.details
@@ -226,4 +226,4 @@ class ConstraintsWidget(ipw.VBox):
         }
 
     def traits_to_link(self):
-        return ["details", "ase_atoms"]
+        return ["details", "structure"]
