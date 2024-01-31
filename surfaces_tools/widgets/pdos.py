@@ -41,7 +41,6 @@ def read_and_process_pdos_file(pdos_path):
 
 
 def process_pdos_files(pdos_workchain, newversion=True):
-
     dos = {}
 
     if newversion:
@@ -54,21 +53,19 @@ def process_pdos_files(pdos_workchain, newversion=True):
         retr_files = slab_scf.outputs.retrieved.list_object_names()
         retr_folder = slab_scf.outputs.retrieved
 
-    
     # Make sets that contain filenames with PDOS
     all_pdos = {f for f in retr_files if f.endswith(".pdos")}
     all_user_defined_pdos = {f for f in all_pdos if "list" in f}
     element_pdos = all_pdos - all_user_defined_pdos
-    
+
     def _extract_pdos_num(file):
         return int(re.search("list(.*)-", file).group(1))
 
     # Sort the sets
     all_user_defined_pdos = sorted(all_user_defined_pdos, key=_extract_pdos_num)
-    
+
     # Identify the number of spin channels.
     nspin = 2 if any("BETA" in f for f in all_pdos) else 1
-
 
     def _read_pdos(file):
         with retr_folder.open(file) as fhandle:
@@ -93,7 +90,7 @@ def process_pdos_files(pdos_workchain, newversion=True):
             dos[label][i_spin][:, 1] += pdos[:, 1]
         else:
             dos[label][i_spin] = pdos
-    
+
     # User-defined PDOS.
     for file in all_user_defined_pdos:
         i_spin = 1 if "BETA" in file else 0
@@ -103,7 +100,6 @@ def process_pdos_files(pdos_workchain, newversion=True):
         if label not in dos:
             dos[label] = [None] * nspin
         dos[label][i_spin] = pdos
-
 
     tdos = None
     for k in dos:
