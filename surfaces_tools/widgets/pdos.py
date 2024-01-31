@@ -41,6 +41,9 @@ def read_and_process_pdos_file(pdos_path):
 
 
 def process_pdos_files(pdos_workchain, newversion=True):
+
+    dos = {}
+
     if newversion:
         retr_files = pdos_workchain.outputs.slab_retrieved.list_object_names()
         retr_folder = pdos_workchain.outputs.slab_retrieved
@@ -51,49 +54,56 @@ def process_pdos_files(pdos_workchain, newversion=True):
         retr_files = slab_scf.outputs.retrieved.list_object_names()
         retr_folder = slab_scf.outputs.retrieved
 
-    nspin = 1
-    for file in retr_files:
-        if file.endswith(".pdos") and "BETA" in file:
-            nspin = 2
-            break
+    
+    # Make sets that contain filenames with PDOS
+    all_pdos = {f for f in retr_files if f.endswith(".pdos")}
+    all_user_defined_pdos = {f for f in all_pdos if "list" in f}
+    element_pdos = all_pdos - all_user_defined_pdos
+    
+    def _extract_pdos_num(file):
+        return int(re.search("list(.*)-", file).group(1))
 
-    dos = {
-        "mol": [None] * nspin,
-    }
+    # Sort the sets
+    all_user_defined_pdos = sorted(all_user_defined_pdos, key=_extract_pdos_num)
+    
+    # Identify the number of spin channels.
+    nspin = 2 if any("BETA" in f for f in all_pdos) else 1
 
-    for file in sorted(retr_files):
-        if file.endswith(".pdos"):
-            with retr_folder.open(file) as fhandle:
-                try:
-                    path = fhandle.name
-                except AttributeError:
-                    path = fhandle
 
-                if "BETA" in file:
-                    i_spin = 1
-                else:
-                    i_spin = 0
+    def _read_pdos(file):
+        with retr_folder.open(file) as fhandle:
+            try:
+                path = fhandle.name
+            except AttributeError:
+                path = fhandle
+            pdos, kind = read_and_process_pdos_file(path)
+        return pdos, kind
 
-                pdos, kind = read_and_process_pdos_file(path)
+    # Element-wise PDOS.
+    for file in sorted(element_pdos):
+        i_spin = 1 if "BETA" in file else 0
+        pdos, kind = _read_pdos(file)
 
-                if "list1" in file:
-                    dos["mol"][i_spin] = pdos
-                elif "list" in file:
-                    num = re.search("list(.*)-", file).group(1)
-                    label = f"sel_{num}"
-                    if label not in dos:
-                        dos[label] = [None] * nspin
-                    dos[label][i_spin] = pdos
-                elif "k" in file:
-                    # remove any digits from kind
-                    kind = "".join([c for c in kind if not c.isdigit()])
-                    label = f"kind_{kind}"
-                    if label not in dos:
-                        dos[label] = [None] * nspin
-                    if dos[label][i_spin] is not None:
-                        dos[label][i_spin][:, 1] += pdos[:, 1]
-                    else:
-                        dos[label][i_spin] = pdos
+        # Remove any digits from kind.
+        kind = "".join([c for c in kind if not c.isdigit()])
+        label = f"kind_{kind}"
+        if label not in dos:
+            dos[label] = [None] * nspin
+        if dos[label][i_spin] is not None:
+            dos[label][i_spin][:, 1] += pdos[:, 1]
+        else:
+            dos[label][i_spin] = pdos
+    
+    # User-defined PDOS.
+    for file in all_user_defined_pdos:
+        i_spin = 1 if "BETA" in file else 0
+        pdos, kind = _read_pdos(file)
+        num = _extract_pdos_num(file)
+        label = f"sel_{num}"
+        if label not in dos:
+            dos[label] = [None] * nspin
+        dos[label][i_spin] = pdos
+
 
     tdos = None
     for k in dos:
@@ -377,7 +387,6 @@ class PdosStackWidget(_BaseStackWidget):
 
         self.options = {
             "Total DOS": "tdos",
-            "Molecule PDOS": "mol",
             **{
                 f"kind {name.split('_')[-1]}": name
                 for name in data
@@ -385,16 +394,11 @@ class PdosStackWidget(_BaseStackWidget):
             },
         }
 
-        labels_are_present = (
-            "molecule" in workchain.inputs.pdos_lists[0]
-            and len(workchain.inputs.pdos_lists) > 1
-        )
-
-        if labels_are_present:
-            labels = [sel[1] for sel in workchain.inputs.pdos_lists[1:]]
+        if len(workchain.inputs.pdos_lists) > 1:
+            labels = [sel[1] for sel in workchain.inputs.pdos_lists]
             self.options.update(
                 {
-                    labels[int(name[4:]) - 2]: name
+                    labels[int(name[4:]) - 1]: name
                     for name in data
                     if name.startswith("sel")
                 }
@@ -402,7 +406,7 @@ class PdosStackWidget(_BaseStackWidget):
         else:
             self.options.update(
                 {
-                    f"selection {name.split('_')[-1]}": name
+                    name.replace("sel_", "Selection "): name
                     for name in data
                     if name.startswith("sel")
                 }
@@ -422,16 +426,7 @@ class PdosStackWidget(_BaseStackWidget):
                 tl.dlink((self, "options"), (total_pdos, "options"))
                 total_pdos._data_selection.label = "Total DOS"
                 total_pdos._spin_selector.value = spin
-
-                molecule_pdos = PdosSelectionWidget(
-                    color="black",
-                )
-                tl.dlink((self, "data"), (molecule_pdos, "data"))
-                tl.dlink((self, "options"), (molecule_pdos, "options"))
-                molecule_pdos._data_selection.label = "Molecule PDOS"
-                molecule_pdos._spin_selector.value = spin
-
-                self.items += (total_pdos, molecule_pdos)
+                self.items += (total_pdos,)
 
 
 class OverlapSelectionWidget(_BaseSelectionWidget):
