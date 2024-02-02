@@ -389,13 +389,12 @@ class PdosStackWidget(_BaseStackWidget):
                 if name.startswith("kind_")
             },
         }
-        labels = [sel[1] if isinstance(sel, list) else f"Selection {sel}" for sel in workchain.inputs.pdos_lists]
+        labels = [
+            sel[1] if isinstance(sel, list) else f"Selection {sel}"
+            for sel in workchain.inputs.pdos_lists
+        ]
         self.options.update(
-            {
-                labels[int(name[4:]) - 1]: name
-                for name in data
-                if name.startswith("sel")
-            }
+            {labels[int(name[4:]) - 1]: name for name in data if name.startswith("sel")}
         )
 
         # Trigger the data change.
