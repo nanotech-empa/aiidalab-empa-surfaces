@@ -460,7 +460,7 @@ class OverlapStackWidget(_BaseStackWidget):
         n_spin = self.data["nspin_g2"]
         options = []
         for spin in range(n_spin):
-            n_orbitals = len(self.data["orb_indexes_g2"][spin])
+            n_orbitals = len(self.data["energies_g2"][spin])
             options.append(
                 {
                     get_full_orbital_label(spin, i, self.data): i
