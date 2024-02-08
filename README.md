@@ -48,4 +48,13 @@ Additional notes:
 For inquiries concerning Materials Cloud, please use the [public issue tracker](https://github.com/materialscloud-org/issues).
 For inquiries concerning the Empa Surfaces App, please contact [carlo.pignedoli@empa.ch](mailto:carlo.pignedoli@empa.ch).
 
+## Acknowledgements
+We acknowledge support from:
+* the [NCCR MARVEL](http://nccr-marvel.ch/) funded by the Swiss National Science Foundation;
+* the [swissuniversities P-5 project "Materials Cloud"](https://www.materialscloud.org/swissuniversities).
+
+<img src="https://github.com/nanotech-empa/aiida-nanotech-empa/blob/master/images/MARVEL.png" width="250px" height="131px"/>
+<img src="https://github.com/nanotech-empa/aiida-nanotech-empa/blob/master/images/swissuniversities.png" width="300px" height="35px"/>
+
+
 [![DOI](https://zenodo.org/badge/136625855.svg)](https://zenodo.org/badge/latestdoi/136625855)
