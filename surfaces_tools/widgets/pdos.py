@@ -265,19 +265,19 @@ def make_image_link(figure, text="PNG", data_format="png"):
     return html
 
 
-def make_txt_link(collected_data):
+def make_csv_link(collected_data):
     headers, data = collected_data
     header = ", ".join(headers)
     tempio = io.BytesIO()
     np.savetxt(tempio, data, header=header, fmt="%.4e", delimiter=", ")
     enc_file = base64.b64encode(tempio.getvalue()).decode()
 
-    filename = "pdos.txt"
+    filename = "pdos.csv"
 
     html = f'<a download="{filename}" href="'
     html += f'data:chemical/txt;name={filename};base64,{enc_file}"'
     html += ' id="export_link"'
-    html += ' target="_blank">TXT</a>'
+    html += ' target="_blank">CSV</a>'
 
     return html
 
@@ -582,7 +582,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
     def make_plot(self, _=None):
         with self._plot_output:
             fig, collected_data = self._create_the_plot()
-            links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_txt_link(collected_data)}."""
+            links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_csv_link(collected_data)}."""
             display(ipw.HTML(links))
 
     def clear_plot(self, _=None):
@@ -595,8 +595,8 @@ class PdosOverlapViewerWidget(ipw.VBox):
         energy_arr = np.arange(elim[0], elim[1], delta_e)
 
         # Collect data into an array (w headers) as well.
-        collect_data = np.reshape(energy_arr, (1, energy_arr.size))
-        collect_data_headers = ["energy [eV]"]
+        data = np.reshape(energy_arr, (1, energy_arr.size))
+        headers = ["energy [eV]"]
 
         # Make the figure.
         fig = plt.figure(figsize=(12, 6))
@@ -606,10 +606,8 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
         ylim = [None, None]
 
-        self._plot_projections(
-            ax1, ylim, energy_arr, collect_data, collect_data_headers
-        )
-        self._plot_overlaps(ax1, ylim, energy_arr, collect_data, collect_data_headers)
+        headers, data = self._plot_projections(ax1, ylim, energy_arr, data, headers)
+        headers, data = self._plot_overlaps(ax1, ylim, energy_arr, data, headers)
 
         plt.legend(
             ncol=self._overlap.data["nspin_g2"],
@@ -625,7 +623,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
         plt.xlabel("$E-E_F$ [eV]")
         plt.show()
 
-        return fig, (collect_data_headers, collect_data.T)
+        return fig, (headers, data.T)
 
     def _plot_projections(
         self, ax1, ylim, energy_arr, collect_data, collect_data_headers
@@ -670,6 +668,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
             collect_data_headers.append(f"{label} s{spin}")
             collect_data = np.vstack([collect_data, series])
+        return collect_data_headers, collect_data
 
     def _plot_overlaps(self, ax1, ylim, energy_arr, collect_data, collect_data_headers):
         cumulative_plot = [None, None]
@@ -711,3 +710,4 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
             collect_data_headers.append(f"{label} s{spin}")
             collect_data = np.vstack([collect_data, series])
+        return collect_data_headers, collect_data
