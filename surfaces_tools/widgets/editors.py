@@ -115,3 +115,30 @@ class BuildSlab(ipw.VBox):
             nx, ny = slabs.guess_slab_size(self.molecule, self.drop_surface.value)
             self.nx_slider.value = nx
             self.ny_slider.value = ny
+
+
+class AddMoleculeWidget(ipw.VBox):
+    structure = tr.Instance(ase.Atoms, allow_none=True)
+    molecule = tr.Instance(ase.Atoms, allow_none=True)
+    selection = tr.List(tr.Int())
+
+    def __init__(self, title=""):
+        self.title = title
+        self.add_molecule_button = ipw.Button(description="Add molecule")
+        self.add_molecule_button.on_click(self.add_molecule)
+        self.info = ipw.HTML("")
+        self.importer = awb.StructureBrowserWidget(title="AiiDA database")
+        self._status_message = awb.utils.StatusHTML()
+        super().__init__(
+            children=[
+                self.importer,
+                self.info,
+                self.add_molecule_button,
+                self._status_message,
+            ]
+        )
+
+    @awb.structures._register_structure
+    def add_molecule(self, _=None, atoms=None):
+        """Add molecule to the structure."""
+        self.structure = atoms + self.importer.structure.get_ase()
