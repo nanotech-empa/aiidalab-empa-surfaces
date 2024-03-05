@@ -122,7 +122,7 @@ class BuildSlab(ipw.VBox):
 class InsertStructureWidget(ipw.HBox):
     structure = tr.Instance(ase.Atoms, allow_none=True)
     structure_to_insert = tr.Instance(ase.Atoms, allow_none=True)
-    selection = tr.List(tr.Int())
+    input_selection = tr.List(tr.Int())
 
     def __init__(self, title=""):
         self.title = title
@@ -174,9 +174,11 @@ class InsertStructureWidget(ipw.HBox):
             f"""<img width="200px" src="data:image/png;base64,{thumbnail}" title="">"""
         )
 
-    @awb.structures._register_structure
-    def add_molecule(self, _=None, atoms=None):
+    def add_molecule(self, _=None):
         """Add molecule to the structure."""
-        structure = self.structure_to_insert.copy()
-        structure.translate([float(x) for x in self.location.value.split()])
-        self.structure = atoms + structure
+        insert_structure = self.structure_to_insert.copy()
+        insert_structure.translate([float(x) for x in self.location.value.split()])
+        self.structure = self.structure.copy() + insert_structure
+        self.input_selection = list(
+            range(len(self.structure) - len(insert_structure), len(self.structure))
+        )
