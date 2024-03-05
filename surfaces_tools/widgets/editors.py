@@ -1,7 +1,9 @@
 import aiidalab_widgets_base as awb
 import ase
 import ipywidgets as ipw
+import numpy as np
 import traitlets as tr
+from aiida_nanotech_empa.utils import common_utils
 
 from . import slabs
 from .analyze_structure import StructureAnalyzer
@@ -117,28 +119,64 @@ class BuildSlab(ipw.VBox):
             self.ny_slider.value = ny
 
 
-class AddMoleculeWidget(ipw.VBox):
+class InsertStructureWidget(ipw.HBox):
     structure = tr.Instance(ase.Atoms, allow_none=True)
-    molecule = tr.Instance(ase.Atoms, allow_none=True)
+    structure_to_insert = tr.Instance(ase.Atoms, allow_none=True)
     selection = tr.List(tr.Int())
 
     def __init__(self, title=""):
         self.title = title
+
+        self.thumbnail = ipw.HTML()
+        self.location = ipw.Text(
+            description="Place to:", value="0.0 0.0 0.0", layout={"width": "initial"}
+        )
         self.add_molecule_button = ipw.Button(description="Add molecule")
         self.add_molecule_button.on_click(self.add_molecule)
-        self.info = ipw.HTML("")
         self.importer = awb.StructureBrowserWidget(title="AiiDA database")
+        tr.dlink(
+            (self.importer, "structure"),
+            (self, "structure_to_insert"),
+            transform=lambda x: x.get_ase() if x else None,
+        )
         self._status_message = awb.utils.StatusHTML()
         super().__init__(
             children=[
-                self.importer,
-                self.info,
-                self.add_molecule_button,
-                self._status_message,
+                self.thumbnail,
+                ipw.VBox(
+                    [
+                        self.importer,
+                        ipw.HBox(
+                            [
+                                self.location,
+                                self.add_molecule_button,
+                            ]
+                        ),
+                        self._status_message,
+                    ]
+                ),
             ]
+        )
+
+    @tr.validate("structure_to_insert")
+    def _validate_structure_to_insert(self, proposal):
+        structure = proposal["value"]
+        structure.pbc = False
+        structure.cell = None
+        geom_center = np.mean(structure.get_positions(), axis=0)
+        structure.translate(-geom_center)
+        return structure
+
+    @tr.observe("structure_to_insert")
+    def _observe_structure_to_insert(self, _=None):
+        thumbnail = common_utils.thumbnail(ase_struc=self.structure_to_insert)
+        self.thumbnail.value = (
+            f"""<img width="200px" src="data:image/png;base64,{thumbnail}" title="">"""
         )
 
     @awb.structures._register_structure
     def add_molecule(self, _=None, atoms=None):
         """Add molecule to the structure."""
-        self.structure = atoms + self.importer.structure.get_ase()
+        structure = self.structure_to_insert.copy()
+        structure.translate([float(x) for x in self.location.value.split()])
+        self.structure = atoms + structure
