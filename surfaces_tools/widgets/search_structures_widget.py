@@ -2,8 +2,9 @@ import datetime
 
 import ipywidgets as ipw
 from aiida import common, orm
-from aiida_nanotech_empa.utils import common_utils
 from IPython.display import clear_output
+
+from surfaces_tools import utils
 
 VIEWERS = {
     "CP2K_AdsorptionE": "view_adsorption_energy.ipynb",
@@ -34,16 +35,6 @@ def find_first_workchain(node):
     if lastcalling is not None:
         return lastcalling.label, lastcalling.pk
     return None, None
-
-
-def thunmnail_raw(
-    nrows=1, thumbnail=None, pk=None, uuid=None, description="", tclass="tg-dark"
-):
-    """Returns an image with a link to structure export."""
-    html = f'<td class="{tclass}" rowspan={nrows}><a target="_blank" href="./export_structure.ipynb?uuid={uuid}">'
-    html += f'<img width="100px" src="data:image/png;base64,{thumbnail}" title="PK{pk}: {description}">'
-    html += "</a></td>"
-    return html
 
 
 def link_to_viewer(description="", pk="", label=""):
@@ -156,7 +147,7 @@ class SearchStructuresWidget(ipw.VBox):
                 nrows = nworkflows
                 if "thumbnail" not in node.extras:
                     node.base.extras.set(
-                        "thumbnail", common_utils.thumbnail(ase_struc=node.get_ase())
+                        "thumbnail", utils.ase_to_thumbnail(structure=node.get_ase())
                     )
 
                 entry = {
@@ -221,7 +212,7 @@ class SearchStructuresWidget(ipw.VBox):
                     )
                 html += "</ul></td>"
                 if nrows_done == 0:
-                    html += thunmnail_raw(
+                    html += utils.thumbnail_raw(
                         nrows=entry["nrows"],
                         thumbnail=entry["thumbnail"],
                         pk=entry["pk"],
