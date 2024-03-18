@@ -102,7 +102,6 @@ class InputDetails(ipw.VBox):
 
             self.displayed_sections = []
             add_children = []
-
             for sec in SECTIONS_TO_DISPLAY[sys_type]:
                 section = sec()
                 if hasattr(section, "traits_to_link"):
@@ -724,6 +723,18 @@ SECTIONS_TO_DISPLAY = {
         CellSectionWidget,
     ],
     "SlabXY": [
+        VdwSelectorWidget,
+        UksSectionWidget,
+        StructureInfoWidget,
+        constraints.ConstraintsWidget,
+    ],
+    "SlabYZ": [
+        VdwSelectorWidget,
+        UksSectionWidget,
+        StructureInfoWidget,
+        constraints.ConstraintsWidget,
+    ],
+    "SlabXZ": [
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
