@@ -125,7 +125,7 @@ def create_orbitals_parameterdata(
         "--wfn_file": parent_dir + "aiida-RESTART.wfn",
         "--hartree_file": parent_dir + "aiida-HART-v_hartree-1_0.cube",
         "--orb_output_file": "orb.npz",
-        "--eval_region": ["G", "G", "G", "G", "n-1.0_C", "p%.1f" % extrap_plane],
+        "--eval_region": ["G", "G", "G", "G", "n-1.0", "p%.1f" % extrap_plane],
         "--dx": "0.15",
         "--eval_cutoff": "16.0",
         "--extrap_extent": str(extrap_extent),
