@@ -396,11 +396,7 @@ class NebWidget(ipw.VBox):
         self.n_replica_per_group.options = set(
             reduce(
                 list.__add__,
-                (
-                    [i, nrep // i]
-                    for i in range(1, int(nrep**0.5) + 1)
-                    if nrep % i == 0
-                ),
+                ([i, nrep // i] for i in range(1, int(nrep**0.5) + 1) if nrep % i == 0),
             )
         )
 

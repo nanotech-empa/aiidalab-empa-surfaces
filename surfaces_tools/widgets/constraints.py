@@ -140,9 +140,9 @@ class ConstraintsWidget(ipw.VBox):
                 + self.details["slab_layers"][0]
                 + self.details["slab_layers"][1]
             )
-            self.constraints.children[
-                0
-            ].constraint_widget.value = "fixed xyz " + mol_ids_range(to_fix)
+            self.constraints.children[0].constraint_widget.value = (
+                "fixed xyz " + mol_ids_range(to_fix)
+            )
 
     def _observe_help(self, change):
         if change["new"]:
