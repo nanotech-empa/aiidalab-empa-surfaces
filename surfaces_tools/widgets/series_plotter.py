@@ -338,7 +338,7 @@ class SeriesPlotter:
 
         with self.link_out:
             display(HTML(f'<a href="tmp/{filename}" target="_blank">download zip</a>'))
-    
+
     def create_zip_link_for_openbis(self):
         filename = f"{self.zip_prepend}_pk{self.wc_pk}.zip"
 
@@ -350,7 +350,7 @@ class SeriesPlotter:
 
         with open("tmp/" + filename, "wb") as f:
             f.write(zip_buffer.getvalue())
-            
+
         return f"tmp/{filename}"
 
     def data_to_zip(self, zip_file):
