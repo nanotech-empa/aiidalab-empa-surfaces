@@ -17,6 +17,7 @@ VIEWERS = {
     "CP2K_HRSTM": "view_hrstm.ipynb",
     "CP2K_Phonons": "view_phonons.ipynb",
     "CP2K_NEB": "view_neb.ipynb",
+    "Gaussian_NICS": "view_nics.ipynb",
     "CP2K_Replica": "view_replica.ipynb",
     "ReplicaWorkChain": "view_replica.ipynb",
 }

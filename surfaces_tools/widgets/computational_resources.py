@@ -64,6 +64,9 @@ class ProcessResourcesWidget(ipw.VBox):
         self.threads_per_task_widget = ipw.IntText(
             value=1, description="# Threads per task", style=STYLE, layout=LAYOUT
         )
+        self.total_memory_gb_widget = ipw.IntText(
+            value=16, description="Total memory GB", style=STYLE, layout=LAYOUT
+        )
 
         self.nodes_widget.observe(self.on_cores_change, "value")
         self.tasks_per_node_widget.observe(self.on_cores_change, "value")
@@ -72,6 +75,7 @@ class ProcessResourcesWidget(ipw.VBox):
             self.nodes_widget,
             self.tasks_per_node_widget,
             self.threads_per_task_widget,
+            self.total_memory_gb_widget,
             ipw.HBox([self.walltime_widget, self.wrong_syntax]),
             self.time_info,
         ]
@@ -90,6 +94,10 @@ class ProcessResourcesWidget(ipw.VBox):
     @property
     def threads_per_task(self):
         return int(self.threads_per_task_widget.value)
+    
+    @property
+    def total_memory_gb(self):
+        return int(self.total_memory_gb_widget.value)
 
     @property
     def walltime_seconds(self):
