@@ -20,6 +20,7 @@ VIEWERS = {
     "Gaussian_NICS": "view_nics.ipynb",
     "CP2K_Replica": "view_replica.ipynb",
     "ReplicaWorkChain": "view_replica.ipynb",
+    "Gaussian_CASSCF_series": "view_gaussian_casscf_series.ipynb",  # Added entry
 }
 
 
