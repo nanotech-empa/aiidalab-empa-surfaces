@@ -110,7 +110,7 @@ def make_orb_label(index, homo_index):
     elif i_rel_homo == 1:
         hl_label = "LUMO"
     else:
-        hl_label = f"LUMO{i_rel_homo-1:+d}"
+        hl_label = f"LUMO{i_rel_homo - 1:+d}"
 
     return f"MO {str(index) + hl_label}, "
 
