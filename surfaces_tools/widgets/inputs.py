@@ -30,6 +30,7 @@ class InputDetails(ipw.VBox):
     do_cell_opt = tr.Bool()
     uks = tr.Bool()
     net_charge = tr.Int()
+    gwic = tr.Bool()
     neb = tr.Bool()  # Set by app in case of neb calculation, to be linked to resources.
     replica = tr.Bool()  # Set by app in case of replica chain calculation.
     phonons = tr.Bool()  # Set by app in case of phonons calculation
@@ -67,6 +68,10 @@ class InputDetails(ipw.VBox):
     def _default_neb(self):
         return False
 
+    @tr.default("gwic")
+    def _default_gwic(self):
+        return False
+
     @tr.default("phonons")
     def _default_phonons(self):
         return False
@@ -81,7 +86,7 @@ class InputDetails(ipw.VBox):
     def _default_n_replica_per_group_trait(self):
         return 1
 
-    @tr.observe("details", "neb", "replica", "phonons")
+    @tr.observe("details", "gwic", "neb", "replica", "phonons")
     def _observe_details(self, _=None):
         self.to_fix = []
         self.net_charge = 0
@@ -97,6 +102,8 @@ class InputDetails(ipw.VBox):
                     sys_type = "Replica"
                 if self.phonons:
                     sys_type = "Phonons"
+                if self.gwic:
+                    sys_type = "GwIc"
             else:
                 sys_type = "None"
 
@@ -763,5 +770,10 @@ SECTIONS_TO_DISPLAY = {
         StructureInfoWidget,
         constraints.ConstraintsWidget,
         PhononsWidget,
+    ],
+    "GwIc": [
+        StructureInfoWidget,
+        VdwSelectorWidget,
+        UksSectionWidget,
     ],
 }
