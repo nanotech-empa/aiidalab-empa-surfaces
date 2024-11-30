@@ -1,11 +1,13 @@
 import xml.etree.ElementTree as ET
+
+import ase
+import ipywidgets as ipw
 import numpy as np
 import rdkit
 import scipy
 import sklearn.decomposition
 import traitlets as tr
-import ase
-import ipywidgets as ipw
+
 
 class CdxmlUpload2GnrWidget(ipw.VBox):
     """Class that allows to upload structures from user's computer."""
@@ -27,14 +29,17 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         )
 
         self.file_upload.observe(self._on_file_upload, names="value")
-        self.nunits = ipw.Text(description="N units",value='Infinite',disabled=True)
-        self.create = ipw.Button(description="Create model",button_style="success",)
+        self.nunits = ipw.Text(description="N units", value="Infinite", disabled=True)
+        self.create = ipw.Button(
+            description="Create model",
+            button_style="success",
+        )
         self.create.on_click(self._on_button_click)
 
-        #self._structure_selector = ipw.Dropdown(
+        # self._structure_selector = ipw.Dropdown(
         #    options=[None], description="Select mol", value=None, disabled=True
-        #)
-        #self._structure_selector.observe(self._on_sketch_selected, names="value")
+        # )
+        # self._structure_selector.observe(self._on_sketch_selected, names="value")
         self.output_message = ipw.HTML(value="")
 
         super().__init__(
@@ -52,7 +57,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         """Scaling factor to correct the bond length."""
 
         # Set bounding box as cell.
-        #atoms.cell = np.ptp(atoms.positions, axis=0) + 15
+        # atoms.cell = np.ptp(atoms.positions, axis=0) + 15
         atoms.pbc = (True, True, True)
 
         # Calculate all atom-atom distances.
@@ -79,7 +84,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         """Scale atomic positions by the `factor`."""
         c_x, c_y, c_z = atoms.cell
         atoms.set_cell((s * c_x, s * c_y, c_z), scale_atoms=True)
-        #atoms.cell = np.ptp(atoms.positions, axis=0) + 15
+        # atoms.cell = np.ptp(atoms.positions, axis=0) + 15
         atoms.center()
         return atoms
 
@@ -132,7 +137,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             atoms.append(ase.Atom("H", vec))
 
         return message, atoms
-    
+
     @staticmethod
     def transform_points(set1, set2, points):
         """
@@ -146,9 +151,9 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         Returns:
             list of tuples: Transformed points.
         """
-        #set1 = np.array(set1)
-        #set2 = np.array(set2)
-        #points = np.array(points)
+        # set1 = np.array(set1)
+        # set2 = np.array(set2)
+        # points = np.array(points)
 
         # Compute centroids of set1 and set2
         centroid1 = np.mean(set1, axis=0)
@@ -172,7 +177,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         transformed_points = scale * np.dot(points - centroid1, R.T) + centroid2
 
         return transformed_points.tolist()
-    
+
     @staticmethod
     def NOextract_crossing_and_atom_positions(cdxml_content):
         """
@@ -215,7 +220,9 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 brackets.append(midpoint)
 
         if len(brackets) != 2:
-            raise ValueError("Expected exactly 2 square parentheses, found: {}".format(len(brackets)))
+            raise ValueError(
+                f"Expected exactly 2 square parentheses, found: {len(brackets)}"
+            )
 
         # Calculate the unit vector from the two brackets
         brackets = np.array(brackets)
@@ -227,7 +234,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             unit_vector = -unit_vector
 
         return brackets, atom_positions, unit_vector
-    
+
     @staticmethod
     def extract_crossing_and_atom_positions(cdxml_content):
         """
@@ -282,7 +289,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                         crossing_points.append(midpoint)
 
                         ## Compute the unit vector for the first bond
-                        #if unit_vector is None:
+                        # if unit_vector is None:
                         #    vector = np.array(end_pos) - np.array(start_pos)
                         #    unit_vector = vector[:2] / np.linalg.norm(vector[:2])
                         #    # Ensure positive x and y
@@ -303,7 +310,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 brackets.append(midpoint)
 
         if len(brackets) != 2 and len(brackets) != 0:
-            #raise ValueError("Expected exactly 2 square parentheses, found: {}".format(len(brackets)))
+            # raise ValueError("Expected exactly 2 square parentheses, found: {}".format(len(brackets)))
             print(f"found {len(brackets)} square parentheses")
 
         if len(brackets) == 2:
@@ -316,7 +323,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             if unit_vector[0] < 0 or unit_vector[1] < 0:
                 unit_vector = -unit_vector
 
-
             # Find the first two crossing points aligned with the unit vector
             for i in range(len(crossing_points)):
                 for j in range(i + 1, len(crossing_points)):
@@ -325,11 +331,10 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                     # Check alignment (dot product close to 1)
                     if np.dot(unit_test_vector, unit_vector) > 0.99:
                         isnotperiodic = False
-                        return crossing_points[[i,j]], atom_positions,isnotperiodic
+                        return crossing_points[[i, j]], atom_positions, isnotperiodic
 
         return None, atom_positions, True
- 
-    
+
     @staticmethod
     def align_and_trim_atoms(atoms, crossing_points, units=None):
         """
@@ -345,7 +350,10 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             ASE.Atoms: The transformed ASE Atoms object.
         """
         # Ensure crossing_points is a 2x3 array
-        assert crossing_points.shape == (2, 3), "crossing_points must be a 2x3 NumPy array."
+        assert crossing_points.shape == (
+            2,
+            3,
+        ), "crossing_points must be a 2x3 NumPy array."
 
         # Calculate the vector connecting the two crossing points
         vector = crossing_points[1] - crossing_points[0]
@@ -356,11 +364,13 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
         # Rotate the atoms and crossing points
         atoms.rotate(-np.degrees(angle), "z", center=(0, 0, 0))
-        rotation_matrix = np.array([
-            [np.cos(-angle), -np.sin(-angle), 0],
-            [np.sin(-angle),  np.cos(-angle), 0],
-            [0,               0,              1]
-        ])
+        rotation_matrix = np.array(
+            [
+                [np.cos(-angle), -np.sin(-angle), 0],
+                [np.sin(-angle), np.cos(-angle), 0],
+                [0, 0, 1],
+            ]
+        )
         rotated_crossing_points = np.dot(crossing_points, rotation_matrix.T)
 
         # Define x-bounds based on crossing points
@@ -371,28 +381,36 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         positions = atoms.get_positions()
         mask = (positions[:, 0] > x_min) & (positions[:, 0] <= x_max)
         bounded_atoms = atoms[mask].copy()
-        mask = (positions[:, 0] <= x_min) 
+        mask = positions[:, 0] <= x_min
         tail_atoms = atoms[mask].copy()
-        mask = (positions[:, 0] > x_max)
+        mask = positions[:, 0] > x_max
         head_atoms = atoms[mask].copy()
         try:
             Nunits = int(units)
         except ValueError:
             Nunits = None
-        
+
         if Nunits is None or Nunits < 1:
             # Trim atoms based on x-bounds
             atoms = bounded_atoms
         else:
             # Replicate atoms for Nunits
             replicated_atoms = bounded_atoms.copy()
-            for ni in range(1,Nunits):
-                shifted_positions = bounded_atoms.get_positions() + np.array([ni * norm_vector, 0, 0])
-                replicated_atoms += ase.Atoms(bounded_atoms.get_chemical_symbols(), positions=shifted_positions)
+            for ni in range(1, Nunits):
+                shifted_positions = bounded_atoms.get_positions() + np.array(
+                    [ni * norm_vector, 0, 0]
+                )
+                replicated_atoms += ase.Atoms(
+                    bounded_atoms.get_chemical_symbols(), positions=shifted_positions
+                )
 
             # Add atoms shifted beyond xmax
-            shifted_positions = head_atoms.get_positions() + np.array([(Nunits-1) * norm_vector, 0, 0])
-            replicated_atoms += ase.Atoms(head_atoms.get_chemical_symbols(), positions=shifted_positions)
+            shifted_positions = head_atoms.get_positions() + np.array(
+                [(Nunits - 1) * norm_vector, 0, 0]
+            )
+            replicated_atoms += ase.Atoms(
+                head_atoms.get_chemical_symbols(), positions=shifted_positions
+            )
             replicated_atoms += tail_atoms
             atoms = replicated_atoms
 
@@ -400,20 +418,21 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         if Nunits is None or Nunits < 1:
             L1 = norm_vector
         else:
-            L1 = np.ptp(atoms.get_positions()[:, 0]) + 10.0  # Size in x-direction + 10 Å
+            L1 = (
+                np.ptp(atoms.get_positions()[:, 0]) + 10.0
+            )  # Size in x-direction + 10 Å
         L2 = 10.0 + np.ptp(atoms.get_positions()[:, 1])  # Size in y-direction + 10 Å
         L3 = 15.0  # Fixed value
         atoms.set_cell([L1, L2, L3])
         atoms.center()
 
         return atoms
-    
 
     def _on_file_upload(self, change=None):
         """When file upload button is pressed."""
-        #self._structure_selector.options = [None]
-        #self._structure_selector.disabled = True
-        self.nunits.value = 'Infinite'
+        # self._structure_selector.options = [None]
+        # self._structure_selector.disabled = True
+        self.nunits.value = "Infinite"
         self.nunits.disabled = True
         fname, item = next(iter(change["new"].items()))
 
@@ -422,37 +441,39 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
         try:
             # Extract parentheses midpoints from the CDXML content
-            #open_midpoints, closed_midpoints = self.extract_parentheses_boxes_from_content(cdxml_content)
-            self.crossing_points, self.cdxml_atoms, self.nunits.disabled = self.extract_crossing_and_atom_positions(cdxml_content)
-
+            # open_midpoints, closed_midpoints = self.extract_parentheses_boxes_from_content(cdxml_content)
+            self.crossing_points, self.cdxml_atoms, self.nunits.disabled = (
+                self.extract_crossing_and_atom_positions(cdxml_content)
+            )
 
             # Convert CDXML content to RDKit molecules and ASE Atoms objects
             options = [
-                self.rdkit2ase(mol)
-                for mol in rdkit.Chem.MolsFromCDXML(cdxml_content)
+                self.rdkit2ase(mol) for mol in rdkit.Chem.MolsFromCDXML(cdxml_content)
             ]
             self.atoms = options[0]
             # Populate the structure selector
-            #self._structure_selector.options = [
+            # self._structure_selector.options = [
             #    (f"{i}: " + mol.get_chemical_formula(), mol)
             #    for i, mol in enumerate(options)
-            #]
-            #self._structure_selector.disabled = False
+            # ]
+            # self._structure_selector.disabled = False
 
         except Exception as exc:
             self.output_message.value = f"Error reading file: {exc}"
 
         # Clear the file upload widget
-        self.file_upload.value.clear()        
+        self.file_upload.value.clear()
 
-        
-        
-    #def _on_sketch_selected(self, change=None):
-    def _on_button_click(self,b):
+    # def _on_sketch_selected(self, change=None):
+    def _on_button_click(self, b):
         atoms = self.atoms
         if self.crossing_points is not None:
-            crossing_points = self.transform_points(self.cdxml_atoms, atoms.positions, self.crossing_points)
-            atoms = self.align_and_trim_atoms(atoms,np.array(crossing_points),units=self.nunits.value)
+            crossing_points = self.transform_points(
+                self.cdxml_atoms, atoms.positions, self.crossing_points
+            )
+            atoms = self.align_and_trim_atoms(
+                atoms, np.array(crossing_points), units=self.nunits.value
+            )
         factor = self.guess_scaling_factor(atoms)
         atoms = self.scale(atoms, factor)
         self.output_message.value, atoms = self.add_h(atoms)
