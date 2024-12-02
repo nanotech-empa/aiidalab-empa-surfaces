@@ -160,8 +160,8 @@ class StructureInfoWidget(ipw.Accordion):
     def __init__(self):
         self.info = ipw.Output()
 
-        self.set_title(0, "Structure details")
         super().__init__(selected_index=None)
+        self.set_title(0, "Structure details")
 
     @tr.observe("details")
     def _observe_details(self, _=None):
