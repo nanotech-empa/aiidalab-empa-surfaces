@@ -173,7 +173,7 @@ class Wave1d(Wave):
             if key in self.parameters:
                 self.parameters[key] = value
             else:
-                raise KeyError(f"Unknown parameter {key}")
+                raise KeyError(f"Unknown parameter {key}")  # noqa: TRY003
 
         if axes is None:
             p = self.parameters
@@ -226,7 +226,7 @@ class Wave2d(Wave):
             if key in self.parameters:
                 self.parameters[key] = value
             else:
-                raise KeyError(f"Unknown parameter {key}")
+                raise KeyError(f"Unknown parameter {key}")  # noqa: TRY003
 
         if axes is None:
             p = self.parameters
