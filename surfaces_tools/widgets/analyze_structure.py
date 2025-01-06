@@ -1,14 +1,16 @@
-import copy
 import itertools
-import aiidalab_widgets_base as awb
 
+import aiidalab_widgets_base as awb
 import numpy as np
+import traitlets as tr
 from ase import Atoms, neighborlist
 from scipy import sparse
 from scipy.signal import find_peaks
 from scipy.spatial import ConvexHull
+
 from .lowdimfinder import LowDimFinder
-import traitlets as tr
+
+
 def gaussian(x, sig):
     return (
         1.0
@@ -16,10 +18,13 @@ def gaussian(x, sig):
         * np.exp(-np.power(x, 2.0) / (2 * np.power(sig, 2.0)))
     )
 
+
 def boxfilter(x, thr):
     return np.asarray([1 if i < thr else 0 for i in x])
     # Piero Gasparotto
-def get_types( frame):  # classify the atmos in:
+
+
+def get_types(frame):  # classify the atmos in:
     # 0=molecule
     # 1=slab atoms
     # 2=adatoms
@@ -149,28 +154,28 @@ def get_types( frame):  # classify the atmos in:
                     atype[i] = 2
 
     # assign the other types
-    #metalatingtypes = ("Au", "Ag", "Cu", "Ni", "Co", "Zn", "Mg")
-    #moltypes = ("H", "N", "B", "O", "C", "F", "S", "Br", "I", "Cl")
-    #possible_mol_atoms = [
+    # metalatingtypes = ("Au", "Ag", "Cu", "Ni", "Co", "Zn", "Mg")
+    # moltypes = ("H", "N", "B", "O", "C", "F", "S", "Br", "I", "Cl")
+    # possible_mol_atoms = [
     #    i for i in range(nat) if atype[i] == 2 and lbls[i] in moltypes
-    #]
-    #possible_mol_atoms += [i for i in range(nat) if atype[i] == 5]
+    # ]
+    # possible_mol_atoms += [i for i in range(nat) if atype[i] == 5]
     # identify separate molecules
     # all_molecules=self.molecules(mol_atoms,atoms)
-    #all_molecules = []
+    # all_molecules = []
 
     return atype, layersg
-    
+
 
 def transform_vector(pos1, pos2, v1):
     """
     Transform vector v1 using the transformation that maps pos2 to pos1.
-    
+
     Args:
         pos1 (np.ndarray): Target positions, shape (n, 3).
         pos2 (np.ndarray): Source positions, shape (n, 3).
         v1 (np.ndarray): Vector to transform, shape (3,).
-        
+
     Returns:
         np.ndarray: Transformed vector, shape (3,).
     """
@@ -200,14 +205,14 @@ def transform_vector(pos1, pos2, v1):
         R = np.dot(Vt.T, U.T)
 
     # Translation vector
-    t = centroid1 - np.dot(R, centroid2)
+    centroid1 - np.dot(R, centroid2)
 
     # Transform the vector
-    transformed_v1 = -np.dot(R, v1) #+ t
+    transformed_v1 = -np.dot(R, v1)  # + t
     transformed_v1 = transformed_v1 / np.linalg.norm(transformed_v1)
-    
 
     return transformed_v1
+
 
 class StructureAnalyzer(tr.HasTraits):
     structure = tr.Instance(Atoms, allow_none=True)
@@ -230,9 +235,7 @@ class StructureAnalyzer(tr.HasTraits):
             return {}
 
         atoms = self.structure
-        
- 
-        
+
         sys_size = np.ptp(atoms.positions, axis=0)
         no_cell = (
             atoms.cell[0][0] < 0.1 or atoms.cell[1][1] < 0.1 or atoms.cell[2][2] < 0.1
@@ -242,35 +245,38 @@ class StructureAnalyzer(tr.HasTraits):
             atoms.cell = sys_size + 10
 
         atoms.set_pbc([True, True, True])
-        
-       # LowDimFinder section
+
+        # LowDimFinder section
         low_dim_finder = LowDimFinder(
-        # This is called aiida_structure but it's wrong, it's an ASE structure
-        #aiida_structure=conventional_asecell,
-        aiida_structure=atoms,
-        vacuum_space=40.0,
-        radii_offset=-0.75, # [-0.75 -0.7, -0.65, -0.6, -0.55]
-        bond_margin=0.0,
-        max_supercell=3,
-        min_supercell=3,
-        rotation=True,
-        full_periodicity=False,
-        radii_source="alvarez",
-        orthogonal_axis_2D=True,
-    )
+            # This is called aiida_structure but it's wrong, it's an ASE structure
+            # aiida_structure=conventional_asecell,
+            aiida_structure=atoms,
+            vacuum_space=40.0,
+            radii_offset=-0.75,  # [-0.75 -0.7, -0.65, -0.6, -0.55]
+            bond_margin=0.0,
+            max_supercell=3,
+            min_supercell=3,
+            rotation=True,
+            full_periodicity=False,
+            radii_source="alvarez",
+            orthogonal_axis_2D=True,
+        )
         res = low_dim_finder.get_group_data()
         # End LowDimFinder section
-        is_a_bulk = np.amax(res['dimensionality']) == 3
-        is_a_molecule = np.amax(res['dimensionality']) == 0
-        is_a_wire = np.amax(res['dimensionality']) == 1
-        is_a_slab = np.amax(res['dimensionality']) == 2
-        max_dim_portion = res['dimensionality'].index(max(res['dimensionality']))
+        is_a_bulk = np.amax(res["dimensionality"]) == 3
+        is_a_molecule = np.amax(res["dimensionality"]) == 0
+        is_a_wire = np.amax(res["dimensionality"]) == 1
+        is_a_slab = np.amax(res["dimensionality"]) == 2
+        max_dim_portion = res["dimensionality"].index(max(res["dimensionality"]))
         # orientation
         if not is_a_bulk and not is_a_molecule:
-            direction = transform_vector(atoms.positions[res['unit_cell_ids'][max_dim_portion]],np.array(res['positions'][max_dim_portion]),np.array([0,0,1]))
+            direction = transform_vector(
+                atoms.positions[res["unit_cell_ids"][max_dim_portion]],
+                np.array(res["positions"][max_dim_portion]),
+                np.array([0, 0, 1]),
+            )
             dir_short = [f"{x:.2f}" for x in direction]
         #
-        
 
         total_charge = np.sum(atoms.get_atomic_numbers())
         bottom_h = []
@@ -281,13 +287,15 @@ class StructureAnalyzer(tr.HasTraits):
         unclassified = []
         slabatoms = []
         slab_layers = []
-        all_molecules = [res['unit_cell_ids'][i] for i,j in enumerate(res['dimensionality']) if j == 0] 
+        all_molecules = [
+            res["unit_cell_ids"][i]
+            for i, j in enumerate(res["dimensionality"])
+            if j == 0
+        ]
 
         spins_up = [the_a.index for the_a in atoms if the_a.tag == 1]
         spins_down = [the_a.index for the_a in atoms if the_a.tag == 2]
         other_tags = [the_a.index for the_a in atoms if the_a.tag > 2]
-
-
 
         # Do not use a set in the following line list(set(atoms.get_chemical_symbols()))
         # need ALL atoms and elements for spin guess and for cost calculation
@@ -297,23 +305,27 @@ class StructureAnalyzer(tr.HasTraits):
         if len(spins_up) > 0:
             summary += "spins_up: " + awb.utils.llist_to_string_range(spins_up) + "\n"
         if len(spins_down) > 0:
-            summary += "spins_down: " + awb.utils.llist_to_string_range(spins_down) + "\n"
+            summary += (
+                "spins_down: " + awb.utils.llist_to_string_range(spins_down) + "\n"
+            )
         if len(other_tags) > 0:
-            summary += "other_tags: " + awb.utils.llist_to_string_range(other_tags) + "\n"
-            
-        if is_a_bulk :
-            
+            summary += (
+                "other_tags: " + awb.utils.llist_to_string_range(other_tags) + "\n"
+            )
+
+        if is_a_bulk:
+
             sys_type = "Bulk"
             cases = ["b"]
             summary += "Bulk contains: \n"
             slabatoms = list(range(len(atoms)))
             bulkatoms = slabatoms
 
-        if is_a_molecule :
-            
+        if is_a_molecule:
+
             sys_type = "Molecule"
             summary += "Molecule: \n"
-            #all_molecules = molecules(list(range(len(atoms))), atoms)
+            # all_molecules = molecules(list(range(len(atoms))), atoms)
             com = np.average(atoms.positions, axis=0)
             summary += (
                 "COM: "
@@ -322,7 +334,7 @@ class StructureAnalyzer(tr.HasTraits):
                 + str(np.min(atoms.positions[:, 2]))
                 + "\n"
             )
-        if is_a_wire :
+        if is_a_wire:
             print("Wire")
             sys_type = "Wire"
             cases = ["w"]
@@ -342,18 +354,23 @@ class StructureAnalyzer(tr.HasTraits):
                 slabtype = "XY"
 
             sys_type = "Slab" + slabtype
-            mol_atoms = [idatom for mol in all_molecules for idatom in mol] #np.where(tipii == 0)[0].tolist()
+            mol_atoms = [
+                idatom for mol in all_molecules for idatom in mol
+            ]  # np.where(tipii == 0)[0].tolist()
             # mol_atoms=extract_mol_indexes_from_slab(atoms)
-            #metalatings = np.where(tipii == 6)[0].tolist()
-            #mol_atoms += metalatings
+            # metalatings = np.where(tipii == 6)[0].tolist()
+            # mol_atoms += metalatings
 
             bottom_h = np.where(tipii == 3)[0].tolist()
             slabatoms = np.where(tipii == 1)[0].tolist()
             adatoms = np.where(tipii == 2)[0].tolist()
-            unclassified = [idatom for idatom in list(range(atoms.get_global_number_of_atoms())) if idatom not in  set(bottom_h+slabatoms+mol_atoms)]  # np.where(tipii == 5)[0].tolist()
-            
-            
-            #MOVE this up to get_types
+            unclassified = [
+                idatom
+                for idatom in list(range(atoms.get_global_number_of_atoms()))
+                if idatom not in set(bottom_h + slabatoms + mol_atoms)
+            ]  # np.where(tipii == 5)[0].tolist()
+
+            # MOVE this up to get_types
             slab_layers = [[] for i in range(len(layersg))]
             for ia in slabatoms:
                 idx = (np.abs(layersg - atoms.positions[ia, 2])).argmin()
@@ -388,7 +405,9 @@ class StructureAnalyzer(tr.HasTraits):
             cases.append("m")
             summary += "#" + str(len(all_molecules)) + " molecules: "
             for nmols, the_mol in enumerate(all_molecules):
-                summary += str(nmols + 1) + ") " + awb.utils.list_to_string_range(the_mol)
+                summary += (
+                    str(nmols + 1) + ") " + awb.utils.list_to_string_range(the_mol)
+                )
 
         summary += " \n"
         if len(metalatings) > 0:

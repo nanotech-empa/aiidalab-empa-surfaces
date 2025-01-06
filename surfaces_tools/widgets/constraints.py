@@ -1,9 +1,8 @@
+import aiidalab_widgets_base as awb
 import ipywidgets as ipw
 import traitlets as tr
 from aiida_nanotech_empa.workflows.cp2k import cp2k_utils
-import aiidalab_widgets_base as awb
 from ase import Atoms
-
 
 
 class OneColvar(ipw.HBox):

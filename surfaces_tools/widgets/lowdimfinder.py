@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Low dimensionality atom group finder, which analyses a bulk crystal and returns
 groups of atoms which are held together by weak (van der Waals) forces as
@@ -14,12 +13,11 @@ __license__ = (
 )
 __version__ = "0.3.0"
 
-import numpy as np
-
-from ase import Atoms
-from numpy import isscalar
 from numbers import Number
 
+import numpy as np
+from ase import Atoms
+from numpy import isscalar
 
 ## Source: http://chemwiki.ucdavis.edu/Reference/Reference_Tables/Atomic_and_Molecular_Properties/A3%3A_Covalent_Radii
 # http://dx.doi.org/10.1039/b801115j, checked in paper
@@ -558,8 +556,8 @@ class LowDimFinder:
         self._low_dim_index = (
             0  # index of reduced structure that is currently calculated
         )
-        self._found_unit_cell_atoms = set(
-            []
+        self._found_unit_cell_atoms = (
+            set()
         )  # set of all the input structure atoms that have been attributed to a group
 
         # independent variables, add those you want to have as output to get_group_data()
@@ -651,7 +649,7 @@ class LowDimFinder:
             if atom not in visited:
                 # fresh set of connected atoms.
                 # Initially we add the analysed atom.
-                connected_atoms = set([atom])
+                connected_atoms = {atom}
                 new_neighs = set_list[atom] - connected_atoms
 
                 all_neighbours = connected_atoms.copy()
@@ -683,8 +681,8 @@ class LowDimFinder:
         """
         group = self.groups[self._group_number]
 
-        unit_cell_sites = set([])
-        reduced_unit_cell_group = set([])
+        unit_cell_sites = set()
+        reduced_unit_cell_group = set()
         for i in group:
             if i % self.n_unit not in unit_cell_sites:
                 unit_cell_sites.add(i % self.n_unit)
@@ -1350,7 +1348,7 @@ class LowDimFinder:
             "chemical_formula": self._chemical_formula,
             "positions": self._positions,
             "chemical_symbols": self._chemical_symbols,
-            "unit_cell_ids":self._unit_cell_groups,
+            "unit_cell_ids": self._unit_cell_groups,
             "cell": self._cell,
             "tags": self._tags,
         }
@@ -1387,8 +1385,8 @@ class LowDimFinder:
         Define 3D structures with the same lattice as the layers for all
         2D reduced structures found.
         """
-        from aiida.plugins import (  # pylint:disable=import-error,import-outside-toplevel
-            DataFactory,  # pylint:disable=import-error,import-outside-toplevel
+        from aiida.plugins import (
+            DataFactory,  # pylint:disable=import-error,import-outside-toplevel; pylint:disable=import-error,import-outside-toplevel
         )
 
         S = DataFactory("structure")
