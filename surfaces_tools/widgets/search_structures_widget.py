@@ -18,6 +18,7 @@ VIEWERS = {
     "CP2K_Phonons": "view_phonons.ipynb",
     "CP2K_NEB": "view_neb.ipynb",
     "CP2K_Replica": "view_replica.ipynb",
+    "cube-shrink": "handle_cubes.ipynb",
     "ReplicaWorkChain": "view_replica.ipynb",
 }
 
