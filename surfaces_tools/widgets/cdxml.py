@@ -181,63 +181,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
         return transformed_points.tolist()
 
-    @staticmethod
-    def no_extract_crossing_and_atom_positions(cdxml_content):
-        """
-        Extract atom positions and the first two crossing points derived from square parentheses.
-        The unit vector is the normalized vector connecting the midpoints of the square parentheses bounding boxes,
-        with positive x and y.
-
-        Args:
-            cdxml_content (str): The content of the CDXML file as a string.
-
-        Returns:
-            tuple: Three values:
-                - crossing_points_pair: A 2x3 NumPy array containing the midpoints of the two square parentheses.
-                - atom_positions: Atom positions as a numpy array of shape (M, 3).
-                - unit_vector: A unit vector derived from the translation vector between the parentheses.
-        """
-        root = xml.etree.ElementTree.fromstring(cdxml_content)
-
-        # Parse all atom positions
-        atom_positions = []
-        atom_id_map = {}
-        for node in root.findall(".//n"):
-            atom_id = node.get("id")
-            if atom_id and "p" in node.attrib:
-                position = tuple(map(float, node.attrib["p"].split()))
-                atom_positions.append((position[0], position[1], 0.0))  # Add z=0
-                atom_id_map[atom_id] = len(atom_positions) - 1  # Map atom ID to index
-
-        atom_positions = np.array(atom_positions)
-
-        # Parse square parentheses
-        brackets = []
-        for graphic in root.findall(".//graphic[@BracketType='Square']"):
-            if "BoundingBox" in graphic.attrib:
-                bb = list(map(float, graphic.attrib["BoundingBox"].split()))
-                x_min, y_min, x_max, y_max = bb
-
-                # Compute the midpoint of the bounding box
-                midpoint = ((x_min + x_max) / 2, (y_min + y_max) / 2, 0.0)
-                brackets.append(midpoint)
-
-        if len(brackets) != 2:
-            raise ValueError(  # noqa: TRY003
-                f"Expected exactly 2 square parentheses, found: {len(brackets)}"
-            )
-
-        # Calculate the unit vector from the two brackets
-        brackets = np.array(brackets)
-        vector = brackets[1] - brackets[0]
-        unit_vector = vector[:2] / np.linalg.norm(vector[:2])
-
-        # Ensure positive x and y for the unit vector
-        if unit_vector[0] < 0 or unit_vector[1] < 0:
-            unit_vector = -unit_vector
-
-        return brackets, atom_positions, unit_vector
-
     def extract_crossing_and_atom_positions(self, cdxml_content):
         """
         Extract the first two crossing points such that the vector connecting them is aligned with the unit vector.
