@@ -56,13 +56,13 @@ class ProcessResourcesWidget(ipw.VBox):
         self.walltime_widget.value = "24:00:00"
 
         self.nodes_widget = ipw.IntText(
-            value=48, description="# Nodes", style=STYLE, layout=LAYOUT
+            value=2, description="# Nodes", style=STYLE, layout=LAYOUT
         )
         self.tasks_per_node_widget = ipw.IntText(
-            value=12, description="# Tasks per node", style=STYLE, layout=LAYOUT
+            value=32, description="# Tasks per node", style=STYLE, layout=LAYOUT
         )
         self.threads_per_task_widget = ipw.IntText(
-            value=1, description="# Threads per task", style=STYLE, layout=LAYOUT
+            value=4, description="# Threads per task", style=STYLE, layout=LAYOUT
         )
 
         self.nodes_widget.observe(self.on_cores_change, "value")
