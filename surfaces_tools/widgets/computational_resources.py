@@ -255,34 +255,34 @@ class ResourcesEstimatorWidget(ipw.VBox):
         resources = {
             "Slab": {
                 50: {
-                    "nodes": 4,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 1,
+                    "tasks_per_node": 16,
+                    "threads": 4,
                 },
                 200: {
-                    "nodes": 12,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 2,
+                    "tasks_per_node": 32,
+                    "threads": 4,
                 },
                 1400: {
-                    "nodes": 27,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 4,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
                 3000: {
-                    "nodes": 48,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 6,
+                    "tasks_per_node": 24,
+                    "threads": 4,
                 },
                 4000: {
-                    "nodes": 75,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 8,
+                    "tasks_per_node": 32,
+                    "threads": 2,
                 },
                 10000: {
-                    "nodes": 108,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 12,
+                    "tasks_per_node": 12,
+                    "threads": 8,
                 },
             },
             "Wire": {
