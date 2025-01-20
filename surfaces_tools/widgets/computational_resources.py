@@ -413,6 +413,7 @@ class ResourcesEstimatorWidget(ipw.VBox):
                     "threads": 8,
                 },
             },
+        }
 
         return resources[self.system_type]
 
