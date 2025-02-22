@@ -1,9 +1,10 @@
 """Widget to convert CDXML to planar structures"""
 
 import xml.etree.ElementTree as ET
-import nglview as nv
+
 import ase
 import ipywidgets as ipw
+import nglview as nv
 import numpy as np
 import traitlets as tr
 from ase import Atoms
@@ -127,7 +128,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             return
 
         atoms = self.atoms.copy()
-        
 
         if self.crossing_points is not None:
             crossing_points = self.transform_points(
@@ -149,9 +149,11 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             atoms.pbc = True
 
         self.output_message.value, self.structure = self.add_hydrogen_atoms(atoms)
-    
+
     @staticmethod
-    def cdxml_to_ase_from_string(cdxml_content: str, target_cc_distance: float = 1.43) -> ase.Atoms:
+    def cdxml_to_ase_from_string(
+        cdxml_content: str, target_cc_distance: float = 1.43
+    ) -> ase.Atoms:
         """
         Converts CDXML content provided as a string into an ASE Atoms object,
         scaling coordinates so that the smallest C-C distance is target_cc_distance (default: 1.43 Å).
@@ -172,23 +174,25 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         symbols = []
         positions = []
 
-        for atom in root.findall('.//n'):
+        for atom in root.findall(".//n"):
             # Determine the element symbol
-            if 'Element' in atom.attrib:
+            if "Element" in atom.attrib:
                 # Convert atomic number to element symbol using ASE's chemical_symbols
-                element_number = int(atom.get('Element'))
+                element_number = int(atom.get("Element"))
                 if element_number < len(chemical_symbols):
                     element = chemical_symbols[element_number]
                 else:
-                    raise ValueError(f"Unknown atomic number {element_number} in CDXML content.")
+                    raise ValueError(
+                        f"Unknown atomic number {element_number} in CDXML content."
+                    )
             else:
                 # Default to Carbon ('C') if no Element attribute is present
-                element = 'C'
+                element = "C"
 
             symbols.append(element)
 
             # Get 2D coordinates from 'p' attribute and assume z=0
-            p = atom.get('p', '0 0').split()
+            p = atom.get("p", "0 0").split()
             x, y = float(p[0]), float(p[1])
             positions.append([x, y, 0.0])
 
@@ -199,7 +203,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         positions = np.array(positions)
 
         # Find the smallest C-C distance
-        carbon_indices = [i for i, sym in enumerate(symbols) if sym == 'C']
+        carbon_indices = [i for i, sym in enumerate(symbols) if sym == "C"]
         if len(carbon_indices) < 2:
             raise ValueError("Not enough Carbon atoms to calculate C-C distance.")
 
@@ -217,8 +221,8 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         # Create an ASE Atoms object with the scaled positions
         ase_atoms = ase.Atoms(symbols=symbols, positions=positions)
 
-        return ase_atoms    
-    
+        return ase_atoms
+
     @staticmethod
     def transform_points(set1, set2, points):
         """
@@ -260,7 +264,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         )
 
         return transformed_points.tolist()
-    
+
     @staticmethod
     def max_extension_points(points):
         """
@@ -288,8 +292,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         else:
             miny, maxy = min(y_coords), max(y_coords)
             return np.array([[0, miny - 7.5, 0], [0, maxy + 7.5, 0]])
-
-
 
     def extract_crossing_and_atom_positions(self, cdxml_content: str):
         """
@@ -376,7 +378,6 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
         return None, atom_positions, True
 
-
     @staticmethod
     def align_and_trim_atoms(atoms, crossing_points, units=None):
         """
@@ -459,7 +460,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         # Set the new unit cell
         if n_units is None or n_units < 1:
             l1 = norm_vector
-            atoms.set_periodic=True
+            atoms.set_periodic = True
         else:
             l1 = (
                 np.ptp(atoms.get_positions()[:, 0]) + 15.0
