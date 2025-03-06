@@ -37,11 +37,14 @@ def find_first_workchain(node):
     return None, None
 
 
-def link_to_viewer(description="", pk="", label=""):
+def link_to_viewer(description="", pk="", label="",energy=None,pk_eq_geo=None):
     the_viewer = VIEWERS[label]
-    return (
-        f'<li><a target="_blank" href="{the_viewer}?pk={pk}"> {description} </a></li>'
-    )
+    html = f'<li><a target="_blank" href="{the_viewer}?pk={pk}"> {description} </a></li>'
+    if energy is not None:
+        html += f"&nbsp;&nbsp;&nbsp;Energy: {energy:.3f} (Hartree)<br>"
+    if pk_eq_geo is not None:
+        html += f"&nbsp;&nbsp;&nbsp;Eq. geometry: <a target='_blank' href='{the_viewer}?pk={pk_eq_geo}'> PK: {pk_eq_geo} </a><br> "
+    return html
 
 
 def header(pk="", label="", tclass="tg-dark", last_modified=""):
@@ -204,12 +207,28 @@ class SearchStructuresWidget(ipw.VBox):
                 html += f"<td class={tclass[odd]} rowspan={nrowsw}>  {workflow} </td>"
                 html += f"<td class={tclass[odd]} rowspan={nrowsw}>"
                 html += "<ul>"
-                for node in entry["workflows"][workflow]:
-                    html += link_to_viewer(
-                        description=f"PK-{node.pk} {node.description}",
-                        pk=node.pk,
-                        label=node.label,
-                    )
+                
+                for node in entry["workflows"][workflow]:                    
+                    energy=None
+                    pk_eq_geo=None
+                    if node.label == "CP2K_GeoOpt":
+                        try:
+                            energy = node.outputs.output_parameters.get_dict()['energy']
+                        except AttributeError:
+                            energy = None
+                        try:
+                            pk_eq_geo = node.outputs.output_structure.pk
+                        except AttributeError:
+                            pk_eq_geo = None                     
+                        
+                        html += link_to_viewer(
+                            description=f"PK-{node.pk} {node.description}",
+                            pk=node.pk,
+                            label=node.label,
+                            energy=energy,
+                            pk_eq_geo=pk_eq_geo,
+                        )
+ 
                 html += "</ul></td>"
                 if nrows_done == 0:
                     html += utils.thumbnail_raw(
