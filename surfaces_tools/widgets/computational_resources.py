@@ -56,13 +56,13 @@ class ProcessResourcesWidget(ipw.VBox):
         self.walltime_widget.value = "24:00:00"
 
         self.nodes_widget = ipw.IntText(
-            value=48, description="# Nodes", style=STYLE, layout=LAYOUT
+            value=2, description="# Nodes", style=STYLE, layout=LAYOUT
         )
         self.tasks_per_node_widget = ipw.IntText(
-            value=12, description="# Tasks per node", style=STYLE, layout=LAYOUT
+            value=32, description="# Tasks per node", style=STYLE, layout=LAYOUT
         )
         self.threads_per_task_widget = ipw.IntText(
-            value=1, description="# Threads per task", style=STYLE, layout=LAYOUT
+            value=4, description="# Threads per task", style=STYLE, layout=LAYOUT
         )
 
         self.nodes_widget.observe(self.on_cores_change, "value")
@@ -255,142 +255,162 @@ class ResourcesEstimatorWidget(ipw.VBox):
         resources = {
             "Slab": {
                 50: {
-                    "nodes": 4,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 1,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
                 200: {
-                    "nodes": 12,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 2,
+                    "tasks_per_node": 32,
+                    "threads": 4,
                 },
                 1400: {
-                    "nodes": 27,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 4,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
                 3000: {
-                    "nodes": 48,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 6,
+                    "tasks_per_node": 24,
+                    "threads": 4,
                 },
                 4000: {
-                    "nodes": 75,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 8,
+                    "tasks_per_node": 32,
+                    "threads": 2,
                 },
                 10000: {
-                    "nodes": 108,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 12,
+                    "tasks_per_node": 12,
+                    "threads": 8,
                 },
             },
             "Wire": {
                 50: {
-                    "nodes": 4,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 1,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
                 200: {
-                    "nodes": 12,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 2,
+                    "tasks_per_node": 32,
+                    "threads": 4,
                 },
                 1400: {
-                    "nodes": 27,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 4,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
                 3000: {
-                    "nodes": 48,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 6,
+                    "tasks_per_node": 24,
+                    "threads": 4,
                 },
                 4000: {
-                    "nodes": 75,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 8,
+                    "tasks_per_node": 32,
+                    "threads": 2,
                 },
                 10000: {
-                    "nodes": 108,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 12,
+                    "tasks_per_node": 12,
+                    "threads": 8,
                 },
             },
             "Bulk": {
                 50: {
-                    "nodes": 4,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 1,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
                 200: {
-                    "nodes": 12,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 2,
+                    "tasks_per_node": 32,
+                    "threads": 4,
                 },
                 1400: {
-                    "nodes": 27,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 4,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
                 3000: {
-                    "nodes": 48,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 6,
+                    "tasks_per_node": 24,
+                    "threads": 4,
                 },
                 4000: {
-                    "nodes": 75,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 8,
+                    "tasks_per_node": 32,
+                    "threads": 2,
                 },
                 10000: {
-                    "nodes": 108,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "nodes": 12,
+                    "tasks_per_node": 12,
+                    "threads": 8,
                 },
             },
             "Molecule": {
                 50: {
+                    "nodes": 1,
+                    "tasks_per_node": 36,
+                    "threads": 4,
+                },
+                200: {
+                    "nodes": 2,
+                    "tasks_per_node": 32,
+                    "threads": 4,
+                },
+                1400: {
                     "nodes": 4,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
-                100: {
+                3000: {
+                    "nodes": 6,
+                    "tasks_per_node": 24,
+                    "threads": 4,
+                },
+                4000: {
+                    "nodes": 8,
+                    "tasks_per_node": 32,
+                    "threads": 2,
+                },
+                10000: {
                     "nodes": 12,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
-                },
-                180: {
-                    "nodes": 27,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
-                },
-                400: {
-                    "nodes": 48,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "tasks_per_node": 12,
+                    "threads": 8,
                 },
             },
             "Other": {
                 50: {
+                    "nodes": 1,
+                    "tasks_per_node": 36,
+                    "threads": 4,
+                },
+                200: {
+                    "nodes": 2,
+                    "tasks_per_node": 32,
+                    "threads": 4,
+                },
+                1400: {
                     "nodes": 4,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "tasks_per_node": 36,
+                    "threads": 4,
                 },
-                100: {
+                3000: {
+                    "nodes": 6,
+                    "tasks_per_node": 24,
+                    "threads": 4,
+                },
+                4000: {
+                    "nodes": 8,
+                    "tasks_per_node": 32,
+                    "threads": 2,
+                },
+                10000: {
                     "nodes": 12,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
-                },
-                180: {
-                    "nodes": 27,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
-                },
-                400: {
-                    "nodes": 48,
-                    "tasks_per_node": self.max_tasks_per_node,
-                    "threads": 1,
+                    "tasks_per_node": 12,
+                    "threads": 8,
                 },
             },
         }

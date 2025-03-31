@@ -5,7 +5,6 @@ import ipywidgets as ipw
 import numpy as np
 import rdkit
 import scipy
-import sklearn.decomposition
 import traitlets as tr
 from ase.neighborlist import NeighborList
 
@@ -96,9 +95,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             ase.data.chemical_symbols[atm.GetAtomicNum()] for atm in mol.GetAtoms()
         ]
         pos = np.asarray(list(mol.GetConformer().GetPositions()))
-        pca = sklearn.decomposition.PCA(n_components=3)
-        posnew = pca.fit_transform(pos)
-        atoms = ase.Atoms(species, positions=posnew)
+        atoms = ase.Atoms(species, positions=pos)
         sys_size = np.ptp(atoms.positions, axis=0)
         atoms.rotate(-90, "z")  # cdxml are rotated
         atoms.pbc = True
