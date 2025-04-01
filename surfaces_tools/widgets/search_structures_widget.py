@@ -19,6 +19,7 @@ VIEWERS = {
     "CP2K_NEB": "view_neb.ipynb",
     "CP2K_Replica": "view_replica.ipynb",
     "ReplicaWorkChain": "view_replica.ipynb",
+    "CP2K_GWIC": "view_gw_ic.ipynb",
 }
 
 
