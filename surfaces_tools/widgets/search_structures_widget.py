@@ -239,7 +239,7 @@ class SearchStructuresWidget(ipw.VBox):
                         pk=entry["pk"],
                         uuid=entry["uuid"],
                         tclass=tclass[odd],
-                        description="",
+                        description="Inp. structure",
                     )
                     html += "</tr>"
                     nrows_done += 1
