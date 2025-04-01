@@ -77,7 +77,6 @@ class ProcessResourcesWidget(ipw.VBox):
         ]
 
         super().__init__(children=children)
-        # ---------------------------------------------------------
 
     @property
     def nodes(self):
@@ -149,22 +148,52 @@ class ProcessResourcesWidget(ipw.VBox):
 class ResourcesEstimatorWidget(ipw.VBox):
     details = tr.Dict()
     uks = tr.Bool()
+    nodes = tr.Int()
+    runtime = tr.Float(allow_none=True)
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
 
-    def __init__(self, calculation_type="dft"):
+    def __init__(
+        self,
+        calculation_type="dft",
+        node_hour_price=1.0,
+        currency="CHF",
+        price_link=None,
+    ):
         """Resources estimator widget to generate metadata"""
-
+        self.cost = 0
         self.max_tasks_per_node = 1
         self.calculation_type = calculation_type
         self.estimate_resources_button = ipw.Button(
             description="Estimate resources", button_style="warning"
         )
         self.estimate_resources_button.on_click(self.estimate_resources)
+        self.info_cost = ipw.HTML(
+            value="",
+            layout={"width": "100%"},
+        )
+        self.node_hour_price = node_hour_price
+        self.currency = currency
+        self.price_link = price_link
 
-        super().__init__([self.estimate_resources_button])
+        super().__init__([self.estimate_resources_button, self.info_cost])
 
     def link_to_resources_widget(self, resources_widget):
         self.resources = resources_widget
+        tr.dlink((self.resources.nodes_widget, "value"), (self, "nodes"))
+
+        tr.dlink(
+            (self.resources.walltime_widget, "value"),
+            (self, "runtime"),
+            transform=lambda x: pd.Timedelta(x).total_seconds() / 3600,
+        )
+
+    @tr.observe("nodes")
+    def _observe_nodes(self, _=None):
+        self.update_cost_info()
+
+    @tr.observe("runtime")
+    def _observe_runtime(self, _=None):
+        self.update_cost_info()
 
     @tr.observe("details")
     def _observe_details(self, _=None):
@@ -187,6 +216,37 @@ class ResourcesEstimatorWidget(ipw.VBox):
             ).computer.get_default_mpiprocs_per_machine()
         except (ValueError, AttributeError):
             self.max_tasks_per_node = 1
+        self.update_cost_info()
+
+    def update_cost_info(self):
+        """Update the cost information displayed in the widget."""
+        self.info_cost.value = ""
+        if not self.selected_code:
+            return
+
+        try:
+            code = orm.load_node(self.selected_code).full_label
+        except Exception as e:
+            self.info_cost.value = f"<b style='color:red;'>Error loading code: {e}</b>"
+            return
+
+        if "daint" in code:
+            price_info = (
+                f"""<i class='fa fa-info-circle' style='color:blue;font-size:2em;' ></i> """
+                f"""<b>Estimated Cost:</b> {self.resources.nodes_widget.value * self.node_hour_price * self.runtime:.2f}{self.currency}/hour"""
+            )
+
+            if self.price_link:
+                price_info += f"""The price was computed according to the following <br><a href='{self.price_link}' target='_blank'>link</a>."""
+
+            self.info_cost.value = price_info
+
+        elif "localhost" in code:
+            if self.cost > 50:
+                self.info_cost.value = (
+                    """<i class='fa fa-info-circle' style='color:blue;font-size:2em;' ></i> """
+                    """<b>The system may be too big for localhost</b>"""
+                )
 
     def _compute_cost(self, element_list=None, system_type="Slab", uks=False):
         cost = {
@@ -226,6 +286,13 @@ class ResourcesEstimatorWidget(ipw.VBox):
     def estimate_resources(self, _=None):
         """Determine the resources needed for the calculation."""
 
+        if not self.selected_code:
+            self.info_cost.value = (
+                """<i class='fa fa-info-circle' style='color:red;font-size:2em;' ></i> """
+                """<b style='color:red;'>Please select a code</b>"""
+            )
+            return
+
         if self.calculation_type == "dft":
             resources = self._estimate_resources_dft()
         elif self.calculation_type == "gw":
@@ -233,11 +300,11 @@ class ResourcesEstimatorWidget(ipw.VBox):
         elif self.calculation_type == "gw_ic":
             resources = self._estimate_resources_gw_ic()
 
-        cost = self._compute_cost(
+        self.cost = self._compute_cost(
             element_list=self.element_list, system_type=self.system_type, uks=self.uks
         )
 
-        theone = min(resources, key=lambda x: abs(x - cost))
+        theone = min(resources, key=lambda x: abs(x - self.cost))
 
         if self.resources.n_replica_trait:
             self.resources.nodes_widget.value = (
@@ -248,6 +315,13 @@ class ResourcesEstimatorWidget(ipw.VBox):
 
         self.resources.tasks_per_node_widget.value = resources[theone]["tasks_per_node"]
         self.resources.threads_per_task_widget.value = resources[theone]["threads"]
+        code = orm.load_node(self.selected_code).full_label
+        if "localhost" in code:
+            self.resources.nodes_widget.value = 1
+            self.resources.tasks_per_node_widget.value = 1
+            self.resources.threads_per_task_widget.value = 1
+
+        self.update_cost_info()
 
     def _estimate_resources_dft(self):
         """Determine the resources needed for the DFT calculation."""
