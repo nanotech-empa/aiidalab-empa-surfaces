@@ -1,12 +1,14 @@
 """Widget to convert CDXML to planar structures"""
 
 import xml.etree.ElementTree as ET
-
+import pandas as pd
+import re
 import ase
 import ipywidgets as ipw
 import nglview as nv
 import numpy as np
 import traitlets as tr
+from collections import defaultdict
 from ase import Atoms
 from ase.data import chemical_symbols, covalent_radii
 from ase.neighborlist import NeighborList
@@ -67,7 +69,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         self.atoms = None
 
     @staticmethod
-    def add_hydrogen_atoms(atoms: Atoms) -> tuple[str, Atoms]:
+    def add_hydrogen_atoms(atoms: Atoms, bond_orders: list =[],) -> tuple[str, Atoms]:
         """Add missing hydrogen atoms to the Atoms object based on covalent radii."""
         message = ""
 
@@ -107,7 +109,8 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         uploaded_file = list(self.file_upload.value.values())[0]
         cdxml_content = uploaded_file["content"].decode("utf-8")
         try:
-            self.atoms = self.cdxml_to_ase_from_string(cdxml_content)
+            bond_orders = self.get_total_bond_orders_from_cdxml_string(cdxml_content)
+            self.atoms = self.cdxml_to_ase_from_string(cdxml_content,bond_orders=bond_orders)
             (
                 self.crossing_points,
                 self.cdxml_atoms,
@@ -149,6 +152,123 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             atoms.pbc = True
 
         self.output_message.value, self.structure = self.add_hydrogen_atoms(atoms)
+        #self.structure = struc
+        
+    @staticmethod
+    def get_total_bond_orders_from_cdxml_string(cdxml_content: str) -> list[float]:
+        """
+        Parses CDXML content provided as a string and computes the total bond order
+        for each atom, including implicit single bonds from graphical electrons (radicals).
+
+        Lone electrons are detected via SymbolType="Electron", specific representations
+        (like '•', '.', 'radical'), or by small bounding boxes. Each such electron is
+        counted as a single bond to the nearest atom.
+
+        Args:
+            cdxml_content (str): The content of the CDXML file as a string.
+
+        Returns:
+            List[float]: A list of total bond orders, one for each atom (ordered by atom ID).
+        """
+        # Parse XML content from string
+        #tree = ET.parse(io.StringIO(cdxml_content))
+        root = ET.fromstring(cdxml_content)
+        # Extract atoms and their 2D positions from 'p' attribute
+        atoms = []
+        for n in root.iter("n"):
+            pos_str = n.attrib.get("p")
+            if pos_str:
+                x_str, y_str = pos_str.strip().split()
+                atoms.append({
+                    "id": n.attrib.get("id"),
+                    "element": n.attrib.get("Element"),
+                    "x": float(x_str),
+                    "y": float(y_str)
+                })
+        atoms_df = pd.DataFrame(atoms)
+
+        # Extract bonds between atoms
+        bonds = []
+        for b in root.iter("b"):
+            bonds.append({
+                "from": b.attrib.get("B"),
+                "to": b.attrib.get("E"),
+                "order": float(b.attrib.get("Order")) if b.attrib.get("Order") else 1.0
+            })
+
+        # Helper function to extract center of a bounding box string
+        def parse_bbox_center(bbox_str):
+            coords = list(map(float, re.findall(r"[\d.]+", bbox_str)))
+            if len(coords) == 4:
+                return (coords[0] + coords[2]) / 2, (coords[1] + coords[3]) / 2
+            return None, None
+
+        # Find lone electrons represented as graphics and assign them to nearest atom
+        electron_bonds = []
+        for graphic in root.iter("graphic"):
+            bbox_str = graphic.attrib.get("BoundingBox")
+            if not bbox_str:
+                continue
+
+            is_electron = False
+
+            # Method 1: Check for SymbolType="Electron"
+            if graphic.attrib.get("SymbolType") == "Electron":
+                is_electron = True
+
+            # Method 2: Check represent text content
+            if not is_electron:
+                for r in graphic.iter("represent"):
+                    if r.text and r.text.strip() in {"•", ".", "radical", "unpaired electron"}:
+                        is_electron = True
+
+            # Method 3: Fallback – small bounding box dimensions
+            if not is_electron:
+                coords = list(map(float, re.findall(r"[\d.]+", bbox_str)))
+                if len(coords) == 4:
+                    width = abs(coords[2] - coords[0])
+                    height = abs(coords[3] - coords[1])
+                    if width < 5 and height < 5:
+                        is_electron = True
+
+            if not is_electron:
+                continue  # Skip non-electron graphics
+
+            # Assign the electron to the closest atom (if within a reasonable distance)
+            x, y = parse_bbox_center(bbox_str)
+            atoms_df["distance"] = ((atoms_df["x"] - x)**2 + (atoms_df["y"] - y)**2)**0.5
+            closest = atoms_df.loc[atoms_df["distance"].idxmin()]
+
+            if closest["distance"] < 15:
+                electron_bonds.append({
+                    "from": closest["id"],
+                    "to": "electron",
+                    "order": 1.0
+                })
+
+        # Combine all bonds and accumulate bond orders per atom
+        all_bonds = bonds + electron_bonds
+        connectivity = defaultdict(float)
+        for bond in all_bonds:
+            connectivity[bond["from"]] += bond["order"]
+            if bond["to"] != "electron":
+                connectivity[bond["to"]] += bond["order"]
+
+        # Prepare output sorted by atom ID (as int, if possible)
+        result_df = pd.DataFrame([
+            {"atom_id": atom_id, "total_bond_order": order}
+            for atom_id, order in connectivity.items()
+        ])
+
+        try:
+            result_df["atom_id_int"] = result_df["atom_id"].astype(int)
+            result_df = result_df.sort_values("atom_id_int")
+        except ValueError:
+            result_df = result_df.sort_values("atom_id")
+
+        return result_df["total_bond_order"].tolist()
+
+        
 
     @staticmethod
     def cdxml_to_ase_from_string(
