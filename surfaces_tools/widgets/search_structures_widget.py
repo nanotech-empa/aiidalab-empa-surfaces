@@ -45,7 +45,7 @@ def link_to_viewer(description="", pk="", label="", energy=None, pk_eq_geo=None)
     if energy is not None:
         html += f"&nbsp;&nbsp;&nbsp;Energy: {energy:.3f} (Hartree)<br>"
     if pk_eq_geo is not None:
-        html += f"&nbsp;&nbsp;&nbsp;Eq. geometry: <a target='_blank' href='{the_viewer}?pk={pk_eq_geo}'> PK: {pk_eq_geo} </a><br> "
+        html += f"&nbsp;&nbsp;&nbsp;Equilibrium geometry: <a target='_blank' href='./export_structure.ipynb?uuid={pk_eq_geo}'> PK: {pk_eq_geo} </a><br> "
     return html
 
 
@@ -239,7 +239,7 @@ class SearchStructuresWidget(ipw.VBox):
                         pk=entry["pk"],
                         uuid=entry["uuid"],
                         tclass=tclass[odd],
-                        description="Inp. structure",
+                        description="Input structure",
                     )
                     html += "</tr>"
                     nrows_done += 1
