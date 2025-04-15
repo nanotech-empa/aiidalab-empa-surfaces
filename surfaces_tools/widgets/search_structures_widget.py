@@ -230,6 +230,12 @@ class SearchStructuresWidget(ipw.VBox):
                             energy=energy,
                             pk_eq_geo=pk_eq_geo,
                         )
+                    else:
+                        html += link_to_viewer(
+                            description=f"PK-{node.pk} {node.description}",
+                            pk=node.pk,
+                            label=node.label,
+                        )
 
                 html += "</ul></td>"
                 if nrows_done == 0:
