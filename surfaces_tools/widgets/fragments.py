@@ -1,10 +1,10 @@
 import aiidalab_widgets_base as awb
+import aiidalab_widgets_empa as awe
 import ipywidgets as ipw
 import traitlets
 from IPython.display import clear_output, display
 
 from .analyze_structure import StructureAnalyzer
-from .computational_resources import ProcessResourcesWidget, ResourcesEstimatorWidget
 
 STYLE = {"description_width": "100px"}
 BOX_LAYOUT = ipw.Layout(
@@ -42,9 +42,9 @@ class Fragment(ipw.VBox):
         self.delete_button.on_click(self.delete_myself)
 
         # Resources.
-        self.resources = ProcessResourcesWidget()
+        self.resources = awe.ProcessResourcesWidget()
         self.structure_analyzer = StructureAnalyzer()
-        self.resources_estimator = ResourcesEstimatorWidget()
+        self.resources_estimator = awe.ResourcesEstimatorWidget()
         self.resources_estimator.link_to_resources_widget(self.resources)
         ipw.dlink((self, "uks"), (self.resources_estimator, "uks"))
 

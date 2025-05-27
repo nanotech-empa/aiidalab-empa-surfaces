@@ -222,6 +222,14 @@ class ReplicaWidget(ipw.VBox):
             style={"description_width": "120px"},
             layout={"width": "340px"},
         )
+        info1 = ipw.HTML(
+            value="""If you want to restart from a previous Replica calculation, please enter the PK of the replica calculation.<br>
+            Define all CVs using <strong style='color: green;'>'Add constraint'</strong> at least one has to be defined. Check that the automatically provided value for the CVs matches the selected geometry<br>
+            Define the final value that each CV should reach<br>
+            Define the increment for each CV (e.g. 0.05 to increase a bond length)<br>
+            If you do not want a CV to evolve set 0.0 as increment, still adjustments in the CV value may occurr<br>""",
+            layout={"width": "70%"},
+        )
         self.CVs_targets = ipw.Text(
             description="CVs targets",
             value="",
@@ -235,7 +243,7 @@ class ReplicaWidget(ipw.VBox):
             layout={"width": "70%"},
         )
         super().__init__(
-            children=[self.CVs_targets, self.CVs_increments, self.restart_from],
+            children=[info1, self.CVs_targets, self.CVs_increments, self.restart_from],
         )
 
     def return_dict(self):
@@ -259,9 +267,17 @@ class NebWidget(ipw.VBox):
 
     def __init__(self):
         self.restart_from = ipw.Text(
-            description="Restart from PKs:",
+            description="Restart from PK:",
             value="",
             style={"description_width": "150px"},
+            layout={"width": "90%"},
+        )
+        info_restart = ipw.HTML(
+            value="""If you want to restart from a previous NEB calculation, please enter the PK of the neb calculation.<br>
+            You should then leave empty the replica PKs field.<br>
+            In the field replica PKs, please enter the PKs of the replicas you want to use for the NEB calculation.<br>
+            You have to <strong>OMIT</strong> the first one that is defined by the selected structure<br>
+            <strong>At leat one PK is needed</strong>, defining the final replica of te NEB.<br>""",
             layout={"width": "90%"},
         )
         self.replica_pks = ipw.Text(
@@ -333,6 +349,7 @@ class NebWidget(ipw.VBox):
         super().__init__(
             children=[
                 self.restart_from,
+                info_restart,
                 self.replica_pks,
                 ipw.HBox(
                     [self.optimize_endpoints, self.align_frames, self.rotate_frames]
