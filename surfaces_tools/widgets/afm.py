@@ -117,8 +117,6 @@ class ViewAfmLegacy(ipw.VBox):
 
         super().__init__(
             [
-                ipw.HTML(f"<p>AFM calculation: {self.afm_pp_calc.pk}</p>"),
-                ipw.HTML(f"<p>2PP calculation: {self.afm_2pp_calc.pk}</p>"),
                 ipw.HTML(spm.get_slab_calc_info(self.workcalc.inputs.structure)),
                 ipw.HBox([self.mk_zip_btn, self.zip_progress]),
                 self.download_zip_link,
