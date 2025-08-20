@@ -578,6 +578,8 @@ class PdosOverlapViewerWidget(ipw.VBox):
                 "overlap.npz", mode="rb"
             ) as fhandle:
                 self._overlap.data = load_overlap_npz(fhandle.name)
+        else:
+            self._overlap.add_item_button.disabled = True
 
         # Initialize selections.
         energy_lim = [
