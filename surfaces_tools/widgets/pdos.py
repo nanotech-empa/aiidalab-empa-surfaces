@@ -550,6 +550,14 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
     def load_data(self, reference=None):
         workchain = orm.load_node(pk=reference)
+        self.uks = workchain.inputs.dft_params.get("uks", False)
+        do_overlap = getattr(workchain.inputs, "do_overlap", None)
+        if isinstance(do_overlap, orm.Bool):
+            self.do_overlap = do_overlap.value
+        elif isinstance(do_overlap, bool):
+            self.do_overlap = do_overlap
+        else:
+            self.do_overlap = True
 
         try:
             self._geometry_info.value = spm.get_slab_calc_info(
@@ -564,11 +572,12 @@ class PdosOverlapViewerWidget(ipw.VBox):
         self._projections.workchain = workchain
 
         # Dealing with the overlap data.
-        overlap_calculation = spm.get_calc_by_label(workchain, "overlap")
-        with overlap_calculation.outputs.retrieved.open(
-            "overlap.npz", mode="rb"
-        ) as fhandle:
-            self._overlap.data = load_overlap_npz(fhandle.name)
+        if self.do_overlap:
+            overlap_calculation = spm.get_calc_by_label(workchain, "overlap")
+            with overlap_calculation.outputs.retrieved.open(
+                "overlap.npz", mode="rb"
+            ) as fhandle:
+                self._overlap.data = load_overlap_npz(fhandle.name)
 
         # Initialize selections.
         energy_lim = [
@@ -607,15 +616,22 @@ class PdosOverlapViewerWidget(ipw.VBox):
         ylim = [None, None]
 
         headers, data = self._plot_projections(ax1, ylim, energy_arr, data, headers)
-        headers, data = self._plot_overlaps(ax1, ylim, energy_arr, data, headers)
+        if self.do_overlap:
+            headers, data = self._plot_overlaps(ax1, ylim, energy_arr, data, headers)
 
+        try:
+            ncol = self._overlap.data["nspin_g2"]
+        except KeyError:
+            ncol = 1
+            if self.uks:
+                ncol = 2
         plt.legend(
-            ncol=self._overlap.data["nspin_g2"],
+            ncol=ncol,
             loc="center left",
             bbox_to_anchor=(1.01, 0.5),
         )
         plt.xlim([np.min(energy_arr), np.max(energy_arr)])
-        if self._overlap.data["nspin_g2"] == 1:
+        if ncol == 1:
             ylim[0] = 0.0
         plt.ylim(ylim)
         plt.axhline(0.0, color="k", lw=2.0, zorder=200)
