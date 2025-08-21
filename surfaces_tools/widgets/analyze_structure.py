@@ -3,8 +3,7 @@ import itertools
 import aiidalab_widgets_base as awb
 import numpy as np
 import traitlets as tr
-from ase import Atoms, neighborlist
-from scipy import sparse
+from ase import Atoms
 from scipy.signal import find_peaks
 from scipy.spatial import ConvexHull
 
@@ -193,22 +192,22 @@ def transform_vector(pos1, pos2, v1):
     pos2_centered = pos2 - centroid2
 
     # Compute the covariance matrix
-    H = np.dot(pos2_centered.T, pos1_centered)
+    h = np.dot(pos2_centered.T, pos1_centered)
 
     # Singular Value Decomposition (SVD) for rotation
-    U, S, Vt = np.linalg.svd(H)
-    R = np.dot(Vt.T, U.T)
+    u, s, vt = np.linalg.svd(h)
+    r = np.dot(vt.T, u.T)
 
     # Ensure a proper rotation matrix (det(R) = 1)
-    if np.linalg.det(R) < 0:
-        Vt[-1, :] *= -1
-        R = np.dot(Vt.T, U.T)
+    if np.linalg.det(r) < 0:
+        vt[-1, :] *= -1
+        r = np.dot(vt.T, u.T)
 
     # Translation vector
-    centroid1 - np.dot(R, centroid2)
+    # t = centroid1 - np.dot(r, centroid2)
 
     # Transform the vector
-    transformed_v1 = -np.dot(R, v1)  # + t
+    transformed_v1 = -np.dot(r, v1)  # + t
     transformed_v1 = transformed_v1 / np.linalg.norm(transformed_v1)
 
     return transformed_v1
@@ -303,14 +302,14 @@ class StructureAnalyzer(tr.HasTraits):
         summary = ""
         cases = []
         if len(spins_up) > 0:
-            summary += "spins_up: " + awb.utils.llist_to_string_range(spins_up) + "\n"
+            summary += "spins_up: " + awb.utils.list_to_string_range(spins_up) + "\n"
         if len(spins_down) > 0:
             summary += (
-                "spins_down: " + awb.utils.llist_to_string_range(spins_down) + "\n"
+                "spins_down: " + awb.utils.list_to_string_range(spins_down) + "\n"
             )
         if len(other_tags) > 0:
             summary += (
-                "other_tags: " + awb.utils.llist_to_string_range(other_tags) + "\n"
+                "other_tags: " + awb.utils.list_to_string_range(other_tags) + "\n"
             )
 
         if is_a_bulk:
@@ -403,10 +402,17 @@ class StructureAnalyzer(tr.HasTraits):
             summary += "adatoms: " + awb.utils.list_to_string_range(adatoms) + "\n"
         if all_molecules:
             cases.append("m")
-            summary += "#" + str(len(all_molecules)) + " molecules: "
+            nmolecules = len(all_molecules)
+            strmol = " molecule:"
+            if nmolecules > 1:
+                strmol = " molecules:"
+            summary += "#" + str(nmolecules) + strmol
             for nmols, the_mol in enumerate(all_molecules):
                 summary += (
-                    str(nmols + 1) + ") " + awb.utils.list_to_string_range(the_mol)
+                    " "
+                    + str(nmols + 1)
+                    + ") "
+                    + awb.utils.list_to_string_range(the_mol)
                 )
 
         summary += " \n"
