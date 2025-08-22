@@ -12,7 +12,7 @@ repos:
           - id: check-yaml
           - id: check-added-large-files
     - repo: https://github.com/pycqa/isort
-      rev: 5.13.2
+      rev: 6.0.1
       hooks:
           - id: isort
             args: [--profile, black, --filter-files]
@@ -21,17 +21,17 @@ repos:
       hooks:
           - id: autoflake
     - repo: https://github.com/asottile/pyupgrade
-      rev: v3.19.1
+      rev: v3.20.0
       hooks:
           - id: pyupgrade
             args: [--py38-plus]
     - repo: https://github.com/psf/black
-      rev: 24.10.0
+      rev: 25.1.0
       hooks:
           - id: black
             language_version: python3 # Should be a command that runs python3.6+
     - repo: https://github.com/PyCQA/flake8
-      rev: 7.1.1
+      rev: 7.3.0
       hooks:
           - id: flake8
             args: [--count, --show-source, --statistics]
@@ -45,7 +45,7 @@ repos:
                 - pyflakes
                 - tryceratops
     - repo: https://github.com/pre-commit/mirrors-mypy
-      rev: v1.14.1
+      rev: v1.16.1
       hooks:
           - id: mypy
             additional_dependencies:
@@ -58,7 +58,7 @@ repos:
       hooks:
           - id: yamlfmt
     - repo: https://github.com/asottile/setup-cfg-fmt
-      rev: v2.7.0
+      rev: v2.8.0
       hooks:
           - id: setup-cfg-fmt
     - repo: https://github.com/kynan/nbstripout
