@@ -4,6 +4,7 @@ import tempfile
 import ase.io.cube
 import ipywidgets as ipw
 import nglview
+import numpy as np
 import toml
 import traitlets as tl
 from aiida import engine, orm, plugins
@@ -11,6 +12,87 @@ from aiida_shell import ShellJob
 from cubehandler import Cube
 
 Cp2kOrbitalsWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.orbitals")
+Cp2kGeoOptWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.geo_opt")
+
+
+class OneIsovalue(ipw.HBox):
+    def __init__(self, structure=None):
+        self.isovalue_widget = ipw.BoundedFloatText(
+            value=1e-4,
+            min=0.0,
+            max=1e-1,
+            step=1e-5,
+            description="Isovalue",
+        )
+        self.color_widget = ipw.ColorPicker(
+            concise=False, description="Pick a color", value="cyan", disabled=False
+        )
+
+        super().__init__([self.isovalue_widget, self.color_widget])
+
+
+class IsovaluesWidget(ipw.VBox):
+    cube = tl.Instance(Cube, allow_none=True)
+
+    def __init__(self):
+        self.isovalues = ipw.VBox()
+
+        # Add constraint button.
+        self.add_isovalue_button = ipw.Button(
+            description="Add isovalue",
+            layout={"width": "initial"},
+            button_style="success",
+        )
+        self.add_isovalue_button.on_click(self.add_isovalue)
+
+        # Remove constraint button.
+        self.remove_isovalue_button = ipw.Button(
+            description="Remove isovalue",
+            layout={"width": "initial"},
+            button_style="danger",
+        )
+        self.remove_isovalue_button.on_click(self.remove_isovalue)
+
+        super().__init__(
+            [
+                self.isovalues,
+                ipw.HBox(
+                    [
+                        self.add_isovalue_button,
+                        self.remove_isovalue_button,
+                    ]
+                ),
+            ]
+        )
+
+    def return_values(self):
+        return zip(
+            *[
+                (child.children[0].value, child.children[1].value)
+                for child in self.isovalues.children
+            ]
+        )
+
+    def set_range(self, vmin=-0.001, vmax=0.001):
+        default = min(0.001, vmax)
+        if np.abs(vmin) > np.abs(vmax):
+            default = max(-0.001, vmin)
+        count = 0
+        for isovalue in self.isovalues.children:
+            isovalue.children[0].min = vmin
+            isovalue.children[0].max = vmax
+            isovalue.children[0].value = default
+            print(count, isovalue)
+            count += 1
+
+    def add_isovalue(self, b=None):
+        self.isovalues.children += (OneIsovalue(),)
+
+    def remove_isovalue(self, b=None):
+        self.isovalues.children = self.isovalues.children[:-1]
+
+    def traits_to_link(self):
+        return ["cube"]
 
 
 class CubeArrayData3dViewerWidget(ipw.VBox):
@@ -22,24 +104,24 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
 
         self.structure = None
         self.viewer = nglview.NGLWidget()
-        self.orb_isosurf_slider = ipw.FloatSlider(
-            continuous_update=False,
-            value=1e-3,
-            min=1e-3,
-            max=1e-1,
-            step=1e-4,
-            description="Isovalue",
-            readout_format=".1e",
+        self.isovalues = IsovaluesWidget()
+        self.show_isosurfaes_button = ipw.Button(
+            description="Show isosurfaces",
+            layout={"width": "initial"},
+            button_style="success",
         )
-        self.orb_isosurf_slider.observe(
-            lambda c: self.set_cube_isosurf([c["new"], -c["new"]], ["red", "blue"]),
-            names="value",
+        self.show_isosurfaes_button.on_click(lambda b: self.update_plot())
+
+        super().__init__(
+            [self.viewer, self.isovalues, self.show_isosurfaes_button], **kwargs
         )
-        super().__init__([self.viewer, self.orb_isosurf_slider], **kwargs)
 
     @tl.observe("cube")
     def on_observe_cube(self, _=None):
         """Update object attributes when cube trait is modified."""
+        self.isovalues.set_range(
+            vmin=np.min(self.cube.data), vmax=np.max(self.cube.data)
+        )
         self.structure = self.cube.ase_atoms
         self.update_plot()
 
@@ -49,13 +131,14 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             self.viewer.component_0.clear_representations()
             self.viewer.remove_component(self.viewer.component_0.id)
         self.setup_cube_plot()
-        self.set_cube_isosurf(
-            [
-                self.orb_isosurf_slider.value,
-                -self.orb_isosurf_slider.value,
-            ],
-            ["red", "blue"],
-        )
+        try:
+            isovalues, colors = self.isovalues.return_values()
+            self.set_cube_isosurf(
+                isovalues,  # [-0.001, 0.001],
+                colors,  # ["red", "blue"],
+            )
+        except ValueError:
+            pass
 
     def setup_cube_plot(self):
         """Setup cube plot."""
@@ -192,10 +275,14 @@ class HandleCubeFiles(ipw.VBox):
 
     def get_calcs(self):
         query = orm.QueryBuilder()
-        query.append(Cp2kOrbitalsWorkChain, tag="orbitals_wc", project="description")
+        query.append(
+            (Cp2kOrbitalsWorkChain, Cp2kGeoOptWorkChain),
+            tag="orbitals_wc",
+            project="description",
+        )
         query.append(
             ShellJob,
-            filters={"label": "cube-shrink"},
+            filters={"label": {"in": ["cube-shrink", "charge-lowres"]}},
             project="uuid",
             with_incoming="orbitals_wc",
         )
@@ -212,18 +299,24 @@ class HandleCubeFiles(ipw.VBox):
         n_morb = 4
         orb_options = []
         for name in self.node.list_object_names():
-            if "WFN" not in name:
-                continue
-            n_orb = int(name[18:23])
-            if n_orb < n_morb:
-                label = f"HOMO - {n_morb - n_orb}"
-            elif n_orb == n_morb:
-                label = "HOMO"
-            elif n_orb == n_morb + 1:
-                label = "LUMO"
-            else:
-                label = f"LUMO +{n_orb - n_morb - 1}"
-            orb_options.append((label, name))
+            label = None
+            if "WFN" in name:
+
+                n_orb = int(name[18:23])
+                if n_orb < n_morb:
+                    label = f"HOMO - {n_morb - n_orb}"
+                elif n_orb == n_morb:
+                    label = "HOMO"
+                elif n_orb == n_morb + 1:
+                    label = "LUMO"
+                else:
+                    label = f"LUMO +{n_orb - n_morb - 1}"
+            elif "ELECTRON" in name:
+                label = "CHARGE-DENSITY"
+            elif "SPIN" in name:
+                label = "SPIN-DENSITY"
+            if label is not None:
+                orb_options.append((label, name))
 
         self.cube_selector.value = None
         self.cube_selector.options = orb_options
