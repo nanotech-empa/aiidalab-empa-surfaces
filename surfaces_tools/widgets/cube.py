@@ -77,13 +77,11 @@ class IsovaluesWidget(ipw.VBox):
         default = min(0.001, vmax)
         if np.abs(vmin) > np.abs(vmax):
             default = max(-0.001, vmin)
-        count = 0
+
         for isovalue in self.isovalues.children:
             isovalue.children[0].min = vmin
             isovalue.children[0].max = vmax
             isovalue.children[0].value = default
-            print(count, isovalue)
-            count += 1
 
     def add_isovalue(self, b=None):
         self.isovalues.children += (OneIsovalue(),)
