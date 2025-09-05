@@ -13,6 +13,9 @@ from cubehandler import Cube
 
 Cp2kOrbitalsWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.orbitals")
 Cp2kGeoOptWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.geo_opt")
+Cp2kFragmentSeparationWorkChain = plugins.WorkflowFactory(
+    "nanotech_empa.cp2k.fragment_separation"
+)
 
 
 class OneIsovalue(ipw.HBox):
@@ -265,6 +268,7 @@ class HandleCubeFiles(ipw.VBox):
         )
 
     def show_selected_cube(self, _=None):
+
         if not self.cube_selector.value:
             return
         self._viewer.cube = Cube.from_content(
@@ -274,13 +278,19 @@ class HandleCubeFiles(ipw.VBox):
     def get_calcs(self):
         query = orm.QueryBuilder()
         query.append(
-            (Cp2kOrbitalsWorkChain, Cp2kGeoOptWorkChain),
+            (
+                Cp2kOrbitalsWorkChain,
+                Cp2kGeoOptWorkChain,
+                Cp2kFragmentSeparationWorkChain,
+            ),
             tag="orbitals_wc",
             project="description",
         )
         query.append(
             ShellJob,
-            filters={"label": {"in": ["cube-shrink", "charge-lowres"]}},
+            filters={
+                "label": {"in": ["cube-shrink", "charge-lowres", "ChargeDiff-lowres"]}
+            },
             project="uuid",
             with_incoming="orbitals_wc",
         )
@@ -291,13 +301,16 @@ class HandleCubeFiles(ipw.VBox):
             return
         calc = orm.load_node(self.select_calc_widget.value)
         self.node = calc.outputs.out_cubes
-        self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
+        try:
+            self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
+        except Exception:
+            self.remote_data_uuid = calc.outputs.remote_folder.uuid
 
         # TODO: number of occupied orbitals is hardcoded to 4:
         n_morb = 4
         orb_options = []
+        label = None
         for name in self.node.list_object_names():
-            label = None
             if "WFN" in name:
 
                 n_orb = int(name[18:23])
@@ -313,6 +326,8 @@ class HandleCubeFiles(ipw.VBox):
                 label = "CHARGE-DENSITY"
             elif "SPIN" in name:
                 label = "SPIN-DENSITY"
+            elif "ChargeDiff" in name:
+                label = "ChargeDifference"
             if label is not None:
                 orb_options.append((label, name))
 
