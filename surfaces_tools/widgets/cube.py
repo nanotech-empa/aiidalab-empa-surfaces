@@ -1,4 +1,5 @@
 import copy
+import re
 import tempfile
 
 import ase.io.cube
@@ -172,6 +173,9 @@ def render_cube_file(settings, remote_folder):
 class HandleCubeFiles(ipw.VBox):
 
     node_pk = tl.Int(None, allow_none=True)
+    nel_up = tl.Int(None, allow_none=True)
+    nel_dw = tl.Int(None, allow_none=True)
+    uks = tl.Bool(False)
     render_instructions = tl.Dict({}, allow_none=True)
     remote_data_uuid = tl.Unicode(allow_none=True)
 
@@ -307,21 +311,40 @@ class HandleCubeFiles(ipw.VBox):
             self.remote_data_uuid = calc.outputs.remote_folder.uuid
 
         # TODO: number of occupied orbitals is hardcoded to 4:
-        n_morb = 4
         orb_options = []
         label = None
+        pattern = re.compile(
+            r"WFN_(\d+)_([12])\-"
+        )  # captures orbital number and spin (1 or 2)
         for name in self.node.list_object_names():
             if "WFN" in name:
 
-                n_orb = int(name[18:23])
-                if n_orb < n_morb:
-                    label = f"HOMO - {n_morb - n_orb}"
-                elif n_orb == n_morb:
-                    label = "HOMO"
-                elif n_orb == n_morb + 1:
-                    label = "LUMO"
+                m = pattern.search(name)
+                if not m:
+                    continue  # skip unexpected names
+
+                n_orb = int(m.group(1))  # e.g. 00002 -> 2
+                spin = "UP-"
+                if int(m.group(2)) == 2:
+                    spin = "DW-"
+
+                # choose the correct HOMO index to compare against
+                if self.uks:
+                    n_morb = self.nel_up if spin == "UP" else self.nel_dw
                 else:
-                    label = f"LUMO +{n_orb - n_morb - 1}"
+                    spin = ""
+                    n_morb = self.nel_up  # only spin-1 files exist in RKS
+
+                # assign label
+                if n_orb < n_morb:
+                    label = f"{spin}HOMO - {n_morb - n_orb}"
+                elif n_orb == n_morb:
+                    label = f"{spin}HOMO"
+                elif n_orb == n_morb + 1:
+                    label = f"{spin}LUMO"
+                else:
+                    label = f"{spin}LUMO +{n_orb - n_morb - 1}"
+
             elif "ELECTRON" in name:
                 label = "CHARGE-DENSITY"
             elif "SPIN" in name:
