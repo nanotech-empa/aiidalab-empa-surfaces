@@ -22,8 +22,8 @@ Cp2kFragmentSeparationWorkChain = plugins.WorkflowFactory(
 class OneIsovalue(ipw.HBox):
     def __init__(self, structure=None):
         self.isovalue_widget = ipw.BoundedFloatText(
-            value=1e-4,
-            min=0.0,
+            value=1e-3,
+            min=1e-5,
             max=1e-1,
             step=1e-5,
             description="Isovalue",
@@ -36,12 +36,14 @@ class OneIsovalue(ipw.HBox):
 
 
 class IsovaluesWidget(ipw.VBox):
-    cube = tl.Instance(Cube, allow_none=True)
+    iso_min = tl.Float(1.0e-5, allow_none=True)
+    iso_max = tl.Float(1.0e-1, allow_none=True)
 
     def __init__(self):
         self.isovalues = ipw.VBox()
 
         # Add constraint button.
+        self.info = ipw.HTML(f"min: {self.iso_min:.1e}, max: {self.iso_max:.1e}")
         self.add_isovalue_button = ipw.Button(
             description="Add isovalue",
             layout={"width": "initial"},
@@ -62,6 +64,7 @@ class IsovaluesWidget(ipw.VBox):
                 self.isovalues,
                 ipw.HBox(
                     [
+                        self.info,
                         self.add_isovalue_button,
                         self.remove_isovalue_button,
                     ]
@@ -79,6 +82,9 @@ class IsovaluesWidget(ipw.VBox):
 
     def set_range(self, vmin=-0.001, vmax=0.001):
         default = min(0.001, vmax)
+        self.info.value = f"min: {vmin:.1e}, max: {vmax:.1e}"
+        self.iso_min = vmin
+        self.iso_max = vmax
         if np.abs(vmin) > np.abs(vmax):
             default = max(-0.001, vmin)
 
@@ -87,8 +93,18 @@ class IsovaluesWidget(ipw.VBox):
             isovalue.children[0].max = vmax
             isovalue.children[0].value = default
 
+    @tl.observe("iso_min", "iso_max")
+    def _observe_range(self, _=None):
+        self.set_range(vmin=self.iso_min, vmax=self.iso_max)
+
     def add_isovalue(self, b=None):
-        self.isovalues.children += (OneIsovalue(),)
+        new_isovalue = OneIsovalue()
+        new_isovalue.min = self.iso_min
+        new_isovalue.max = self.iso_max
+        new_isovalue.value = min(0.001, self.iso_max)
+        if self.iso_max < 1.0e-8:
+            new_isovalue.value = max(-0.001, self.iso_min)
+        self.isovalues.children += (new_isovalue,)
 
     def remove_isovalue(self, b=None):
         self.isovalues.children = self.isovalues.children[:-1]
