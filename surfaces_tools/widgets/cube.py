@@ -206,16 +206,16 @@ class HandleCubeFiles(ipw.VBox):
         )
         self.cube_selector.observe(self.show_selected_cube)
         self.dict_cube_files = {}
-        self.select_calc_widget = ipw.Dropdown(
-            description="Calculation:", options=self.get_calcs()
-        )
+        # self.select_calc_widget = ipw.Dropdown(
+        #    description="Calculation:", options=self.get_calcs()
+        # )
 
-        tl.dlink(
-            (self, "node_pk"),
-            (self.select_calc_widget, "value"),
-            transform=lambda x: orm.load_node(x).uuid if x else None,
-        )
-        self.select_calc_widget.observe(self.select_calculation)
+        # tl.dlink(
+        #    (self, "node_pk"),
+        #    (self.select_calc_widget, "value"),
+        #    transform=lambda x: orm.load_node(x).uuid if x else None,
+        # )
+        # self.select_calc_widget.observe(self.select_calculation)
         self.camera_orientation = ipw.Textarea(
             description="Camera orientation",
             placeholder="0, 0, 0, 0\n0, 0, 0, 0\n0, 0, 0, 0\n0, 0, 0, 0",
@@ -260,10 +260,10 @@ class HandleCubeFiles(ipw.VBox):
         self.render_all_button = ipw.Button(description="Render all")
         self.render_all_button.on_click(self.render_all)
 
-        self.select_calculation()
+        # self.select_calculation()
         super().__init__(
             [
-                self.select_calc_widget,
+                # self.select_calc_widget,
                 ipw.HBox(
                     [
                         self._viewer,
@@ -317,21 +317,24 @@ class HandleCubeFiles(ipw.VBox):
         return query.all()
 
     def select_calculation(self, _=None):
-        if not self.select_calc_widget.value:
+        # if not self.select_calc_widget.value:
+        #    return
+        # calc = orm.load_node(self.select_calc_widget.value)
+        if not self.node_pk:
             return
-        calc = orm.load_node(self.select_calc_widget.value)
+        calc = orm.load_node(self.node_pk)
         self.node = calc.outputs.out_cubes
         try:
             self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
         except Exception:
             self.remote_data_uuid = calc.outputs.remote_folder.uuid
 
-        # TODO: number of occupied orbitals is hardcoded to 4:
         orb_options = []
         label = None
         pattern = re.compile(
             r"WFN_(\d+)_([12])\-"
         )  # captures orbital number and spin (1 or 2)
+
         for name in self.node.list_object_names():
             if "WFN" in name:
 
@@ -367,6 +370,8 @@ class HandleCubeFiles(ipw.VBox):
                 label = "SPIN-DENSITY"
             elif "ChargeDiff" in name:
                 label = "ChargeDifference"
+            else:
+                label = None
             if label is not None:
                 orb_options.append((label, name))
 
@@ -387,6 +392,16 @@ class HandleCubeFiles(ipw.VBox):
             "format": "png",
         }
         self.render_instructions = new_dict
+
+    @tl.observe("node_pk")
+    def _observe_node_pk(self, _=None):
+        if self.node_pk:
+            self.select_calculation()
+        else:
+            self.node = None
+            self.cube_selector.options = []
+            self._viewer.cube = None
+            self.render_instructions = {}
 
     @tl.observe("render_instructions")
     def _observe_render_instructions(self, _=None):
