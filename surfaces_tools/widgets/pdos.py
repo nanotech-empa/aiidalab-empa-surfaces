@@ -551,14 +551,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
     def load_data(self, reference=None):
         workchain = orm.load_node(pk=reference)
         self.uks = workchain.inputs.dft_params.get("uks", False)
-        do_overlap = getattr(workchain.inputs, "do_overlap", None)
-        if isinstance(do_overlap, orm.Bool):
-            self.do_overlap = do_overlap.value
-        elif isinstance(do_overlap, bool):
-            self.do_overlap = do_overlap
-        else:
-            self.do_overlap = True
-
+        bool(workchain.inputs.do_overlap) if "do_overlap" in workchain.inputs else True
         try:
             self._geometry_info.value = spm.get_slab_calc_info(
                 workchain.inputs.structure
@@ -621,12 +614,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
         if self.do_overlap:
             headers, data = self._plot_overlaps(ax1, ylim, energy_arr, data, headers)
 
-        try:
-            ncol = self._overlap.data["nspin_g2"]
-        except KeyError:
-            ncol = 1
-            if self.uks:
-                ncol = 2
+        ncol = 1 + self.uks
         plt.legend(
             ncol=ncol,
             loc="center left",
