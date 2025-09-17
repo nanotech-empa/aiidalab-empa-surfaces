@@ -103,6 +103,12 @@ class SearchStructuresWidget(ipw.VBox):
 
         self.date_text = ipw.HTML(value="<p>Select the date range:</p>", width="150px")
         search_crit = ipw.HBox([self.date_text, self.date_start, self.date_end])
+        self.refresh = ipw.Checkbox(
+            value=False,
+            description="Refresh Thumbnails",
+            style={"description_width": "initial"},
+            layout={"width": "150px"},
+        )
         button = ipw.Button(description="Search")
 
         self.results = ipw.HTML()
@@ -115,7 +121,9 @@ class SearchStructuresWidget(ipw.VBox):
 
         button.on_click(on_click)
 
-        super().__init__([search_crit, button, self.results, self.info_out])
+        super().__init__(
+            [search_crit, self.refresh, button, self.results, self.info_out]
+        )
 
     def search(self):
         self.results.value = "searching..."
@@ -152,7 +160,7 @@ class SearchStructuresWidget(ipw.VBox):
                 nworkflows, workflows = uuids_to_nodesdict(node.extras["surfaces"])
             if nworkflows > 0:
                 nrows = nworkflows
-                if "thumbnail" not in node.extras:
+                if "thumbnail" not in node.extras or self.refresh.value:
                     node.base.extras.set(
                         "thumbnail", utils.ase_to_thumbnail(structure=node.get_ase())
                     )
