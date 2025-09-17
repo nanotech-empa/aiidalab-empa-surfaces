@@ -551,7 +551,11 @@ class PdosOverlapViewerWidget(ipw.VBox):
     def load_data(self, reference=None):
         workchain = orm.load_node(pk=reference)
         self.uks = workchain.inputs.dft_params.get("uks", False)
-        bool(workchain.inputs.do_overlap) if "do_overlap" in workchain.inputs else True
+        self.do_overlap = (
+            bool(workchain.inputs.do_overlap)
+            if "do_overlap" in workchain.inputs
+            else True
+        )
         try:
             self._geometry_info.value = spm.get_slab_calc_info(
                 workchain.inputs.structure
