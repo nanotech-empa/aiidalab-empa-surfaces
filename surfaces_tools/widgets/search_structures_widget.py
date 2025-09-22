@@ -19,6 +19,9 @@ VIEWERS = {
     "CP2K_NEB": "view_neb.ipynb",
     "Gaussian_NICS": "view_nics.ipynb",
     "CP2K_Replica": "view_replica.ipynb",
+    "cube-shrink": "handle_cubes.ipynb",
+    "charge-lowres": "handle_cubes.ipynb",
+    "ChargeDiff-lowres": "handle_cubes.ipynb",
     "ReplicaWorkChain": "view_replica.ipynb",
     "Gaussian_CASSCF_series": "view_gaussian_casscf_series.ipynb",  # Added entry
 }
