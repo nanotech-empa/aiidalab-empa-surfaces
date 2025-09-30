@@ -206,16 +206,6 @@ class HandleCubeFiles(ipw.VBox):
         )
         self.cube_selector.observe(self.show_selected_cube)
         self.dict_cube_files = {}
-        # self.select_calc_widget = ipw.Dropdown(
-        #    description="Calculation:", options=self.get_calcs()
-        # )
-
-        # tl.dlink(
-        #    (self, "node_pk"),
-        #    (self.select_calc_widget, "value"),
-        #    transform=lambda x: orm.load_node(x).uuid if x else None,
-        # )
-        # self.select_calc_widget.observe(self.select_calculation)
         self.camera_orientation = ipw.Textarea(
             description="Camera orientation",
             placeholder="0, 0, 0, 0\n0, 0, 0, 0\n0, 0, 0, 0\n0, 0, 0, 0",
@@ -292,7 +282,7 @@ class HandleCubeFiles(ipw.VBox):
         if not self.cube_selector.value:
             return
         self._viewer.cube = Cube.from_content(
-            self.node.get_object_content(self.cube_selector.value)
+            self.node.get_object_content(f"out_cubes/{self.cube_selector.value}")
         )
 
     def get_calcs(self):
@@ -323,7 +313,7 @@ class HandleCubeFiles(ipw.VBox):
         if not self.node_pk:
             return
         calc = orm.load_node(self.node_pk)
-        self.node = calc.outputs.out_cubes
+        self.node = calc.outputs.retrieved
         try:
             self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
         except Exception:
@@ -335,7 +325,7 @@ class HandleCubeFiles(ipw.VBox):
             r"WFN_(\d+)_([12])\-"
         )  # captures orbital number and spin (1 or 2)
 
-        for name in self.node.list_object_names():
+        for name in self.node.list_object_names("out_cubes"):
             if "WFN" in name:
 
                 m = pattern.search(name)
