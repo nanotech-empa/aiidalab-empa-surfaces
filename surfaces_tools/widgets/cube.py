@@ -42,7 +42,7 @@ class IsovaluesWidget(ipw.VBox):
     def __init__(self):
         self.isovalues = ipw.VBox()
 
-        # Add constraint button.
+        # Add isovalue button.
         self.info = ipw.HTML(f"min: {self.iso_min:.1e}, max: {self.iso_max:.1e}")
         self.add_isovalue_button = ipw.Button(
             description="Add isovalue",
@@ -51,7 +51,7 @@ class IsovaluesWidget(ipw.VBox):
         )
         self.add_isovalue_button.on_click(self.add_isovalue)
 
-        # Remove constraint button.
+        # Remove isovalue button.
         self.remove_isovalue_button = ipw.Button(
             description="Remove isovalue",
             layout={"width": "initial"},
@@ -85,7 +85,7 @@ class IsovaluesWidget(ipw.VBox):
         self.info.value = f"min: {vmin:.1e}, max: {vmax:.1e}"
         self.iso_min = vmin
         self.iso_max = vmax
-        if np.abs(vmin) > np.abs(vmax):
+        if abs(vmin) > abs(vmax):
             default = max(-0.001, vmin)
 
         for isovalue in self.isovalues.children:
@@ -97,16 +97,18 @@ class IsovaluesWidget(ipw.VBox):
     def _observe_range(self, _=None):
         self.set_range(vmin=self.iso_min, vmax=self.iso_max)
 
-    def add_isovalue(self, b=None):
-        new_isovalue = OneIsovalue()
-        new_isovalue.min = self.iso_min
-        new_isovalue.max = self.iso_max
-        new_isovalue.value = min(0.001, self.iso_max)
-        if self.iso_max < 1.0e-8:
-            new_isovalue.value = max(-0.001, self.iso_min)
-        self.isovalues.children += (new_isovalue,)
+    def add_isovalue(self, _=None):
+        new = OneIsovalue()
+        new.min = self.iso_min
+        new.max = self.iso_max
+        new.value = (
+            min(0.001, self.iso_max)
+            if self.iso_max >= 1.0e-8
+            else max(-0.001, self.iso_min)
+        )
+        self.isovalues.children += (new,)
 
-    def remove_isovalue(self, b=None):
+    def remove_isovalue(self, _=None):
         self.isovalues.children = self.isovalues.children[:-1]
 
     def traits_to_link(self):
