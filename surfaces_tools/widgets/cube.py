@@ -17,6 +17,7 @@ import traitlets as tl
 from aiida import engine, orm, plugins
 from aiida_shell import ShellJob
 from cubehandler import Cube
+from scipy.ndimage import map_coordinates
 
 logger = logging.getLogger(__name__)
 
@@ -312,7 +313,7 @@ class HandleCubeFiles(ipw.VBox):
         if not self.cube_selector.value:
             return
         cube_obj = Cube.from_content(
-            self.node.get_object_content(self.cube_selector.value)
+            self.node.get_object_content(f"out_cubes/{self.cube_selector.value}")
         )
         self._viewer.cube = cube_obj  # slice2d is linked via dlink
 
@@ -502,13 +503,11 @@ class DisplayRenderedCubes(ipw.HBox):
 
 
 # ------------------------------ 2D slicer ---------------------------------
-
-
 class CubePlaneCut2D(ipw.VBox):
-    cube = tl.Instance(Cube, allow_none=True)
+    cube = tl.Instance(object, allow_none=True)  # Cube
 
     def __init__(self):
-        # free-text inputs (Cartesian Å)
+        # ----- UI -----
         self.center_txt = ipw.Text(
             value="0.0 0.0 0.0",
             description="Center (Å)",
@@ -535,7 +534,6 @@ class CubePlaneCut2D(ipw.VBox):
             tooltip="Shift the plane along the normal by this distance",
         )
 
-        # Plane size & sampling
         self.width = ipw.FloatText(
             value=10.0,
             description="Width (Å)",
@@ -558,7 +556,6 @@ class CubePlaneCut2D(ipw.VBox):
             layout=ipw.Layout(width="360px"),
         )
 
-        # Plot options
         self.show_contours = ipw.Checkbox(value=False, description="Contours")
         self.vmin = ipw.FloatText(
             value=None,
@@ -578,14 +575,12 @@ class CubePlaneCut2D(ipw.VBox):
             layout=ipw.Layout(width="180px"),
         )
 
-        # Info / error / output
         self.info = ipw.HTML("")
         self.error = ipw.HTML("")
         self._out = ipw.Output(
             layout=ipw.Layout(width="560px", height="560px", border="1px solid #ddd")
         )
 
-        # Layout
         header = ipw.HTML("<b>2D plane cut (Cartesian point + normal, PBC)</b>")
         row_center = ipw.HBox([self.center_txt])
         row_normal = ipw.HBox([self.normal_txt, self.autonorm])
@@ -623,7 +618,10 @@ class CubePlaneCut2D(ipw.VBox):
         ):
             w.observe(self._on_any_change, names="value")
 
-    # -------- auto-update guard (only when inputs are valid) ----------------
+        # cache
+        self._sinv = None  # inverse cell cached
+
+    # ------------------------ validation & parsing --------------------------
 
     def _vec3_is_valid(self, text: str) -> bool:
         toks = [t for t in re.split(r"[,\s]+", str(text).strip()) if t]
@@ -631,7 +629,7 @@ class CubePlaneCut2D(ipw.VBox):
             return False
         try:
             _ = [float(t) for t in toks]
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
         return True
 
@@ -643,12 +641,11 @@ class CubePlaneCut2D(ipw.VBox):
         if not self._vec3_is_valid(self.normal_txt.value):
             return False
         try:
-            # offset, width/height/res (coerce to numbers)
-            _ = float(self._parse_float(self.offset_txt.value))
-            _ = float(self.width.value)
-            _ = float(self.height.value)
-            _ = int(self.res.value)
-        except Exception:  # noqa: BLE001
+            float(self._parse_float(self.offset_txt.value))
+            float(self.width.value)
+            float(self.height.value)
+            int(self.res.value)
+        except Exception:
             return False
         return True
 
@@ -657,19 +654,16 @@ class CubePlaneCut2D(ipw.VBox):
             self.error.value = ""
             self.plot_slice()
         else:
-            # while typing, keep UI calm (no red error spam)
             self.error.value = ""
             with self._out:
                 self._out.clear_output(wait=True)
 
-    # ------------------------------ helpers --------------------------------
-
     @staticmethod
     def _parse_vec3(text):
-        toks = [t for t in re.split(r"[,\s]+", str(text).strip()) if t]
-        if len(toks) != 3:
+        arr = np.fromstring(str(text).replace(",", " "), sep=" ", dtype=float)
+        if arr.size != 3:
             raise ValueError("expected 3 numbers")
-        return np.array([float(t) for t in toks], dtype=float)
+        return arr
 
     @staticmethod
     def _parse_float(text):
@@ -697,46 +691,19 @@ class CubePlaneCut2D(ipw.VBox):
         v /= np.linalg.norm(v)
         return n_unit, u, v
 
-    @staticmethod
-    def _trilinear_sample_pbc(data, coords):
-        nx, ny, nz = data.shape
-        idx = np.mod(coords, np.array([nx, ny, nz]))
-        i0 = np.floor(idx).astype(int)
-        di = idx - i0
-        i1 = (i0[..., 0] + 1) % nx
-        j1 = (i0[..., 1] + 1) % ny
-        k1 = (i0[..., 2] + 1) % nz
-        i0x = i0[..., 0]
-        j0y = i0[..., 1]
-        k0z = i0[..., 2]
-        c000 = data[i0x, j0y, k0z]
-        c100 = data[i1, j0y, k0z]
-        c010 = data[i0x, j1, k0z]
-        c110 = data[i1, j1, k0z]
-        c001 = data[i0x, j0y, k1]
-        c101 = data[i1, j0y, k1]
-        c011 = data[i0x, j1, k1]
-        c111 = data[i1, j1, k1]
-        tx = di[..., 0]
-        ty = di[..., 1]
-        tz = di[..., 2]
-        c00 = c000 * (1 - tx) + c100 * tx
-        c01 = c001 * (1 - tx) + c101 * tx
-        c10 = c010 * (1 - tx) + c110 * tx
-        c11 = c011 * (1 - tx) + c111 * tx
-        c0 = c00 * (1 - ty) + c10 * ty
-        c1 = c01 * (1 - ty) + c11 * ty
-        return c0 * (1 - tz) + c1 * tz
+    # ---------------------------- cube updates ------------------------------
 
     @tl.observe("cube")
     def _on_cube(self, _):
         if self.cube is None:
             self.info.value = ""
             self.error.value = ""
+            self._sinv = None
             with self._out:
                 self._out.clear_output()
             return
         s = np.array(self.cube.ase_atoms.cell).T
+        self._sinv = np.linalg.inv(s)  # cache inverse cell
         lengths = np.linalg.norm(s, axis=0)
         mean_len = float(np.mean(lengths))
         self.width.value = mean_len
@@ -750,12 +717,13 @@ class CubePlaneCut2D(ipw.VBox):
         )
         self.plot_slice()
 
-    def _build_plane_grid(self):
-        atoms = self.cube.ase_atoms
-        s = np.array(atoms.cell).T  # columns a, b, c
+    # ---------------------------- geometry ---------------------------------
 
-        center = self._parse_vec3(self.center_txt.value)  # Å
-        n = self._parse_vec3(self.normal_txt.value)  # direction
+    def _build_plane_grid(self):
+        s = np.array(self.cube.ase_atoms.cell).T  # columns a, b, c
+
+        center = self._parse_vec3(self.center_txt.value)
+        n = self._parse_vec3(self.normal_txt.value)
         offset = self._parse_float(self.offset_txt.value)
 
         if self.autonorm.value:
@@ -763,7 +731,7 @@ class CubePlaneCut2D(ipw.VBox):
         else:
             n_hat_tmp, u_hat, v_hat = self._orthonormal_basis_from_normal(n)
             n_hat = (
-                n / (np.linalg.norm(n) + 1e-12)
+                (n / (np.linalg.norm(n) + 1e-12))
                 if np.linalg.norm(n) > 1e-12
                 else n_hat_tmp
             )
@@ -780,32 +748,52 @@ class CubePlaneCut2D(ipw.VBox):
         uu, vv = np.meshgrid(us, vs)
         r = (
             center_shifted[None, None, :]
-            + uu[..., None] * u_hat[None, None, :]
-            + vv[..., None] * v_hat[None, None, :]
+            + uu[..., None] * u_hat
+            + vv[..., None] * v_hat
         )
         extent = [-w / 2.0, w / 2.0, -h / 2.0, h / 2.0]
         return r, extent, s
 
-    def _cart_to_indexcoords(self, r, s):
+    def _cart_to_indexcoords(self, r):
+        """Map Cartesian positions r (Å) to fractional grid coordinates (continuous),
+        then scale by grid sizes to obtain continuous index coordinates for map_coordinates.
+        """
         nx, ny, nz = self.cube.data.shape
-        sinv = np.linalg.inv(s)
-        rflat = r.reshape(-1, 3).T
-        f = (sinv @ rflat).T
+        sinv = (
+            self._sinv
+            if self._sinv is not None
+            else np.linalg.inv(np.array(self.cube.ase_atoms.cell).T)
+        )
+        f = (sinv @ r.reshape(-1, 3).T).T  # fractional in [0,1) modulo PBC
+        # continuous indices in the 0..N range (not clamped; wrapping is handled by map_coordinates)
         idx = np.empty_like(f)
         idx[:, 0] = f[:, 0] * nx
         idx[:, 1] = f[:, 1] * ny
         idx[:, 2] = f[:, 2] * nz
         return idx.reshape(r.shape)
 
+    # ---------------------------- plotting ---------------------------------
+
     def plot_slice(self):
         if self.cube is None:
             return
         try:
-            r, extent, s = self._build_plane_grid()
-            idxcoords = self._cart_to_indexcoords(r, s)
-            vals = self._trilinear_sample_pbc(self.cube.data, idxcoords).reshape(
-                r.shape[:2]
+            r, extent, _ = self._build_plane_grid()
+            idxcoords = self._cart_to_indexcoords(r)  # (M,N,3) continuous indices
+
+            # ---- SciPy: trilinear interpolation with PBC via mode='wrap' ----
+            # map_coordinates expects coords with shape (ndim, ...) in order (axis0, axis1, axis2)
+            coords = np.stack(
+                [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
             )
+            vals = map_coordinates(
+                self.cube.data,
+                coords,
+                order=1,  # linear (trilinear in 3D)
+                mode="wrap",  # periodic boundary conditions
+                prefilter=False,  # array non filtrata (va benissimo per order=1)
+            )
+
             vmin = (
                 self.vmin.value
                 if self.vmin.value not in (None, "")
@@ -816,7 +804,8 @@ class CubePlaneCut2D(ipw.VBox):
                 if self.vmax.value not in (None, "")
                 else float(np.nanmax(vals))
             )
-        except Exception as exc:  # noqa: BLE001
+
+        except Exception as exc:
             self.error.value = f"<span style='color:#b00'>Error: {exc}</span>"
             with self._out:
                 self._out.clear_output(wait=True)
@@ -849,8 +838,8 @@ class CubePlaneCut2D(ipw.VBox):
                         extent=extent,
                     )
                     ax.clabel(cs, inline=True, fontsize=8)
-                except Exception as exc:  # noqa: BLE001
-                    logger.debug("contour overlay failed: %s", exc)
+                except Exception:
+                    pass
             plt.show()
 
     def current_plane_params(self):
