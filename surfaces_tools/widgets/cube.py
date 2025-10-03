@@ -341,7 +341,7 @@ class HandleCubeFiles(ipw.VBox):
         if not self.node_pk:
             return
         calc = orm.load_node(self.node_pk)
-        self.node = calc.outputs.out_cubes
+        self.node = calc.outputs.retrieved
         try:
             self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
         except Exception as exc:  # noqa: BLE001
@@ -351,7 +351,7 @@ class HandleCubeFiles(ipw.VBox):
         orb_options = []
         pattern = re.compile(r"WFN_(\d+)_([12])\-")  # orbital index + spin
 
-        for name in self.node.list_object_names():
+        for name in self.node.list_object_names("out_cubes"):
             label = None
             if "WFN" in name:
                 m = pattern.search(name)
