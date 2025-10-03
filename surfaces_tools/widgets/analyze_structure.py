@@ -9,26 +9,6 @@ from ase import neighborlist
 from scipy import signal, sparse, spatial
 
 
-def to_ranges(iterable):
-    iterable = sorted(set(iterable))
-    for _key, group in itertools.groupby(enumerate(iterable), lambda t: t[1] - t[0]):
-        lgroup = list(group)
-        yield lgroup[0][1], lgroup[-1][1]
-
-
-def mol_ids_range(ismol):
-    # Shifts the list by +1.
-    range_string = ""
-    shifted_list = [i + 1 for i in ismol]
-    ranges = list(to_ranges(shifted_list))
-    for i in range(len(ranges)):
-        if ranges[i][1] > ranges[i][0]:
-            range_string += f"{ranges[i][0]}..{ranges[i][1]}"
-        else:
-            range_string += f"{ranges[i][0]} "
-    return range_string
-
-
 def conne_matrix(atoms):
     cutoff = neighborlist.natural_cutoffs(atoms)
     neighbor_list = neighborlist.NeighborList(
@@ -410,36 +390,41 @@ class StructureAnalyzer(tr.HasTraits):
             slab_elements = set(atoms[slabatoms].get_chemical_symbols())
 
         if len(bottom_h) > 0:
-            summary += "bottom H: " + mol_ids_range(bottom_h) + "\n"
+            summary += "bottom H: " + awb.utils.list_to_string_range(bottom_h) + "\n"
         if len(slabatoms) > 0:
-            summary += "slab atoms: " + mol_ids_range(slabatoms) + "\n"
+            summary += "slab atoms: " + awb.utils.list_to_string_range(slabatoms) + "\n"
         for nlayer in range(len(slab_layers)):
             summary += (
                 "slab layer "
                 + str(nlayer + 1)
                 + ": "
-                + mol_ids_range(slab_layers[nlayer])
+                + awb.utils.list_to_string_range(slab_layers[nlayer])
                 + "\n"
             )
         if len(adatoms) > 0:
             cases.append("a")
-            summary += "adatoms: " + mol_ids_range(adatoms) + "\n"
+            summary += "adatoms: " + awb.utils.list_to_string_range(adatoms) + "\n"
         if all_molecules:
             cases.append("m")
             summary += "#" + str(len(all_molecules)) + " molecules: "
             for nmols in range(len(all_molecules)):
-                summary += str(nmols + 1) + ") " + mol_ids_range(all_molecules[nmols])
+                summary += (
+                    str(nmols + 1)
+                    + ") "
+                    + awb.utils.list_to_string_range(all_molecules[nmols])
+                    + " "
+                )
 
         summary += " \n"
         if len(metalatings) > 0:
             summary += (
                 "metal atoms inside molecules (already counted): "
-                + mol_ids_range(metalatings)
+                + awb.utils.list_to_string_range(metalatings)
                 + "\n"
             )
         if len(unclassified) > 0:
             cases.append("u")
-            summary += "unclassified: " + mol_ids_range(unclassified)
+            summary += "unclassified: " + awb.utils.list_to_string_range(unclassified)
 
         # Indexes from 0 if mol_ids_range is not called.
 
