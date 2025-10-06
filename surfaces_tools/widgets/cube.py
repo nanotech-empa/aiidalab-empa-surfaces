@@ -23,16 +23,40 @@ class OneIsovalue(ipw.HBox):
     def __init__(self, structure=None):
         self.isovalue_widget = ipw.BoundedFloatText(
             value=1e-3,
-            min=1e-5,
-            max=1e-1,
+            isomin=1e-5,
+            isomax=1e-1,
             step=1e-5,
             description="Isovalue",
         )
         self.color_widget = ipw.ColorPicker(
             concise=False, description="Pick a color", value="cyan", disabled=False
         )
-
         super().__init__([self.isovalue_widget, self.color_widget])
+
+    # proxy: così min/max/value su OneIsovalue agiscono sul BoundedFloatText
+    @property
+    def isomin(self):
+        return self.isovalue_widget.isomin
+
+    @isomin.setter
+    def isomin(self, v):
+        self.isovalue_widget.isomin = v
+
+    @property
+    def isomax(self):
+        return self.isovalue_widget.isomax
+
+    @isomax.setter
+    def isomax(self, v):
+        self.isovalue_widget.isomax = v
+
+    @property
+    def value(self):
+        return self.isovalue_widget.value
+
+    @value.setter
+    def value(self, v):
+        self.isovalue_widget.value = v
 
 
 class IsovaluesWidget(ipw.VBox):
@@ -91,7 +115,8 @@ class IsovaluesWidget(ipw.VBox):
         for isovalue in self.isovalues.children:
             isovalue.children[0].min = vmin
             isovalue.children[0].max = vmax
-            isovalue.children[0].value = default
+            if not (vmin <= isovalue.children[0].value <= vmax):
+                isovalue.children[0].value = default
 
     @tl.observe("iso_min", "iso_max")
     def _observe_range(self, _=None):
@@ -99,8 +124,8 @@ class IsovaluesWidget(ipw.VBox):
 
     def add_isovalue(self, _=None):
         new = OneIsovalue()
-        new.min = self.iso_min
-        new.max = self.iso_max
+        new.isomin = self.iso_min
+        new.isomax = self.iso_max
         new.value = (
             min(0.001, self.iso_max)
             if self.iso_max >= 1.0e-8
