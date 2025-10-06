@@ -1,7 +1,5 @@
-# SPDX-License-Identifier: MIT
-# flake8: noqa
-# NOTE: this file intentionally contains widgets only in English.
-
+# ======================= FULL REPLACEMENT BLOCK ============================
+# Requirements: nglview, ase, scipy, ipywidgets, traitlets, matplotlib, aiida, toml
 import copy
 import logging
 import re
@@ -17,10 +15,12 @@ import traitlets as tl
 from aiida import engine, orm, plugins
 from aiida_shell import ShellJob
 from cubehandler import Cube
+from nglview import shape as nvshape
 from scipy.ndimage import map_coordinates
 
 logger = logging.getLogger(__name__)
 
+# Optional (only used by get_calcs/select_calculation)
 Cp2kOrbitalsWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.orbitals")
 Cp2kGeoOptWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.geo_opt")
 Cp2kFragmentSeparationWorkChain = plugins.WorkflowFactory(
@@ -29,8 +29,6 @@ Cp2kFragmentSeparationWorkChain = plugins.WorkflowFactory(
 
 
 # ------------------------- Isosurface controls -----------------------------
-
-
 class OneIsovalue(ipw.HBox):
     def __init__(self, structure=None):
         self.isovalue_widget = ipw.BoundedFloatText(
@@ -74,6 +72,7 @@ class IsovaluesWidget(ipw.VBox):
         )
 
     def return_values(self):
+        # Returns (isovals, colors) or raises ValueError if empty (kept for compatibility)
         return zip(
             *[
                 (child.children[0].value, child.children[1].value)
@@ -89,9 +88,10 @@ class IsovaluesWidget(ipw.VBox):
         if abs(vmin) > abs(vmax):
             default = max(-0.001, vmin)
         for isovalue in self.isovalues.children:
-            isovalue.children[0].min = vmin
-            isovalue.children[0].max = vmax
-            isovalue.children[0].value = default
+            w = isovalue.children[0]
+            w.min = vmin
+            w.max = vmax
+            w.value = default
 
     @tl.observe("iso_min", "iso_max")
     def _observe_range(self, _=None):
@@ -111,36 +111,361 @@ class IsovaluesWidget(ipw.VBox):
     def remove_isovalue(self, _=None):
         self.isovalues.children = self.isovalues.children[:-1]
 
-    def traits_to_link(self):
-        return ["cube"]
+
+# ------------------------------ 2D slicer ----------------------------------
+class CubePlaneCut2D(ipw.VBox):
+    cube = tl.Instance(
+        object, allow_none=True
+    )  # expects .data (3D) and .ase_atoms (ASE Atoms)
+
+    def __init__(self):
+        self.center_txt = ipw.Text(
+            value="0.0 0.0 0.0",
+            description="Center (Å)",
+            placeholder="x y z",
+            style={"description_width": "110px"},
+            layout=ipw.Layout(width="420px"),
+        )
+        self.normal_txt = ipw.Text(
+            value="0 0 1",
+            description="Normal",
+            placeholder="nx ny nz",
+            style={"description_width": "110px"},
+            layout=ipw.Layout(width="420px"),
+        )
+        self.autonorm = ipw.Checkbox(value=True, description="Normalize normal")
+        self.offset_txt = ipw.Text(
+            value="0.0",
+            description="Offset (Å)",
+            style={"description_width": "110px"},
+            layout=ipw.Layout(width="220px"),
+        )
+        self.width = ipw.FloatText(
+            value=10.0,
+            description="Width (Å)",
+            style={"description_width": "110px"},
+            layout=ipw.Layout(width="220px"),
+        )
+        self.height = ipw.FloatText(
+            value=10.0,
+            description="Height (Å)",
+            style={"description_width": "110px"},
+            layout=ipw.Layout(width="220px"),
+        )
+        self.res = ipw.IntSlider(
+            value=256,
+            min=32,
+            max=1024,
+            step=32,
+            description="Resolution",
+            continuous_update=False,
+            layout=ipw.Layout(width="360px"),
+        )
+        self.show_contours = ipw.Checkbox(value=False, description="Contours")
+        self.vmin = ipw.FloatText(
+            value=None,
+            description="vmin",
+            style={"description_width": "60px"},
+            layout=ipw.Layout(width="150px"),
+        )
+        self.vmax = ipw.FloatText(
+            value=None,
+            description="vmax",
+            style={"description_width": "60px"},
+            layout=ipw.Layout(width="150px"),
+        )
+        self.update_btn = ipw.Button(
+            description="Update 2D slice",
+            button_style="success",
+            layout=ipw.Layout(width="180px"),
+        )
+
+        self.info = ipw.HTML("")
+        self.error = ipw.HTML("")
+        self._out = ipw.Output(
+            layout=ipw.Layout(width="560px", height="560px", border="1px solid #ddd")
+        )
+
+        super().__init__(
+            [
+                ipw.HTML("<b>2D plane cut (Cartesian point + normal, PBC)</b>"),
+                ipw.HBox([self.center_txt]),
+                ipw.HBox([self.normal_txt, self.autonorm]),
+                ipw.HBox([self.offset_txt]),
+                ipw.HBox([self.width, self.height, self.res]),
+                ipw.HBox([self.show_contours, self.vmin, self.vmax, self.update_btn]),
+                self.info,
+                self.error,
+                self._out,
+            ]
+        )
+
+        self.update_btn.on_click(lambda _: self.plot_slice())
+        for w in (
+            self.center_txt,
+            self.normal_txt,
+            self.offset_txt,
+            self.autonorm,
+            self.width,
+            self.height,
+            self.res,
+            self.show_contours,
+            self.vmin,
+            self.vmax,
+        ):
+            w.observe(self._on_any_change, names="value")
+
+        self._sinv = None  # cached inverse cell
+
+    # ---- validation / parsing ----
+    def _vec3_is_valid(self, text: str) -> bool:
+        toks = [t for t in re.split(r"[,\s]+", str(text).strip()) if t]
+        if len(toks) != 3:
+            return False
+        try:
+            [float(t) for t in toks]
+        except Exception:
+            return False
+        return True
+
+    def _inputs_valid(self) -> bool:
+        if not self.cube:
+            return False
+        if not self._vec3_is_valid(self.center_txt.value):
+            return False
+        if not self._vec3_is_valid(self.normal_txt.value):
+            return False
+        try:
+            float(self._parse_float(self.offset_txt.value))
+            float(self.width.value)
+            float(self.height.value)
+            int(self.res.value)
+        except Exception:
+            return False
+        return True
+
+    def _on_any_change(self, _=None):
+        if self._inputs_valid():
+            self.error.value = ""
+            self.plot_slice()
+        else:
+            self.error.value = ""
+            with self._out:
+                self._out.clear_output(wait=True)
+
+    @staticmethod
+    def _parse_vec3(text):
+        arr = np.fromstring(str(text).replace(",", " "), sep=" ", dtype=float)
+        if arr.size != 3:
+            raise ValueError("expected 3 numbers")
+        return arr
+
+    @staticmethod
+    def _parse_float(text):
+        s = str(text).strip()
+        if s == "" or s.lower() == "none":
+            return 0.0
+        return float(s)
+
+    @staticmethod
+    def _orthonormal_basis_from_normal(n):
+        n = np.asarray(n, dtype=float)
+        n_norm = np.linalg.norm(n)
+        if n_norm < 1e-12:
+            n = np.array([0.0, 0.0, 1.0])
+            n_norm = 1.0
+        n_unit = n / n_norm
+        t = (
+            np.array([1.0, 0.0, 0.0])
+            if abs(n_unit[0]) < 0.9
+            else np.array([0.0, 1.0, 0.0])
+        )
+        u = np.cross(n_unit, t)
+        u /= np.linalg.norm(u)
+        v = np.cross(n_unit, u)
+        v /= np.linalg.norm(v)
+        return n_unit, u, v
+
+    # ---- cube updates ----
+    @tl.observe("cube")
+    def _on_cube(self, _):
+        if self.cube is None:
+            self.info.value = ""
+            self.error.value = ""
+            self._sinv = None
+            with self._out:
+                self._out.clear_output()
+            return
+        s = np.array(self.cube.ase_atoms.cell).T
+        self._sinv = np.linalg.inv(s)
+        lengths = np.linalg.norm(s, axis=0)
+        mean_len = float(np.mean(lengths))
+        self.width.value = mean_len
+        self.height.value = mean_len
+        nx, ny, nz = self.cube.data.shape
+        dmin = float(np.nanmin(self.cube.data))
+        dmax = float(np.nanmax(self.cube.data))
+        self.info.value = (
+            f"Grid: {nx}×{ny}×{nz} | data ∈ [{dmin:.3e}, {dmax:.3e}] | "
+            f"|a|,|b|,|c| ≈ {lengths[0]:.2f}, {lengths[1]:.2f}, {lengths[2]:.2f} Å"
+        )
+        self.plot_slice()
+
+    # ---- geometry ----
+    def _build_plane_grid(self):
+        s = np.array(self.cube.ase_atoms.cell).T
+        center = self._parse_vec3(self.center_txt.value)
+        n = self._parse_vec3(self.normal_txt.value)
+        offset = self._parse_float(self.offset_txt.value)
+
+        if self.autonorm.value:
+            n_hat, u_hat, v_hat = self._orthonormal_basis_from_normal(n)
+        else:
+            n_hat_tmp, u_hat, v_hat = self._orthonormal_basis_from_normal(n)
+            n_hat = (
+                (n / (np.linalg.norm(n) + 1e-12))
+                if np.linalg.norm(n) > 1e-12
+                else n_hat_tmp
+            )
+
+        center_shifted = center + offset * n_hat
+        w = float(self.width.value)
+        h = float(self.height.value)
+        m = int(self.res.value)
+        npts = int(self.res.value)
+
+        us = np.linspace(-w / 2.0, w / 2.0, npts)
+        vs = np.linspace(-h / 2.0, h / 2.0, m)
+        uu, vv = np.meshgrid(us, vs)
+        r = (
+            center_shifted[None, None, :]
+            + uu[..., None] * u_hat
+            + vv[..., None] * v_hat
+        )
+        extent = [-w / 2.0, w / 2.0, -h / 2.0, h / 2.0]
+        return r, extent, s
+
+    def _cart_to_indexcoords(self, r):
+        nx, ny, nz = self.cube.data.shape
+        sinv = (
+            self._sinv
+            if self._sinv is not None
+            else np.linalg.inv(np.array(self.cube.ase_atoms.cell).T)
+        )
+        f = (sinv @ r.reshape(-1, 3).T).T
+        idx = np.empty_like(f)
+        idx[:, 0] = f[:, 0] * nx
+        idx[:, 1] = f[:, 1] * ny
+        idx[:, 2] = f[:, 2] * nz
+        return idx.reshape(r.shape)
+
+    # ---- plotting ----
+    def plot_slice(self):
+        if self.cube is None:
+            return
+        try:
+            r, extent, _ = self._build_plane_grid()
+            idxcoords = self._cart_to_indexcoords(r)
+            coords = np.stack(
+                [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
+            )
+            vals = map_coordinates(
+                self.cube.data, coords, order=1, mode="wrap", prefilter=False
+            )
+            vmin = (
+                self.vmin.value
+                if self.vmin.value not in (None, "")
+                else float(np.nanmin(vals))
+            )
+            vmax = (
+                self.vmax.value
+                if self.vmax.value not in (None, "")
+                else float(np.nanmax(vals))
+            )
+        except Exception as exc:
+            self.error.value = f"<span style='color:#b00'>Error: {exc}</span>"
+            with self._out:
+                self._out.clear_output(wait=True)
+            return
+
+        self.error.value = ""
+        with self._out:
+            self._out.clear_output(wait=True)
+            fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
+            im = ax.imshow(
+                vals,
+                origin="lower",
+                extent=extent,
+                aspect="equal",
+                vmin=vmin,
+                vmax=vmax,
+            )
+            ax.set_xlabel("u (Å)")
+            ax.set_ylabel("v (Å)")
+            cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            cb.set_label("Value")
+            if self.show_contours.value:
+                try:
+                    cs = ax.contour(
+                        vals,
+                        levels=8,
+                        linewidths=0.8,
+                        alpha=0.7,
+                        origin="lower",
+                        extent=extent,
+                    )
+                    ax.clabel(cs, inline=True, fontsize=8)
+                except Exception:
+                    pass
+            plt.show()
+
+    def current_plane_params(self):
+        center = self._parse_vec3(self.center_txt.value)
+        normal = self._parse_vec3(self.normal_txt.value)
+        offset = self._parse_float(self.offset_txt.value)
+        w = float(self.width.value)
+        h = float(self.height.value)
+        return center, normal, offset, w, h
 
 
 # ----------------------------- 3D viewer ----------------------------------
-
-
 class CubeArrayData3dViewerWidget(ipw.VBox):
-    """View structure + cube; add isosurfaces from the cube."""
+    """Structure + cube + isosurfaces + slicing-plane overlay drawn as a detachable PDB component."""
 
-    cube = tl.Instance(Cube, allow_none=True)
+    cube = tl.Instance(object, allow_none=True)
 
     def __init__(self, **kwargs):
         self.structure = None
         self.viewer = nglview.NGLWidget()
         self.isovalues = IsovaluesWidget()
+
         self.show_isosurfaes_button = ipw.Button(
             description="Show isosurfaces",
             layout={"width": "initial"},
             button_style="success",
         )
-        self.show_isosurfaes_button.on_click(lambda b: self.update_plot())
+        self.show_isosurfaes_button.on_click(lambda _: self.update_plot())
 
-        # components we manage
-        self._structure_component = None
-        self._cube_component = None
+        self.show_plane_checkbox = ipw.Checkbox(
+            value=True, description="Show slicing plane in 3D"
+        )
+
+        # handle to the current plane component (added as PDB); None if not present
+        self._plane_comp = None
 
         super().__init__(
-            [self.viewer, self.isovalues, self.show_isosurfaes_button], **kwargs
+            [
+                self.viewer,
+                self.isovalues,
+                ipw.HBox([self.show_isosurfaes_button, self.show_plane_checkbox]),
+            ],
+            **kwargs,
         )
+
+        # external callback (set by HandleCubeFiles) to rebuild the plane after plot updates
+        self._external_plane_sync_cb = None
+
+    # ---------- lifecycle ----------
 
     @tl.observe("cube")
     def on_observe_cube(self, _=None):
@@ -153,33 +478,22 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
         self.update_plot()
 
     def update_plot(self):
-        """Refresh structure + volumetric cube components."""
-        if self._structure_component is not None:
-            try:
-                self.viewer.remove_component(self._structure_component.id)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("remove_component(structure) failed: %s", exc)
-            self._structure_component = None
+        # remove any previous structure/cube components
+        for comp_attr in ("_structure_component", "_cube_component"):
+            comp = getattr(self, comp_attr, None)
+            if comp is not None:
+                try:
+                    self.viewer.remove_component(comp.id)
+                except Exception:
+                    pass
+                setattr(self, comp_attr, None)
 
-        if self._cube_component is not None:
-            try:
-                self.viewer.remove_component(self._cube_component.id)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("remove_component(cube) failed: %s", exc)
-            self._cube_component = None
+        # clear the plane component; we'll redraw at the end
+        self.clear_plane_overlay()
 
-        self.setup_cube_plot()
-
-        try:
-            isovalues, colors = self.isovalues.return_values()
-            self.set_cube_isosurf(isovalues, colors)
-        except ValueError:
-            # no isovalues added yet
-            pass
-
-    def setup_cube_plot(self):
         if self.structure is None or self.cube is None:
             return
+
         self._structure_component = self.viewer.add_component(
             nglview.ASEStructure(self.structure)
         )
@@ -188,8 +502,24 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             self._cube_component = self.viewer.add_component(tempf.name, ext="cube")
             self._cube_component.clear()
 
+        # isosurfaces
+        try:
+            isovals, colors = self.isovalues.return_values()
+            self.set_cube_isosurf(isovals, colors)
+        except ValueError:
+            pass
+
+        # plane overlay
+        if self._external_plane_sync_cb:
+            try:
+                self._external_plane_sync_cb()
+            except Exception:
+                pass
+
+    # ---------- isosurfaces ----------
+
     def set_cube_isosurf(self, isovals, colors):
-        if self._cube_component is None:
+        if getattr(self, "_cube_component", None) is None:
             return
         self._cube_component.clear()
         for isov, col in zip(isovals, colors):
@@ -197,10 +527,143 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
                 color=col, isolevelType="value", isolevel=isov
             )
 
+    # ---------- plane overlay via PDB COMPONENT (clears by id) ----------
 
-# ----------------------- render helper (AiiDA) ----------------------------
+    @staticmethod
+    def _rgb_to_hex(c):
+        """Accept ('magenta'|'#rrggbb'|RGB tuple 0..1 or 0..255) and return a hex string or color name."""
+        if isinstance(c, str):
+            return c
+        if isinstance(c, (tuple, list)) and len(c) == 3:
+            if max(c) <= 1.0:
+                r, g, b = (int(round(v * 255)) for v in c)
+            else:
+                r, g, b = (int(v) for v in c)
+            return f"#{r:02x}{g:02x}{b:02x}"
+        return "gray"
+
+    def clear_plane_overlay(self):
+        """Remove the plane PDB component if present."""
+        comp = getattr(self, "_plane_comp", None)
+        if comp is not None:
+            try:
+                self.viewer.remove_component(comp.id)
+            except Exception:
+                pass
+            self._plane_comp = None
+
+    def _make_plane_pdb(
+        self, center, normal, width, height, offset, n_lines, normalize=True
+    ):
+        """Return a PDB string encoding frame + cross-hatch as bonds (2 atoms + CONECT per segment)."""
+        c = np.asarray(center, float)
+        n = np.asarray(normal, float)
+        n_norm = np.linalg.norm(n)
+        if n_norm < 1e-12:
+            n_hat = np.array([0.0, 0.0, 1.0])
+        else:
+            n_hat = n / n_norm if normalize else (n / (n_norm + 1e-12))
+        t = (
+            np.array([1.0, 0.0, 0.0])
+            if abs(n_hat[0]) < 0.9
+            else np.array([0.0, 1.0, 0.0])
+        )
+        u = np.cross(n_hat, t)
+        u /= np.linalg.norm(u)
+        v = np.cross(n_hat, u)
+        v /= np.linalg.norm(v)
+
+        c = c + float(offset) * n_hat
+        w = float(width)
+        h = float(height)
+
+        p00 = c - 0.5 * w * u - 0.5 * h * v
+        p10 = c + 0.5 * w * u - 0.5 * h * v
+        p11 = c + 0.5 * w * u + 0.5 * h * v
+        p01 = c - 0.5 * w * u + 0.5 * h * v
+
+        segments = []
+        # frame
+        segments += [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
+        # cross-hatch
+        ts = np.linspace(-0.5, 0.5, int(n_lines))
+        for s in ts:
+            a = c + (s * w) * u - 0.5 * h * v
+            b = c + (s * w) * u + 0.5 * h * v
+            segments.append((a, b))
+        for s in ts:
+            a = c - 0.5 * w * u + (s * h) * v
+            b = c + 0.5 * w * u + (s * h) * v
+            segments.append((a, b))
+
+        lines = []
+        atom_id = 1
+        for a, b in segments:
+            ax, ay, az = a.tolist()
+            bx, by, bz = b.tolist()
+            lines.append(
+                f"HETATM{atom_id:5d}  X   PX A   1{ax:12.3f}{ay:8.3f}{az:8.3f}  1.00  0.00           X"
+            )
+            lines.append(
+                f"HETATM{atom_id+1:5d}  X   PX A   1{bx:12.3f}{by:8.3f}{bz:8.3f}  1.00  0.00           X"
+            )
+            lines.append(f"CONECT{atom_id:5d}{atom_id+1:5d}")
+            atom_id += 2
+        lines.append("END")
+        return "\n".join(lines)
+
+    def set_plane_overlay_crosshatch(
+        self,
+        center,
+        normal,
+        width,
+        height,
+        offset=0.0,
+        color=(1.0, 0.0, 1.0),  # default magenta
+        line_radius=0.07,  # mapped to licorice radiusSize
+        n_lines=28,
+        normalize_normal=True,
+    ):
+        """Draw/update the plane as a PDB component so we can remove it by id each time."""
+        if self.structure is None or not self.show_plane_checkbox.value:
+            self.clear_plane_overlay()
+            return
+
+        # always remove any previous plane
+        self.clear_plane_overlay()
+
+        pdb_text = self._make_plane_pdb(
+            center, normal, width, height, offset, n_lines, normalize=normalize_normal
+        )
+
+        # write temp file and load as a detachable component
+        import os
+        import tempfile
+
+        tmp = tempfile.NamedTemporaryFile("w", suffix=".pdb", delete=False)
+        tmp.write(pdb_text)
+        tmp.flush()
+        tmp.close()
+
+        comp = self.viewer.add_component(tmp.name, ext="pdb")
+        # force a uniform color (otherwise 'element' scheme makes it white/atomic)
+        comp.add_representation(
+            "licorice",
+            radiusType="fixed",
+            radiusSize=max(0.05, float(line_radius) * 1.8),
+            colorScheme="uniform",
+            colorValue=self._rgb_to_hex(color),
+        )
+        self._plane_comp = comp
+
+        # best-effort cleanup of the temp file
+        try:
+            os.unlink(tmp.name)
+        except Exception:
+            pass
 
 
+# ----------------------- render helper (AiiDA) -----------------------------
 @engine.calcfunction
 def render_cube_file(settings, remote_folder):
     fd = orm.FolderData()
@@ -211,9 +674,7 @@ def render_cube_file(settings, remote_folder):
     return {"rendered_images": fd}
 
 
-# ------------------------ Main handle widget ------------------------------
-
-
+# ------------------------ Main handle widget -------------------------------
 class HandleCubeFiles(ipw.VBox):
 
     node_pk = tl.Int(None, allow_none=True)
@@ -226,12 +687,7 @@ class HandleCubeFiles(ipw.VBox):
     def __init__(self):
         self.node = None
 
-        self._viewer = CubeArrayData3dViewerWidget(layout=ipw.Layout(width="550px"))
-        self.slice2d = CubePlaneCut2D()
-
-        # Keep the cubes in sync (3D viewer ↔ 2D slicer)
-        self._cube_sync = tl.dlink((self._viewer, "cube"), (self.slice2d, "cube"))
-
+        # Create selector first so observers can safely reference it
         self.cube_selector = ipw.Select(
             options=[],
             description="Cube files:",
@@ -240,6 +696,65 @@ class HandleCubeFiles(ipw.VBox):
         )
         self.cube_selector.observe(self.show_selected_cube, names="value")
 
+        # 3D viewer + 2D slicer
+        self._viewer = CubeArrayData3dViewerWidget(layout=ipw.Layout(width="550px"))
+        self.slice2d = CubePlaneCut2D()
+
+        # Keep the cubes in sync (3D viewer ↔ 2D slicer)
+        self._cube_sync = tl.dlink((self._viewer, "cube"), (self.slice2d, "cube"))
+
+        # slicer → viewer plane sync (guarded against invalid inputs)
+        def _sync_plane(_=None):
+            try:
+                if (
+                    self.slice2d.cube is None
+                    or not self._viewer.show_plane_checkbox.value
+                    or not self.slice2d._inputs_valid()
+                ):
+                    self._viewer.clear_plane_overlay()
+                    return
+
+                center, normal, offset, w, h = self.slice2d.current_plane_params()
+                n_lines = max(16, int(self.slice2d.res.value / 16))
+                self._viewer.set_plane_overlay_crosshatch(
+                    center=center,
+                    normal=normal,
+                    width=w,
+                    height=h,
+                    offset=offset,
+                    color=(0.5, 0.5, 0.5),
+                    line_radius=0.07,
+                    n_lines=n_lines,
+                    normalize_normal=bool(self.slice2d.autonorm.value),
+                )
+            except Exception as exc:
+                logger.debug("sync plane failed: %s", exc)
+
+        def _on_plane_toggle(change):
+            if change["new"] is False:
+                self._viewer.clear_plane_overlay()
+            else:
+                _sync_plane()
+
+        self._viewer.show_plane_checkbox.observe(_on_plane_toggle, names="value")
+
+        # Re-sync when slicer inputs change
+        for w in (
+            self.slice2d.center_txt,
+            self.slice2d.normal_txt,
+            self.slice2d.autonorm,
+            self.slice2d.offset_txt,
+            self.slice2d.width,
+            self.slice2d.height,
+            self.slice2d.res,
+        ):
+            w.observe(_sync_plane, names="value")
+
+        # Allow the viewer to call us after it rebuilds components
+        self._viewer._external_plane_sync_cb = _sync_plane
+        self._sync_plane = _sync_plane
+
+        # Camera orientation snapshot
         self.camera_orientation = ipw.Textarea(
             description="Camera orientation",
             placeholder="0, 0, 0, 0\n0, 0, 0, 0\n0, 0, 0, 0\n0, 0, 0, 0",
@@ -257,6 +772,7 @@ class HandleCubeFiles(ipw.VBox):
             ),
         )
 
+        # Render controls
         self.render_this_view = ipw.Button(
             description="Render this view", layout=ipw.Layout(width="120px")
         )
@@ -284,6 +800,7 @@ class HandleCubeFiles(ipw.VBox):
         self.render_all_button = ipw.Button(description="Render all")
         self.render_all_button.on_click(self.render_all)
 
+        # Layout
         super().__init__(
             [
                 ipw.HBox(
@@ -310,12 +827,13 @@ class HandleCubeFiles(ipw.VBox):
         )
 
     def show_selected_cube(self, _=None):
-        if not self.cube_selector.value:
+        if not self.cube_selector.value or self.node is None:
             return
         cube_obj = Cube.from_content(
             self.node.get_object_content(f"out_cubes/{self.cube_selector.value}")
         )
-        self._viewer.cube = cube_obj  # slice2d is linked via dlink
+        self._viewer.cube = cube_obj
+        self._sync_plane()  # draw current plane immediately
 
     def get_calcs(self):
         query = orm.QueryBuilder()
@@ -421,18 +939,25 @@ class HandleCubeFiles(ipw.VBox):
             self.cube_selector.options = []
             self._viewer.cube = None
             self.render_instructions = {}
+            self.remote_data_uuid = None
+            try:
+                self._viewer.clear_plane_overlay()
+            except Exception:
+                pass
 
     @tl.observe("render_instructions")
     def _observe_render_instructions(self, _=None):
-        self.render_instructions_widget.value = toml.dumps(self.render_instructions)
+        if hasattr(self, "render_instructions_widget"):
+            self.render_instructions_widget.value = toml.dumps(self.render_instructions)
 
     def render_all(self, _=None):
+        if not self.remote_data_uuid:
+            self.error_message.value = "No remote_data_uuid set."
+            return
         render_cube_file(self.render_instructions, orm.load_node(self.remote_data_uuid))
 
 
 # ---------------------- rendered images viewer ----------------------------
-
-
 class DisplayRenderedCubes(ipw.HBox):
     remote_data_uuid = tl.Unicode(allow_none=True)
 
@@ -502,350 +1027,4 @@ class DisplayRenderedCubes(ipw.HBox):
         self.rendered_images_widget.options = select_image_list
 
 
-# ------------------------------ 2D slicer ---------------------------------
-class CubePlaneCut2D(ipw.VBox):
-    cube = tl.Instance(object, allow_none=True)  # Cube
-
-    def __init__(self):
-        # ----- UI -----
-        self.center_txt = ipw.Text(
-            value="0.0 0.0 0.0",
-            description="Center (Å)",
-            placeholder="x y z",
-            style={"description_width": "110px"},
-            layout=ipw.Layout(width="420px"),
-            tooltip="Enter Cartesian center, e.g. '9.0 9.1 8'",
-        )
-        self.normal_txt = ipw.Text(
-            value="0 0 1",
-            description="Normal",
-            placeholder="nx ny nz",
-            style={"description_width": "110px"},
-            layout=ipw.Layout(width="420px"),
-            tooltip="Enter Cartesian normal, e.g. '1 0 0'",
-        )
-        self.autonorm = ipw.Checkbox(value=True, description="Normalize normal")
-        self.offset_txt = ipw.Text(
-            value="0.0",
-            description="Offset (Å)",
-            placeholder="0.0",
-            style={"description_width": "110px"},
-            layout=ipw.Layout(width="220px"),
-            tooltip="Shift the plane along the normal by this distance",
-        )
-
-        self.width = ipw.FloatText(
-            value=10.0,
-            description="Width (Å)",
-            style={"description_width": "110px"},
-            layout=ipw.Layout(width="220px"),
-        )
-        self.height = ipw.FloatText(
-            value=10.0,
-            description="Height (Å)",
-            style={"description_width": "110px"},
-            layout=ipw.Layout(width="220px"),
-        )
-        self.res = ipw.IntSlider(
-            value=256,
-            min=32,
-            max=1024,
-            step=32,
-            description="Resolution",
-            continuous_update=False,
-            layout=ipw.Layout(width="360px"),
-        )
-
-        self.show_contours = ipw.Checkbox(value=False, description="Contours")
-        self.vmin = ipw.FloatText(
-            value=None,
-            description="vmin",
-            style={"description_width": "60px"},
-            layout=ipw.Layout(width="150px"),
-        )
-        self.vmax = ipw.FloatText(
-            value=None,
-            description="vmax",
-            style={"description_width": "60px"},
-            layout=ipw.Layout(width="150px"),
-        )
-        self.update_btn = ipw.Button(
-            description="Update 2D slice",
-            button_style="success",
-            layout=ipw.Layout(width="180px"),
-        )
-
-        self.info = ipw.HTML("")
-        self.error = ipw.HTML("")
-        self._out = ipw.Output(
-            layout=ipw.Layout(width="560px", height="560px", border="1px solid #ddd")
-        )
-
-        header = ipw.HTML("<b>2D plane cut (Cartesian point + normal, PBC)</b>")
-        row_center = ipw.HBox([self.center_txt])
-        row_normal = ipw.HBox([self.normal_txt, self.autonorm])
-        row_offset = ipw.HBox([self.offset_txt])
-        row_size = ipw.HBox([self.width, self.height, self.res])
-        row_opts = ipw.HBox([self.show_contours, self.vmin, self.vmax, self.update_btn])
-
-        super().__init__(
-            [
-                header,
-                row_center,
-                row_normal,
-                row_offset,
-                row_size,
-                row_opts,
-                self.info,
-                self.error,
-                self._out,
-            ]
-        )
-
-        # Wiring
-        self.update_btn.on_click(lambda _: self.plot_slice())
-        for w in (
-            self.center_txt,
-            self.normal_txt,
-            self.offset_txt,
-            self.autonorm,
-            self.width,
-            self.height,
-            self.res,
-            self.show_contours,
-            self.vmin,
-            self.vmax,
-        ):
-            w.observe(self._on_any_change, names="value")
-
-        # cache
-        self._sinv = None  # inverse cell cached
-
-    # ------------------------ validation & parsing --------------------------
-
-    def _vec3_is_valid(self, text: str) -> bool:
-        toks = [t for t in re.split(r"[,\s]+", str(text).strip()) if t]
-        if len(toks) != 3:
-            return False
-        try:
-            _ = [float(t) for t in toks]
-        except Exception:
-            return False
-        return True
-
-    def _inputs_valid(self) -> bool:
-        if not self.cube:
-            return False
-        if not self._vec3_is_valid(self.center_txt.value):
-            return False
-        if not self._vec3_is_valid(self.normal_txt.value):
-            return False
-        try:
-            float(self._parse_float(self.offset_txt.value))
-            float(self.width.value)
-            float(self.height.value)
-            int(self.res.value)
-        except Exception:
-            return False
-        return True
-
-    def _on_any_change(self, _=None):
-        if self._inputs_valid():
-            self.error.value = ""
-            self.plot_slice()
-        else:
-            self.error.value = ""
-            with self._out:
-                self._out.clear_output(wait=True)
-
-    @staticmethod
-    def _parse_vec3(text):
-        arr = np.fromstring(str(text).replace(",", " "), sep=" ", dtype=float)
-        if arr.size != 3:
-            raise ValueError("expected 3 numbers")
-        return arr
-
-    @staticmethod
-    def _parse_float(text):
-        s = str(text).strip()
-        if s == "" or s.lower() == "none":
-            return 0.0
-        return float(s)
-
-    @staticmethod
-    def _orthonormal_basis_from_normal(n):
-        n = np.asarray(n, dtype=float)
-        n_norm = np.linalg.norm(n)
-        if n_norm < 1e-12:
-            n = np.array([0.0, 0.0, 1.0])
-            n_norm = 1.0
-        n_unit = n / n_norm
-        t = (
-            np.array([1.0, 0.0, 0.0])
-            if abs(n_unit[0]) < 0.9
-            else np.array([0.0, 1.0, 0.0])
-        )
-        u = np.cross(n_unit, t)
-        u /= np.linalg.norm(u)
-        v = np.cross(n_unit, u)
-        v /= np.linalg.norm(v)
-        return n_unit, u, v
-
-    # ---------------------------- cube updates ------------------------------
-
-    @tl.observe("cube")
-    def _on_cube(self, _):
-        if self.cube is None:
-            self.info.value = ""
-            self.error.value = ""
-            self._sinv = None
-            with self._out:
-                self._out.clear_output()
-            return
-        s = np.array(self.cube.ase_atoms.cell).T
-        self._sinv = np.linalg.inv(s)  # cache inverse cell
-        lengths = np.linalg.norm(s, axis=0)
-        mean_len = float(np.mean(lengths))
-        self.width.value = mean_len
-        self.height.value = mean_len
-        nx, ny, nz = self.cube.data.shape
-        dmin = float(np.nanmin(self.cube.data))
-        dmax = float(np.nanmax(self.cube.data))
-        self.info.value = (
-            f"Grid: {nx}×{ny}×{nz} | data ∈ [{dmin:.3e}, {dmax:.3e}] | "
-            f"|a|,|b|,|c| ≈ {lengths[0]:.2f}, {lengths[1]:.2f}, {lengths[2]:.2f} Å"
-        )
-        self.plot_slice()
-
-    # ---------------------------- geometry ---------------------------------
-
-    def _build_plane_grid(self):
-        s = np.array(self.cube.ase_atoms.cell).T  # columns a, b, c
-
-        center = self._parse_vec3(self.center_txt.value)
-        n = self._parse_vec3(self.normal_txt.value)
-        offset = self._parse_float(self.offset_txt.value)
-
-        if self.autonorm.value:
-            n_hat, u_hat, v_hat = self._orthonormal_basis_from_normal(n)
-        else:
-            n_hat_tmp, u_hat, v_hat = self._orthonormal_basis_from_normal(n)
-            n_hat = (
-                (n / (np.linalg.norm(n) + 1e-12))
-                if np.linalg.norm(n) > 1e-12
-                else n_hat_tmp
-            )
-
-        center_shifted = center + offset * n_hat
-
-        w = float(self.width.value)
-        h = float(self.height.value)
-        m = int(self.res.value)
-        npts = int(self.res.value)
-
-        us = np.linspace(-w / 2.0, w / 2.0, npts)
-        vs = np.linspace(-h / 2.0, h / 2.0, m)
-        uu, vv = np.meshgrid(us, vs)
-        r = (
-            center_shifted[None, None, :]
-            + uu[..., None] * u_hat
-            + vv[..., None] * v_hat
-        )
-        extent = [-w / 2.0, w / 2.0, -h / 2.0, h / 2.0]
-        return r, extent, s
-
-    def _cart_to_indexcoords(self, r):
-        """Map Cartesian positions r (Å) to fractional grid coordinates (continuous),
-        then scale by grid sizes to obtain continuous index coordinates for map_coordinates.
-        """
-        nx, ny, nz = self.cube.data.shape
-        sinv = (
-            self._sinv
-            if self._sinv is not None
-            else np.linalg.inv(np.array(self.cube.ase_atoms.cell).T)
-        )
-        f = (sinv @ r.reshape(-1, 3).T).T  # fractional in [0,1) modulo PBC
-        # continuous indices in the 0..N range (not clamped; wrapping is handled by map_coordinates)
-        idx = np.empty_like(f)
-        idx[:, 0] = f[:, 0] * nx
-        idx[:, 1] = f[:, 1] * ny
-        idx[:, 2] = f[:, 2] * nz
-        return idx.reshape(r.shape)
-
-    # ---------------------------- plotting ---------------------------------
-
-    def plot_slice(self):
-        if self.cube is None:
-            return
-        try:
-            r, extent, _ = self._build_plane_grid()
-            idxcoords = self._cart_to_indexcoords(r)  # (M,N,3) continuous indices
-
-            # ---- SciPy: trilinear interpolation with PBC via mode='wrap' ----
-            # map_coordinates expects coords with shape (ndim, ...) in order (axis0, axis1, axis2)
-            coords = np.stack(
-                [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
-            )
-            vals = map_coordinates(
-                self.cube.data,
-                coords,
-                order=1,  # linear (trilinear in 3D)
-                mode="wrap",  # periodic boundary conditions
-                prefilter=False,  # array non filtrata (va benissimo per order=1)
-            )
-
-            vmin = (
-                self.vmin.value
-                if self.vmin.value not in (None, "")
-                else float(np.nanmin(vals))
-            )
-            vmax = (
-                self.vmax.value
-                if self.vmax.value not in (None, "")
-                else float(np.nanmax(vals))
-            )
-
-        except Exception as exc:
-            self.error.value = f"<span style='color:#b00'>Error: {exc}</span>"
-            with self._out:
-                self._out.clear_output(wait=True)
-            return
-
-        self.error.value = ""
-        with self._out:
-            self._out.clear_output(wait=True)
-            fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
-            im = ax.imshow(
-                vals,
-                origin="lower",
-                extent=extent,
-                aspect="equal",
-                vmin=vmin,
-                vmax=vmax,
-            )
-            ax.set_xlabel("u (Å)")
-            ax.set_ylabel("v (Å)")
-            cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cb.set_label("Value")
-            if self.show_contours.value:
-                try:
-                    cs = ax.contour(
-                        vals,
-                        levels=8,
-                        linewidths=0.8,
-                        alpha=0.7,
-                        origin="lower",
-                        extent=extent,
-                    )
-                    ax.clabel(cs, inline=True, fontsize=8)
-                except Exception:
-                    pass
-            plt.show()
-
-    def current_plane_params(self):
-        center = self._parse_vec3(self.center_txt.value)
-        normal = self._parse_vec3(self.normal_txt.value)
-        offset = self._parse_float(self.offset_txt.value)
-        w = float(self.width.value)
-        h = float(self.height.value)
-        return center, normal, offset, w, h
+# ===================== END FULL REPLACEMENT BLOCK ==========================
