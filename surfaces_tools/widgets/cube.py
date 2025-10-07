@@ -15,10 +15,14 @@ import traitlets as tl
 from aiida import engine, orm, plugins
 from aiida_shell import ShellJob
 from cubehandler import Cube
-from nglview import shape as nvshape
 from scipy.ndimage import map_coordinates
 
 logger = logging.getLogger(__name__)
+
+
+class Vec3ParseError(ValueError):
+    """Expected 3 numbers for a 3-vector."""
+
 
 # Optional (only used by get_calcs/select_calculation)
 Cp2kOrbitalsWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.orbitals")
@@ -28,14 +32,79 @@ Cp2kFragmentSeparationWorkChain = plugins.WorkflowFactory(
 )
 
 
+# --------------------------- helpers: plane mesh ---------------------------
+def _orthonormal_basis_from_normal(
+    n: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    n = np.asarray(n, dtype=float)
+    n_norm = float(np.linalg.norm(n))
+    if n_norm < 1e-12:
+        n_unit = np.array([0.0, 0.0, 1.0], dtype=float)
+    else:
+        n_unit = n / n_norm
+    t = (
+        np.array([1.0, 0.0, 0.0], dtype=float)
+        if abs(n_unit[0]) < 0.9
+        else np.array([0.0, 1.0, 0.0], dtype=float)
+    )
+    u = np.cross(n_unit, t)
+    u /= np.linalg.norm(u)
+    v = np.cross(n_unit, u)
+    v /= np.linalg.norm(v)
+    return n_unit, u, v
+
+
+def make_plane_mesh(
+    center: tuple[float, float, float],
+    normal: tuple[float, float, float],
+    width: float,
+    height: float,
+    offset: float = 0.0,
+    color: tuple[float, float, float] = (0.6, 0.6, 0.6),
+) -> tuple[list[float], list[float]]:
+    """Build a rectangular plane (two triangles) perpendicular to `normal`,
+    centered at `center + offset * n_hat`, with size width × height.
+
+    Returns (vertices, colors) where:
+    - vertices is a flat list [x0,y0,z0, x1,y1,z1, ...] for 6 vertices (2 triangles)
+    - colors is a flat list [r,g,b, r,g,b, ...] of same length as vertices
+    """
+    c = np.asarray(center, dtype=float)
+    n = np.asarray(normal, dtype=float)
+    n_hat, u_hat, v_hat = _orthonormal_basis_from_normal(n)
+
+    c = c + float(offset) * n_hat
+    w = float(width)
+    h = float(height)
+
+    p00 = c - 0.5 * w * u_hat - 0.5 * h * v_hat
+    p10 = c + 0.5 * w * u_hat - 0.5 * h * v_hat
+    p11 = c + 0.5 * w * u_hat + 0.5 * h * v_hat
+    p01 = c - 0.5 * w * u_hat + 0.5 * h * v_hat
+
+    # two triangles: (p00, p10, p11) and (p00, p11, p01)
+    verts = np.concatenate([p00, p10, p11, p00, p11, p01]).astype(float).tolist()
+    cols = (np.array(color, dtype=float).tolist()) * 6  # 6 vertices, RGB each
+    cols = cols * 1  # already flat 18 values (6 * 3)
+
+    return verts, cols
+
+
 # ------------------------- Isosurface controls -----------------------------
 class OneIsovalue(ipw.HBox):
     def __init__(self, structure=None):
         self.isovalue_widget = ipw.BoundedFloatText(
-            value=1e-3, min=1e-5, max=1e-1, step=1e-5, description="Isovalue"
+            value=1e-3,
+            min=1e-5,
+            max=1e-1,
+            step=1e-5,
+            description="Isovalue",
         )
         self.color_widget = ipw.ColorPicker(
-            concise=False, description="Pick a color", value="cyan", disabled=False
+            concise=False,
+            description="Pick a color",
+            value="cyan",
+            disabled=False,
         )
         super().__init__([self.isovalue_widget, self.color_widget])
 
@@ -72,7 +141,6 @@ class IsovaluesWidget(ipw.VBox):
         )
 
     def return_values(self):
-        # Returns (isovals, colors) or raises ValueError if empty (kept for compatibility)
         return zip(
             *[
                 (child.children[0].value, child.children[1].value)
@@ -223,7 +291,7 @@ class CubePlaneCut2D(ipw.VBox):
         if len(toks) != 3:
             return False
         try:
-            [float(t) for t in toks]
+            _ = [float(t) for t in toks]
         except Exception:
             return False
         return True
@@ -257,7 +325,7 @@ class CubePlaneCut2D(ipw.VBox):
     def _parse_vec3(text):
         arr = np.fromstring(str(text).replace(",", " "), sep=" ", dtype=float)
         if arr.size != 3:
-            raise ValueError("expected 3 numbers")
+            raise Vec3ParseError()
         return arr
 
     @staticmethod
@@ -266,25 +334,6 @@ class CubePlaneCut2D(ipw.VBox):
         if s == "" or s.lower() == "none":
             return 0.0
         return float(s)
-
-    @staticmethod
-    def _orthonormal_basis_from_normal(n):
-        n = np.asarray(n, dtype=float)
-        n_norm = np.linalg.norm(n)
-        if n_norm < 1e-12:
-            n = np.array([0.0, 0.0, 1.0])
-            n_norm = 1.0
-        n_unit = n / n_norm
-        t = (
-            np.array([1.0, 0.0, 0.0])
-            if abs(n_unit[0]) < 0.9
-            else np.array([0.0, 1.0, 0.0])
-        )
-        u = np.cross(n_unit, t)
-        u /= np.linalg.norm(u)
-        v = np.cross(n_unit, u)
-        v /= np.linalg.norm(v)
-        return n_unit, u, v
 
     # ---- cube updates ----
     @tl.observe("cube")
@@ -313,28 +362,22 @@ class CubePlaneCut2D(ipw.VBox):
 
     # ---- geometry ----
     def _build_plane_grid(self):
-        s = np.array(self.cube.ase_atoms.cell).T
         center = self._parse_vec3(self.center_txt.value)
         n = self._parse_vec3(self.normal_txt.value)
         offset = self._parse_float(self.offset_txt.value)
 
-        if self.autonorm.value:
-            n_hat, u_hat, v_hat = self._orthonormal_basis_from_normal(n)
-        else:
-            n_hat_tmp, u_hat, v_hat = self._orthonormal_basis_from_normal(n)
-            n_hat = (
-                (n / (np.linalg.norm(n) + 1e-12))
-                if np.linalg.norm(n) > 1e-12
-                else n_hat_tmp
-            )
+        n_hat, u_hat, v_hat = _orthonormal_basis_from_normal(n)
+        if not self.autonorm.value:
+            # keep direction; normalize only if needed
+            n_norm = float(np.linalg.norm(n))
+            n_hat = n / n_norm if n_norm > 1e-12 else n_hat
 
         center_shifted = center + offset * n_hat
         w = float(self.width.value)
         h = float(self.height.value)
         m = int(self.res.value)
-        npts = int(self.res.value)
 
-        us = np.linspace(-w / 2.0, w / 2.0, npts)
+        us = np.linspace(-w / 2.0, w / 2.0, m)
         vs = np.linspace(-h / 2.0, h / 2.0, m)
         uu, vv = np.meshgrid(us, vs)
         r = (
@@ -343,7 +386,7 @@ class CubePlaneCut2D(ipw.VBox):
             + vv[..., None] * v_hat
         )
         extent = [-w / 2.0, w / 2.0, -h / 2.0, h / 2.0]
-        return r, extent, s
+        return r, extent
 
     def _cart_to_indexcoords(self, r):
         nx, ny, nz = self.cube.data.shape
@@ -364,7 +407,7 @@ class CubePlaneCut2D(ipw.VBox):
         if self.cube is None:
             return
         try:
-            r, extent, _ = self._build_plane_grid()
+            r, extent = self._build_plane_grid()
             idxcoords = self._cart_to_indexcoords(r)
             coords = np.stack(
                 [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
@@ -382,8 +425,9 @@ class CubePlaneCut2D(ipw.VBox):
                 if self.vmax.value not in (None, "")
                 else float(np.nanmax(vals))
             )
-        except Exception as exc:
-            self.error.value = f"<span style='color:#b00'>Error: {exc}</span>"
+        except Exception:
+            self.error.value = "<span style='color:#b00'>Error computing slice</span>"
+            logger.debug("plot_slice failed", exc_info=True)
             with self._out:
                 self._out.clear_output(wait=True)
             return
@@ -416,7 +460,7 @@ class CubePlaneCut2D(ipw.VBox):
                     )
                     ax.clabel(cs, inline=True, fontsize=8)
                 except Exception:
-                    pass
+                    logger.debug("contour overlay failed", exc_info=True)
             plt.show()
 
     def current_plane_params(self):
@@ -430,7 +474,10 @@ class CubePlaneCut2D(ipw.VBox):
 
 # ----------------------------- 3D viewer ----------------------------------
 class CubeArrayData3dViewerWidget(ipw.VBox):
-    """Structure + cube + isosurfaces + slicing-plane overlay drawn as a detachable PDB component."""
+    """Structure + cube + isosurfaces + slicing-plane overlay as a mesh component.
+    We keep at most ONE plane component. Updating the plane removes the old component
+    and creates a new one. The show checkbox toggles visibility with .show()/.hide().
+    """
 
     cube = tl.Instance(object, allow_none=True)
 
@@ -450,8 +497,11 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             value=True, description="Show slicing plane in 3D"
         )
 
-        # handle to the current plane component (added as PDB); None if not present
-        self._plane_comp = None
+        # plane color (RGB 0..1)
+        self.plane_color = (0.6, 0.6, 0.6)
+
+        # handle to the shape component that holds our mesh
+        self._plane_component = None
 
         super().__init__(
             [
@@ -462,35 +512,36 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             **kwargs,
         )
 
-        # external callback (set by HandleCubeFiles) to rebuild the plane after plot updates
+        # external callback (assigned by HandleCubeFiles) to (re)build the plane
         self._external_plane_sync_cb = None
 
-    # ---------- lifecycle ----------
+        # connect checkbox
+        self.show_plane_checkbox.observe(self._on_plane_toggle, names="value")
 
+    # ---------------- lifecycle ----------------
     @tl.observe("cube")
     def on_observe_cube(self, _=None):
         if self.cube is None:
             return
         self.isovalues.set_range(
-            vmin=float(np.min(self.cube.data)), vmax=float(np.max(self.cube.data))
+            vmin=float(np.min(self.cube.data)),
+            vmax=float(np.max(self.cube.data)),
         )
         self.structure = self.cube.ase_atoms
         self.update_plot()
 
     def update_plot(self):
-        # remove any previous structure/cube components
+        # remove prior structure/cube components
         for comp_attr in ("_structure_component", "_cube_component"):
             comp = getattr(self, comp_attr, None)
             if comp is not None:
                 try:
                     self.viewer.remove_component(comp.id)
                 except Exception:
-                    pass
+                    logger.debug("remove_component failed", exc_info=True)
                 setattr(self, comp_attr, None)
 
-        # clear the plane component; we'll redraw at the end
-        self.clear_plane_overlay()
-
+        # do not touch the plane here; it is managed by the sync callback
         if self.structure is None or self.cube is None:
             return
 
@@ -507,160 +558,104 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             isovals, colors = self.isovalues.return_values()
             self.set_cube_isosurf(isovals, colors)
         except ValueError:
+            # no isovalues defined yet
             pass
+        except Exception:
+            logger.debug("set_cube_isosurf failed", exc_info=True)
 
-        # plane overlay
+        # rebuild plane last
         if self._external_plane_sync_cb:
             try:
                 self._external_plane_sync_cb()
             except Exception:
-                pass
+                logger.debug("external plane sync failed", exc_info=True)
 
-    # ---------- isosurfaces ----------
-
+    # ---------------- isosurfaces ----------------
     def set_cube_isosurf(self, isovals, colors):
         if getattr(self, "_cube_component", None) is None:
             return
         self._cube_component.clear()
         for isov, col in zip(isovals, colors):
-            self._cube_component.add_surface(
-                color=col, isolevelType="value", isolevel=isov
-            )
-
-    # ---------- plane overlay via PDB COMPONENT (clears by id) ----------
-
-    @staticmethod
-    def _rgb_to_hex(c):
-        """Accept ('magenta'|'#rrggbb'|RGB tuple 0..1 or 0..255) and return a hex string or color name."""
-        if isinstance(c, str):
-            return c
-        if isinstance(c, (tuple, list)) and len(c) == 3:
-            if max(c) <= 1.0:
-                r, g, b = (int(round(v * 255)) for v in c)
-            else:
-                r, g, b = (int(v) for v in c)
-            return f"#{r:02x}{g:02x}{b:02x}"
-        return "gray"
-
-    def clear_plane_overlay(self):
-        """Remove the plane PDB component if present."""
-        comp = getattr(self, "_plane_comp", None)
-        if comp is not None:
             try:
-                self.viewer.remove_component(comp.id)
+                self._cube_component.add_surface(
+                    color=col, isolevelType="value", isolevel=isov
+                )
             except Exception:
-                pass
-            self._plane_comp = None
+                logger.debug("add_surface failed", exc_info=True)
 
-    def _make_plane_pdb(
-        self, center, normal, width, height, offset, n_lines, normalize=True
-    ):
-        """Return a PDB string encoding frame + cross-hatch as bonds (2 atoms + CONECT per segment)."""
-        c = np.asarray(center, float)
-        n = np.asarray(normal, float)
-        n_norm = np.linalg.norm(n)
-        if n_norm < 1e-12:
-            n_hat = np.array([0.0, 0.0, 1.0])
-        else:
-            n_hat = n / n_norm if normalize else (n / (n_norm + 1e-12))
-        t = (
-            np.array([1.0, 0.0, 0.0])
-            if abs(n_hat[0]) < 0.9
-            else np.array([0.0, 1.0, 0.0])
-        )
-        u = np.cross(n_hat, t)
-        u /= np.linalg.norm(u)
-        v = np.cross(n_hat, u)
-        v /= np.linalg.norm(v)
+    # ---------------- plane mesh (component-based) ----------------
+    def _capture_newest_component_as_plane(self, before_attrs: set[str]):
+        """Capture the newest component (compared to 'before_attrs') as the plane component."""
+        after = {n for n in dir(self.viewer) if n.startswith("component_")}
+        new_attrs = sorted(after - before_attrs)
+        if new_attrs:
+            try:
+                self._plane_component = getattr(self.viewer, new_attrs[-1])
+            except Exception:
+                logger.debug("capturing plane component failed", exc_info=True)
+        elif self._plane_component is None:
+            try:
+                comps = sorted(
+                    [n for n in dir(self.viewer) if n.startswith("component_")]
+                )
+                if comps:
+                    self._plane_component = getattr(self.viewer, comps[-1])
+            except Exception:
+                logger.debug(
+                    "fallback capture of plane component failed", exc_info=True
+                )
 
-        c = c + float(offset) * n_hat
-        w = float(width)
-        h = float(height)
+    def _remove_plane_component(self):
+        """Remove the current plane component from the viewer (if any)."""
+        if self._plane_component is not None:
+            try:
+                self.viewer.remove_component(self._plane_component.id)
+            except Exception:
+                logger.debug("remove plane component failed", exc_info=True)
+            self._plane_component = None
 
-        p00 = c - 0.5 * w * u - 0.5 * h * v
-        p10 = c + 0.5 * w * u - 0.5 * h * v
-        p11 = c + 0.5 * w * u + 0.5 * h * v
-        p01 = c - 0.5 * w * u + 0.5 * h * v
+    def _on_plane_toggle(self, change):
+        """Checkbox toggles visibility only (no geometry changes)."""
+        comp = self._plane_component
+        if comp is None:
+            return
+        try:
+            if change["new"] is False:
+                comp.hide()
+            else:
+                comp.show()
+        except Exception:
+            logger.debug("plane show/hide failed", exc_info=True)
 
-        segments = []
-        # frame
-        segments += [(p00, p10), (p10, p11), (p11, p01), (p01, p00)]
-        # cross-hatch
-        ts = np.linspace(-0.5, 0.5, int(n_lines))
-        for s in ts:
-            a = c + (s * w) * u - 0.5 * h * v
-            b = c + (s * w) * u + 0.5 * h * v
-            segments.append((a, b))
-        for s in ts:
-            a = c - 0.5 * w * u + (s * h) * v
-            b = c + 0.5 * w * u + (s * h) * v
-            segments.append((a, b))
-
-        lines = []
-        atom_id = 1
-        for a, b in segments:
-            ax, ay, az = a.tolist()
-            bx, by, bz = b.tolist()
-            lines.append(
-                f"HETATM{atom_id:5d}  X   PX A   1{ax:12.3f}{ay:8.3f}{az:8.3f}  1.00  0.00           X"
-            )
-            lines.append(
-                f"HETATM{atom_id+1:5d}  X   PX A   1{bx:12.3f}{by:8.3f}{bz:8.3f}  1.00  0.00           X"
-            )
-            lines.append(f"CONECT{atom_id:5d}{atom_id+1:5d}")
-            atom_id += 2
-        lines.append("END")
-        return "\n".join(lines)
-
-    def set_plane_overlay_crosshatch(
-        self,
-        center,
-        normal,
-        width,
-        height,
-        offset=0.0,
-        color=(1.0, 0.0, 1.0),  # default magenta
-        line_radius=0.07,  # mapped to licorice radiusSize
-        n_lines=28,
-        normalize_normal=True,
-    ):
-        """Draw/update the plane as a PDB component so we can remove it by id each time."""
-        if self.structure is None or not self.show_plane_checkbox.value:
-            self.clear_plane_overlay()
+    def update_plane_mesh(self, *, center, normal, width, height, offset=0.0):
+        """Remove old plane component (if any) and create a new plane mesh component."""
+        # if checkbox off, just remove if exists and bail
+        if not self.show_plane_checkbox.value:
+            self._remove_plane_component()
             return
 
-        # always remove any previous plane
-        self.clear_plane_overlay()
+        # remove any existing mesh component to avoid duplicates
+        self._remove_plane_component()
 
-        pdb_text = self._make_plane_pdb(
-            center, normal, width, height, offset, n_lines, normalize=normalize_normal
+        # snapshot component names BEFORE adding
+        before = {n for n in dir(self.viewer) if n.startswith("component_")}
+
+        # build and add mesh
+        verts, cols = make_plane_mesh(
+            center, normal, width, height, offset=offset, color=self.plane_color
         )
-
-        # write temp file and load as a detachable component
-        import os
-        import tempfile
-
-        tmp = tempfile.NamedTemporaryFile("w", suffix=".pdb", delete=False)
-        tmp.write(pdb_text)
-        tmp.flush()
-        tmp.close()
-
-        comp = self.viewer.add_component(tmp.name, ext="pdb")
-        # force a uniform color (otherwise 'element' scheme makes it white/atomic)
-        comp.add_representation(
-            "licorice",
-            radiusType="fixed",
-            radiusSize=max(0.05, float(line_radius) * 1.8),
-            colorScheme="uniform",
-            colorValue=self._rgb_to_hex(color),
-        )
-        self._plane_comp = comp
-
-        # best-effort cleanup of the temp file
         try:
-            os.unlink(tmp.name)
+            self.viewer.shape.add_mesh(verts, cols)
         except Exception:
-            pass
+            logger.debug("shape.add_mesh failed", exc_info=True)
+            return
+
+        # capture the new component for later control
+        self._capture_newest_component_as_plane(before_attrs=before)
+
+    # convenience used by HandleCubeFiles when inputs are invalid or node cleared
+    def hide_and_remove_plane(self):
+        self._remove_plane_component()
 
 
 # ----------------------- render helper (AiiDA) -----------------------------
@@ -676,7 +671,6 @@ def render_cube_file(settings, remote_folder):
 
 # ------------------------ Main handle widget -------------------------------
 class HandleCubeFiles(ipw.VBox):
-
     node_pk = tl.Int(None, allow_none=True)
     nel_up = tl.Int(None, allow_none=True)
     nel_dw = tl.Int(None, allow_none=True)
@@ -687,7 +681,7 @@ class HandleCubeFiles(ipw.VBox):
     def __init__(self):
         self.node = None
 
-        # Create selector first so observers can safely reference it
+        # selector first so observers can safely reference it
         self.cube_selector = ipw.Select(
             options=[],
             description="Cube files:",
@@ -703,42 +697,24 @@ class HandleCubeFiles(ipw.VBox):
         # Keep the cubes in sync (3D viewer ↔ 2D slicer)
         self._cube_sync = tl.dlink((self._viewer, "cube"), (self.slice2d, "cube"))
 
-        # slicer → viewer plane sync (guarded against invalid inputs)
+        # slicer → viewer plane sync
         def _sync_plane(_=None):
             try:
-                if (
-                    self.slice2d.cube is None
-                    or not self._viewer.show_plane_checkbox.value
-                    or not self.slice2d._inputs_valid()
-                ):
-                    self._viewer.clear_plane_overlay()
+                if self.slice2d.cube is None or not self.slice2d._inputs_valid():
+                    self._viewer.hide_and_remove_plane()
                     return
-
                 center, normal, offset, w, h = self.slice2d.current_plane_params()
-                n_lines = max(16, int(self.slice2d.res.value / 16))
-                self._viewer.set_plane_overlay_crosshatch(
+                self._viewer.update_plane_mesh(
                     center=center,
                     normal=normal,
                     width=w,
                     height=h,
                     offset=offset,
-                    color=(0.5, 0.5, 0.5),
-                    line_radius=0.07,
-                    n_lines=n_lines,
-                    normalize_normal=bool(self.slice2d.autonorm.value),
                 )
-            except Exception as exc:
-                logger.debug("sync plane failed: %s", exc)
+            except Exception:
+                logger.debug("sync plane failed", exc_info=True)
 
-        def _on_plane_toggle(change):
-            if change["new"] is False:
-                self._viewer.clear_plane_overlay()
-            else:
-                _sync_plane()
-
-        self._viewer.show_plane_checkbox.observe(_on_plane_toggle, names="value")
-
-        # Re-sync when slicer inputs change
+        # re-sync on slicer changes
         for w in (
             self.slice2d.center_txt,
             self.slice2d.normal_txt,
@@ -863,8 +839,8 @@ class HandleCubeFiles(ipw.VBox):
         self.node = calc.outputs.retrieved
         try:
             self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("fallback to outputs.remote_folder: %s", exc)
+        except Exception:
+            logger.debug("fallback to outputs.remote_folder", exc_info=True)
             self.remote_data_uuid = calc.outputs.remote_folder.uuid
 
         orb_options = []
@@ -916,8 +892,8 @@ class HandleCubeFiles(ipw.VBox):
             iv, ic = self._viewer.isovalues.return_values()
             iso_vals = list(iv)
             iso_cols = list(ic)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("no isovalues to capture: %s", exc)
+        except Exception:
+            logger.debug("no isovalues to capture", exc_info=True)
 
         new_dict = copy.deepcopy(self.render_instructions)
         new_dict[self.render_name.value] = {
@@ -941,9 +917,9 @@ class HandleCubeFiles(ipw.VBox):
             self.render_instructions = {}
             self.remote_data_uuid = None
             try:
-                self._viewer.clear_plane_overlay()
+                self._viewer.hide_and_remove_plane()
             except Exception:
-                pass
+                logger.debug("hide_and_remove_plane failed", exc_info=True)
 
     @tl.observe("render_instructions")
     def _observe_render_instructions(self, _=None):
