@@ -764,6 +764,7 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         StructureInfoWidget,
+        ForcePeriodicWidget,
         constraints.ConstraintsWidget,
         ReplicaWidget,
     ],
