@@ -19,6 +19,8 @@ from scipy.ndimage import map_coordinates
 
 logger = logging.getLogger(__name__)
 
+ERR_EXPECT_3_FLOATS = "Expected 3 floats"
+
 
 class Vec3ParseError(ValueError):
     """Expected 3 numbers for a 3-vector."""
@@ -31,27 +33,52 @@ Cp2kFragmentSeparationWorkChain = plugins.WorkflowFactory(
     "nanotech_empa.cp2k.fragment_separation"
 )
 
+# ============================================================
+# Helpers to construct an orthonormal frame and a plane mesh
+# ============================================================
 
-# --------------------------- helpers: plane mesh ---------------------------
+
 def _orthonormal_basis_from_normal(
     n: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Given an arbitrary normal vector `n`, construct a right-handed,
+    orthonormal basis (n_hat, u_hat, v_hat):
+
+        - n_hat = normalized normal
+        - u_hat = any unit vector perpendicular to n_hat
+        - v_hat = n_hat × u_hat
+
+    This is needed to build a 3D plane oriented according to `normal`.
+    """
+    # Convert to float array
     n = np.asarray(n, dtype=float)
-    n_norm = float(np.linalg.norm(n))
+
+    # --- Normalize the normal vector ---
+    n_norm = np.linalg.norm(n)
     if n_norm < 1e-12:
-        n_unit = np.array([0.0, 0.0, 1.0], dtype=float)
+        # Degenerate case: if the normal is zero, just use +z.
+        n_hat = np.array([0.0, 0.0, 1.0], dtype=float)
     else:
-        n_unit = n / n_norm
-    t = (
-        np.array([1.0, 0.0, 0.0], dtype=float)
-        if abs(n_unit[0]) < 0.9
-        else np.array([0.0, 1.0, 0.0], dtype=float)
-    )
-    u = np.cross(n_unit, t)
+        n_hat = n / n_norm
+
+    # --- Choose an auxiliary vector not parallel to n_hat ---
+    # If the x-component is small, use x-axis; otherwise use y-axis.
+    # This avoids n_hat × t ≈ 0 (unstable).
+    if abs(n_hat[0]) < 0.9:
+        t = np.array([1.0, 0.0, 0.0], dtype=float)
+    else:
+        t = np.array([0.0, 1.0, 0.0], dtype=float)
+
+    # --- Build u_hat as a vector perpendicular to n_hat ---
+    u = np.cross(n_hat, t)
     u /= np.linalg.norm(u)
-    v = np.cross(n_unit, u)
+
+    # --- Build v_hat as the third axis of the right-handed system ---
+    v = np.cross(n_hat, u)
     v /= np.linalg.norm(v)
-    return n_unit, u, v
+
+    return n_hat, u, v
 
 
 def make_plane_mesh(
@@ -62,37 +89,78 @@ def make_plane_mesh(
     offset: float = 0.0,
     color: tuple[float, float, float] = (0.6, 0.6, 0.6),
 ) -> tuple[list[float], list[float]]:
-    """Build a rectangular plane (two triangles) perpendicular to `normal`,
-    centered at `center + offset * n_hat`, with size width × height.
-
-    Returns (vertices, colors) where:
-    - vertices is a flat list [x0,y0,z0, x1,y1,z1, ...] for 6 vertices (2 triangles)
-    - colors is a flat list [r,g,b, r,g,b, ...] of same length as vertices
     """
+    Build a rectangular plane mesh (two triangles) oriented with the given normal.
+
+    Parameters
+    ----------
+    center : (3,) float
+        A point in space where the plane is centered.
+    normal : (3,) float
+        Normal vector defining the plane's orientation.
+    width, height : float
+        Dimensions of the rectangle along the two orthonormal axes u_hat and v_hat.
+    offset : float
+        Shift along the normal direction (useful for overlaying the plane slightly
+        above/below the slice to avoid z-fighting).
+    color : (3,) float
+        RGB color in [0,1] for the mesh.
+
+    Returns
+    -------
+    vertices : list[float]
+        Flat list of 18 floats (6 vertices × 3 coords) defining two triangles.
+    colors : list[float]
+        Flat list of 18 floats (6 vertices × 3 color values).
+    """
+
+    # Convert inputs to arrays
     c = np.asarray(center, dtype=float)
     n = np.asarray(normal, dtype=float)
+
+    # Build local axes
     n_hat, u_hat, v_hat = _orthonormal_basis_from_normal(n)
 
+    # Shift center along normal if needed
     c = c + float(offset) * n_hat
     w = float(width)
     h = float(height)
+
+    # Compute the 4 corners of the rectangle in 3D:
+    #   p00 ---- p10
+    #     |      |
+    #   p01 ---- p11
+    #
+    # width direction = u_hat
+    # height direction = v_hat
 
     p00 = c - 0.5 * w * u_hat - 0.5 * h * v_hat
     p10 = c + 0.5 * w * u_hat - 0.5 * h * v_hat
     p11 = c + 0.5 * w * u_hat + 0.5 * h * v_hat
     p01 = c - 0.5 * w * u_hat + 0.5 * h * v_hat
 
-    # two triangles: (p00, p10, p11) and (p00, p11, p01)
+    # Create two triangles: (p00, p10, p11) and (p00, p11, p01)
     verts = np.concatenate([p00, p10, p11, p00, p11, p01]).astype(float).tolist()
-    cols = (np.array(color, dtype=float).tolist()) * 6  # 6 vertices, RGB each
-    cols = cols * 1  # already flat 18 values (6 * 3)
+
+    # Duplicate the color for all 6 vertices (each has 3 color components)
+    cols = list(color) * 6
 
     return verts, cols
 
 
-# ------------------------- Isosurface controls -----------------------------
+# ============================================================
+# Isosurface controls (cleaned and documented)
+# ============================================================
+
+
 class OneIsovalue(ipw.HBox):
-    def __init__(self, structure=None):
+    """
+    Widget holding a single isovalue + its color.
+    Appears as a row in the IsovaluesWidget.
+    """
+
+    def __init__(self):
+        # Numeric field for the isovalue
         self.isovalue_widget = ipw.BoundedFloatText(
             value=1e-3,
             isomin=1e-5,
@@ -100,14 +168,17 @@ class OneIsovalue(ipw.HBox):
             step=1e-5,
             description="Isovalue",
         )
+
+        # Color picker
         self.color_widget = ipw.ColorPicker(
             concise=False,
-            description="Pick a color",
+            description="Color",
             value="cyan",
-            disabled=False,
         )
+
         super().__init__([self.isovalue_widget, self.color_widget])
 
+    # Convenience properties
     @property
     def isomin(self):
         return self.isovalue_widget.isomin
@@ -134,23 +205,29 @@ class OneIsovalue(ipw.HBox):
 
 
 class IsovaluesWidget(ipw.VBox):
-    iso_min = tl.Float(1.0e-5, allow_none=True)
-    iso_max = tl.Float(1.0e-1, allow_none=True)
+    """
+    Holds multiple isovalues + colors.
+    Provides UI to add/remove isovalues and to enforce a global min/max range.
+    """
+
+    iso_min = tl.Float(1e-5)
+    iso_max = tl.Float(1e-1)
 
     def __init__(self):
         self.isovalues = ipw.VBox()
+
+        # Range info label
         self.info = ipw.HTML(f"min: {self.iso_min:.1e}, max: {self.iso_max:.1e}")
 
+        # Buttons to add/remove isovalues
         self.add_isovalue_button = ipw.Button(
-            description="Add isovalue",
-            layout={"width": "initial"},
+            description="Add",
             button_style="success",
         )
         self.add_isovalue_button.on_click(self.add_isovalue)
 
         self.remove_isovalue_button = ipw.Button(
-            description="Remove isovalue",
-            layout={"width": "initial"},
+            description="Remove",
             button_style="danger",
         )
         self.remove_isovalue_button.on_click(self.remove_isovalue)
@@ -165,86 +242,102 @@ class IsovaluesWidget(ipw.VBox):
         )
 
     def return_values(self):
-        return zip(
-            *[
-                (child.children[0].value, child.children[1].value)
-                for child in self.isovalues.children
-            ]
-        )
+        """
+        Return two lists: isovalues[], colors[].
+        """
+        pairs = [
+            (row.children[0].value, row.children[1].value)
+            for row in self.isovalues.children
+        ]
+        return zip(*pairs) if pairs else ([], [])
 
     def set_range(self, vmin=-0.001, vmax=0.001):
-        default = min(0.001, vmax)
+        """
+        Update allowed range for all isovalue widgets.
+        """
         self.info.value = f"min: {vmin:.1e}, max: {vmax:.1e}"
         self.iso_min = vmin
         self.iso_max = vmax
+
+        # choose a reasonable default if needed
+        default = min(0.001, vmax)
         if abs(vmin) > abs(vmax):
             default = max(-0.001, vmin)
 
-        for isovalue in self.isovalues.children:
-            isovalue.children[0].min = vmin
-            isovalue.children[0].max = vmax
-            if not (vmin <= isovalue.children[0].value <= vmax):
-                isovalue.children[0].value = default
+        # enforce new range across existing widgets
+        for row in self.isovalues.children:
+            widget = row.children[0]
+            widget.min = vmin
+            widget.max = vmax
+            if not (vmin <= widget.value <= vmax):
+                widget.value = default
 
     @tl.observe("iso_min", "iso_max")
-    def _observe_range(self, _=None):
-        self.set_range(vmin=self.iso_min, vmax=self.iso_max)
+    def _observe_range(self, _):
+        self.set_range(self.iso_min, self.iso_max)
 
     def add_isovalue(self, _=None):
         new = OneIsovalue()
         new.isomin = self.iso_min
         new.isomax = self.iso_max
-        new.value = (
-            min(0.001, self.iso_max)
-            if self.iso_max >= 1.0e-8
-            else max(-0.001, self.iso_min)
-        )
+        new.value = min(0.001, self.iso_max)
         self.isovalues.children += (new,)
 
     def remove_isovalue(self, _=None):
         self.isovalues.children = self.isovalues.children[:-1]
 
 
-# ------------------------------ 2D slicer ----------------------------------
 class CubePlaneCut2D(ipw.VBox):
-    cube = tl.Instance(
-        object, allow_none=True
-    )  # expects .data (3D) and .ase_atoms (ASE Atoms)
+    """
+    2D slice viewer for a cube file.
+
+    - Always normalizes the plane normal (no autonorm checkbox).
+    - Always updates automatically when any input changes (no Update button).
+    """
+
+    cube = tl.Instance(object, allow_none=True)  # expects .data + .ase_atoms
 
     def __init__(self):
+        # ---- UI fields ----
         self.center_txt = ipw.Text(
             value="0.0 0.0 0.0",
             description="Center (Å)",
             placeholder="x y z",
-            style={"description_width": "110px"},
             layout=ipw.Layout(width="420px"),
+            style={"description_width": "110px"},
         )
+
         self.normal_txt = ipw.Text(
             value="0 0 1",
             description="Normal",
             placeholder="nx ny nz",
-            style={"description_width": "110px"},
             layout=ipw.Layout(width="420px"),
+            style={"description_width": "110px"},
         )
-        self.autonorm = ipw.Checkbox(value=True, description="Normalize normal")
+
+        # Removed autonorm completely — always normalize
+
         self.offset_txt = ipw.Text(
             value="0.0",
             description="Offset (Å)",
-            style={"description_width": "110px"},
             layout=ipw.Layout(width="220px"),
+            style={"description_width": "110px"},
         )
+
         self.width = ipw.FloatText(
             value=10.0,
             description="Width (Å)",
-            style={"description_width": "110px"},
             layout=ipw.Layout(width="220px"),
+            style={"description_width": "110px"},
         )
+
         self.height = ipw.FloatText(
             value=10.0,
             description="Height (Å)",
-            style={"description_width": "110px"},
             layout=ipw.Layout(width="220px"),
+            style={"description_width": "110px"},
         )
+
         self.res = ipw.IntSlider(
             value=256,
             min=32,
@@ -254,51 +347,52 @@ class CubePlaneCut2D(ipw.VBox):
             continuous_update=False,
             layout=ipw.Layout(width="360px"),
         )
+
         self.show_contours = ipw.Checkbox(value=False, description="Contours")
+
         self.vmin = ipw.FloatText(
             value=None,
             description="vmin",
-            style={"description_width": "60px"},
             layout=ipw.Layout(width="150px"),
+            style={"description_width": "60px"},
         )
+
         self.vmax = ipw.FloatText(
             value=None,
             description="vmax",
-            style={"description_width": "60px"},
             layout=ipw.Layout(width="150px"),
+            style={"description_width": "60px"},
         )
-        self.update_btn = ipw.Button(
-            description="Update 2D slice",
-            button_style="success",
-            layout=ipw.Layout(width="180px"),
-        )
+
+        # No update button anymore
 
         self.info = ipw.HTML("")
         self.error = ipw.HTML("")
+
         self._out = ipw.Output(
             layout=ipw.Layout(width="560px", height="560px", border="1px solid #ddd")
         )
 
+        # ---- Layout ----
         super().__init__(
             [
                 ipw.HTML("<b>2D plane cut (Cartesian point + normal, PBC)</b>"),
                 ipw.HBox([self.center_txt]),
-                ipw.HBox([self.normal_txt, self.autonorm]),
+                ipw.HBox([self.normal_txt]),
                 ipw.HBox([self.offset_txt]),
                 ipw.HBox([self.width, self.height, self.res]),
-                ipw.HBox([self.show_contours, self.vmin, self.vmax, self.update_btn]),
+                ipw.HBox([self.show_contours, self.vmin, self.vmax]),
                 self.info,
                 self.error,
                 self._out,
             ]
         )
 
-        self.update_btn.on_click(lambda _: self.plot_slice())
+        # ---- Automatic updates ----
         for w in (
             self.center_txt,
             self.normal_txt,
             self.offset_txt,
-            self.autonorm,
             self.width,
             self.height,
             self.res,
@@ -308,28 +402,28 @@ class CubePlaneCut2D(ipw.VBox):
         ):
             w.observe(self._on_any_change, names="value")
 
-        self._sinv = None  # cached inverse cell
+        self._sinv = None
 
-    # ---- validation / parsing ----
+    # ------------- Validation / Parsing -------------
     def _vec3_is_valid(self, text: str) -> bool:
-        toks = [t for t in re.split(r"[,\s]+", str(text).strip()) if t]
+        toks = [t for t in re.split(r"[,\s]+", text.strip()) if t]
         if len(toks) != 3:
             return False
         try:
-            _ = [float(t) for t in toks]
-        except Exception:
+            [float(t) for t in toks]
+        except ValueError:
             return False
         return True
 
     def _inputs_valid(self) -> bool:
-        if not self.cube:
+        if self.cube is None:
             return False
         if not self._vec3_is_valid(self.center_txt.value):
             return False
         if not self._vec3_is_valid(self.normal_txt.value):
             return False
         try:
-            float(self._parse_float(self.offset_txt.value))
+            float(self.offset_txt.value)
             float(self.width.value)
             float(self.height.value)
             int(self.res.value)
@@ -338,6 +432,7 @@ class CubePlaneCut2D(ipw.VBox):
         return True
 
     def _on_any_change(self, _=None):
+        """Auto-update the slice when inputs change."""
         if self._inputs_valid():
             self.error.value = ""
             self.plot_slice()
@@ -348,116 +443,117 @@ class CubePlaneCut2D(ipw.VBox):
 
     @staticmethod
     def _parse_vec3(text):
-        arr = np.fromstring(str(text).replace(",", " "), sep=" ", dtype=float)
+        arr = np.fromstring(text.replace(",", " "), sep=" ", dtype=float)
         if arr.size != 3:
-            raise Vec3ParseError()
+            raise ValueError(ERR_EXPECT_3_FLOATS)
         return arr
 
-    @staticmethod
-    def _parse_float(text):
-        s = str(text).strip()
-        if s == "" or s.lower() == "none":
-            return 0.0
-        return float(s)
-
-    # ---- cube updates ----
+    # ------------- Cube update listener -------------
     @tl.observe("cube")
-    def _on_cube(self, _):
+    def _on_cube(self, _=None):
         if self.cube is None:
-            self.info.value = ""
-            self.error.value = ""
             self._sinv = None
+            self.info.value = ""
             with self._out:
                 self._out.clear_output()
             return
-        s = np.array(self.cube.ase_atoms.cell).T
-        self._sinv = np.linalg.inv(s)
-        lengths = np.linalg.norm(s, axis=0)
+
+        # Precompute inverse cell for fractional coordinates
+        cell = np.array(self.cube.ase_atoms.cell).T
+        self._sinv = np.linalg.inv(cell)
+
+        # Update stats
+        nx, ny, nz = self.cube.data.shape
+        dmin, dmax = float(np.min(self.cube.data)), float(np.max(self.cube.data))
+        lengths = np.linalg.norm(cell, axis=0)
+
+        self.info.value = (
+            f"Grid: {nx}×{ny}×{nz} | data ∈ [{dmin:.3e}, {dmax:.3e}] "
+            f"| cell lengths: {lengths[0]:.2f}, {lengths[1]:.2f}, {lengths[2]:.2f} Å"
+        )
+
+        # Auto-set width/height
         mean_len = float(np.mean(lengths))
         self.width.value = mean_len
         self.height.value = mean_len
-        nx, ny, nz = self.cube.data.shape
-        dmin = float(np.nanmin(self.cube.data))
-        dmax = float(np.nanmax(self.cube.data))
-        self.info.value = (
-            f"Grid: {nx}×{ny}×{nz} | data ∈ [{dmin:.3e}, {dmax:.3e}] | "
-            f"|a|,|b|,|c| ≈ {lengths[0]:.2f}, {lengths[1]:.2f}, {lengths[2]:.2f} Å"
-        )
+
         self.plot_slice()
 
-    # ---- geometry ----
+    # ------------- Geometry construction -------------
     def _build_plane_grid(self):
         center = self._parse_vec3(self.center_txt.value)
-        n = self._parse_vec3(self.normal_txt.value)
-        offset = self._parse_float(self.offset_txt.value)
+        normal = self._parse_vec3(self.normal_txt.value)
 
-        n_hat, u_hat, v_hat = _orthonormal_basis_from_normal(n)
-        if not self.autonorm.value:
-            # keep direction; normalize only if needed
-            n_norm = float(np.linalg.norm(n))
-            n_hat = n / n_norm if n_norm > 1e-12 else n_hat
+        # Always normalize the normal
+        n_norm = np.linalg.norm(normal)
+        n_hat = normal / n_norm if n_norm > 1e-12 else np.array([0, 0, 1], float)
 
+        # Orthonormal basis
+        n_hat, u_hat, v_hat = _orthonormal_basis_from_normal(n_hat)
+
+        offset = float(self.offset_txt.value)
         center_shifted = center + offset * n_hat
-        w = float(self.width.value)
-        h = float(self.height.value)
-        m = int(self.res.value)
 
-        us = np.linspace(-w / 2.0, w / 2.0, m)
-        vs = np.linspace(-h / 2.0, h / 2.0, m)
+        w, h, m = float(self.width.value), float(self.height.value), int(self.res.value)
+
+        # Plane mesh grid
+        us = np.linspace(-w / 2, w / 2, m)
+        vs = np.linspace(-h / 2, h / 2, m)
         uu, vv = np.meshgrid(us, vs)
+
         r = (
             center_shifted[None, None, :]
             + uu[..., None] * u_hat
             + vv[..., None] * v_hat
         )
-        extent = [-w / 2.0, w / 2.0, -h / 2.0, h / 2.0]
+
+        extent = [-w / 2, w / 2, -h / 2, h / 2]
         return r, extent
 
     def _cart_to_indexcoords(self, r):
         nx, ny, nz = self.cube.data.shape
-        sinv = (
-            self._sinv
-            if self._sinv is not None
-            else np.linalg.inv(np.array(self.cube.ase_atoms.cell).T)
-        )
-        f = (sinv @ r.reshape(-1, 3).T).T
+        f = (self._sinv @ r.reshape(-1, 3).T).T
         idx = np.empty_like(f)
         idx[:, 0] = f[:, 0] * nx
         idx[:, 1] = f[:, 1] * ny
         idx[:, 2] = f[:, 2] * nz
         return idx.reshape(r.shape)
 
-    # ---- plotting ----
+    # ------------- Plotting -------------
     def plot_slice(self):
         if self.cube is None:
             return
+
         try:
             r, extent = self._build_plane_grid()
             idxcoords = self._cart_to_indexcoords(r)
+
             coords = np.stack(
                 [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
             )
+
             vals = map_coordinates(
                 self.cube.data, coords, order=1, mode="wrap", prefilter=False
             )
+
             vmin = (
-                self.vmin.value
+                float(self.vmin.value)
                 if self.vmin.value not in (None, "")
-                else float(np.nanmin(vals))
+                else np.min(vals)
             )
             vmax = (
-                self.vmax.value
+                float(self.vmax.value)
                 if self.vmax.value not in (None, "")
-                else float(np.nanmax(vals))
+                else np.max(vals)
             )
+
         except Exception:
             self.error.value = "<span style='color:#b00'>Error computing slice</span>"
-            logger.debug("plot_slice failed", exc_info=True)
             with self._out:
-                self._out.clear_output(wait=True)
+                self._out.clear_output()
             return
 
-        self.error.value = ""
+        # Draw
         with self._out:
             self._out.clear_output(wait=True)
             fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
@@ -471,30 +567,28 @@ class CubePlaneCut2D(ipw.VBox):
             )
             ax.set_xlabel("u (Å)")
             ax.set_ylabel("v (Å)")
-            cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cb.set_label("Value")
+            fig.colorbar(im, ax=ax)
+
             if self.show_contours.value:
-                try:
-                    cs = ax.contour(
-                        vals,
-                        levels=8,
-                        linewidths=0.8,
-                        alpha=0.7,
-                        origin="lower",
-                        extent=extent,
-                    )
-                    ax.clabel(cs, inline=True, fontsize=8)
-                except Exception:
-                    logger.debug("contour overlay failed", exc_info=True)
+                ax.contour(
+                    vals, levels=8, origin="lower", extent=extent, linewidths=0.8
+                )
+
             plt.show()
 
+    # ------------- Parameters for 3D plane sync -------------
     def current_plane_params(self):
         center = self._parse_vec3(self.center_txt.value)
         normal = self._parse_vec3(self.normal_txt.value)
-        offset = self._parse_float(self.offset_txt.value)
-        w = float(self.width.value)
-        h = float(self.height.value)
-        return center, normal, offset, w, h
+
+        # Normalization always on
+        n_norm = np.linalg.norm(normal)
+        n_hat = normal / n_norm if n_norm > 1e-12 else np.array([0, 0, 1], float)
+
+        offset = float(self.offset_txt.value)
+        w, h = float(self.width.value), float(self.height.value)
+
+        return center, n_hat, offset, w, h
 
 
 # ----------------------------- 3D viewer ----------------------------------
@@ -743,7 +837,7 @@ class HandleCubeFiles(ipw.VBox):
         for w in (
             self.slice2d.center_txt,
             self.slice2d.normal_txt,
-            self.slice2d.autonorm,
+            # self.slice2d.autonorm,
             self.slice2d.offset_txt,
             self.slice2d.width,
             self.slice2d.height,
