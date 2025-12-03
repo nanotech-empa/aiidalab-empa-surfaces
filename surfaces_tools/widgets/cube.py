@@ -1,5 +1,3 @@
-# ======================= FULL REPLACEMENT BLOCK ============================
-# Requirements: nglview, ase, scipy, ipywidgets, traitlets, matplotlib, aiida, toml
 import copy
 import logging
 import re
@@ -7,6 +5,8 @@ import tempfile
 
 import ase.io.cube
 import ipywidgets as ipw
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import nglview
 import numpy as np
@@ -81,69 +81,54 @@ def _orthonormal_basis_from_normal(
     return n_hat, u, v
 
 
-def make_plane_mesh(
-    center: tuple[float, float, float],
-    normal: tuple[float, float, float],
-    width: float,
-    height: float,
-    offset: float = 0.0,
-    color: tuple[float, float, float] = (0.6, 0.6, 0.6),
-) -> tuple[list[float], list[float]]:
-    """
-    Build a rectangular plane mesh (two triangles) oriented with the given normal.
+def make_plane_mesh(center, normal, width, height, offset=0.0, colors_2d=None):
+    import numpy as np
 
-    Parameters
-    ----------
-    center : (3,) float
-        A point in space where the plane is centered.
-    normal : (3,) float
-        Normal vector defining the plane's orientation.
-    width, height : float
-        Dimensions of the rectangle along the two orthonormal axes u_hat and v_hat.
-    offset : float
-        Shift along the normal direction (useful for overlaying the plane slightly
-        above/below the slice to avoid z-fighting).
-    color : (3,) float
-        RGB color in [0,1] for the mesh.
+    # 1) Build orthonormal basis
+    n_hat, u_hat, v_hat = _orthonormal_basis_from_normal(normal)
 
-    Returns
-    -------
-    vertices : list[float]
-        Flat list of 18 floats (6 vertices × 3 coords) defining two triangles.
-    colors : list[float]
-        Flat list of 18 floats (6 vertices × 3 color values).
-    """
+    # 2) Shift the plane
+    c = np.asarray(center, float) + offset * n_hat
+    w, h = float(width), float(height)
 
-    # Convert inputs to arrays
-    c = np.asarray(center, dtype=float)
-    n = np.asarray(normal, dtype=float)
+    # 3) Determine grid resolution
+    if colors_2d is None:
+        grid_n = 50
+        colors = None
+    else:
+        grid_n = colors_2d.shape[0] - 1
+        colors = colors_2d
 
-    # Build local axes
-    n_hat, u_hat, v_hat = _orthonormal_basis_from_normal(n)
+    us = np.linspace(-w / 2, w / 2, grid_n + 1)
+    vs = np.linspace(-h / 2, h / 2, grid_n + 1)
 
-    # Shift center along normal if needed
-    c = c + float(offset) * n_hat
-    w = float(width)
-    h = float(height)
+    verts = []
+    cols = []
 
-    # Compute the 4 corners of the rectangle in 3D:
-    #   p00 ---- p10
-    #     |      |
-    #   p01 ---- p11
-    #
-    # width direction = u_hat
-    # height direction = v_hat
+    for i in range(grid_n):
+        for j in range(grid_n):
 
-    p00 = c - 0.5 * w * u_hat - 0.5 * h * v_hat
-    p10 = c + 0.5 * w * u_hat - 0.5 * h * v_hat
-    p11 = c + 0.5 * w * u_hat + 0.5 * h * v_hat
-    p01 = c - 0.5 * w * u_hat + 0.5 * h * v_hat
+            u0, u1 = us[i], us[i + 1]
+            v0, v1 = vs[j], vs[j + 1]
 
-    # Create two triangles: (p00, p10, p11) and (p00, p11, p01)
-    verts = np.concatenate([p00, p10, p11, p00, p11, p01]).astype(float).tolist()
+            p00 = c + u0 * u_hat + v0 * v_hat
+            p10 = c + u1 * u_hat + v0 * v_hat
+            p11 = c + u1 * u_hat + v1 * v_hat
+            p01 = c + u0 * u_hat + v1 * v_hat
 
-    # Duplicate the color for all 6 vertices (each has 3 color components)
-    cols = list(color) * 6
+            quad = [p00, p10, p11, p00, p11, p01]
+
+            # color from vals_2d (if provided)
+            if colors is None:
+                col = (0.6, 0.6, 0.6)
+            else:
+                v = colors[j, i]
+                col = (v, v, v)
+                col = colors_2d[j, i]  # (3,) RGB tuple floats
+
+            for p in quad:
+                verts.extend(p.tolist())
+                cols.extend(col)
 
     return verts, cols
 
@@ -298,6 +283,10 @@ class CubePlaneCut2D(ipw.VBox):
     cube = tl.Instance(object, allow_none=True)  # expects .data + .ase_atoms
 
     def __init__(self):
+        self._last_r = None
+        self._last_vals = None
+        self._last_grid_n = None  # utile per sapere m
+
         # ---- UI fields ----
         self.center_txt = ipw.Text(
             value="0.0 0.0 0.0",
@@ -339,9 +328,9 @@ class CubePlaneCut2D(ipw.VBox):
         )
 
         self.res = ipw.IntSlider(
-            value=256,
+            value=64,
             min=32,
-            max=1024,
+            max=256,
             step=32,
             description="Resolution",
             continuous_update=False,
@@ -364,7 +353,12 @@ class CubePlaneCut2D(ipw.VBox):
             style={"description_width": "60px"},
         )
 
-        # No update button anymore
+        # Show 2D plot checkbox (not used currently)
+        self.show_2d_checkbox = ipw.Checkbox(
+            value=True,
+            description="Show 2D plot",
+        )
+        self.show_2d_checkbox.observe(self._on_show_2d_toggled, names="value")
 
         self.info = ipw.HTML("")
         self.error = ipw.HTML("")
@@ -382,6 +376,7 @@ class CubePlaneCut2D(ipw.VBox):
                 ipw.HBox([self.offset_txt]),
                 ipw.HBox([self.width, self.height, self.res]),
                 ipw.HBox([self.show_contours, self.vmin, self.vmax]),
+                self.show_2d_checkbox,
                 self.info,
                 self.error,
                 self._out,
@@ -441,6 +436,19 @@ class CubePlaneCut2D(ipw.VBox):
             with self._out:
                 self._out.clear_output(wait=True)
 
+    def _on_show_2d_toggled(self, change):
+        if change["new"] is False:
+            # hide the whole output widget
+            self._out.clear_output()
+            self._out.layout.display = "none"
+        else:
+            # show widget again
+            self._out.layout.display = ""
+
+            # redraw only if inputs valid
+            if self._inputs_valid():
+                self.plot_slice()
+
     @staticmethod
     def _parse_vec3(text):
         arr = np.fromstring(text.replace(",", " "), sep=" ", dtype=float)
@@ -461,6 +469,10 @@ class CubePlaneCut2D(ipw.VBox):
         # Precompute inverse cell for fractional coordinates
         cell = np.array(self.cube.ase_atoms.cell).T
         self._sinv = np.linalg.inv(cell)
+
+        # Auto-set center = mean atomic coordinates
+        center = np.mean(self.cube.ase_atoms.get_positions(), axis=0)
+        self.center_txt.value = f"{center[0]:.3f} {center[1]:.3f} {center[2]:.3f}"
 
         # Update stats
         nx, ny, nz = self.cube.data.shape
@@ -524,6 +536,52 @@ class CubePlaneCut2D(ipw.VBox):
         if self.cube is None:
             return
 
+        if not self.show_2d_checkbox.value:
+            # Don't display plot area
+            self._out.layout.display = "none"
+        else:
+            # Ensure the plot area is visible when plotting
+            self._out.layout.display = ""
+
+        if not self.show_2d_checkbox.value:
+            # We still compute slice (needed for 3D plane), but do not plot it
+            r, extent = self._build_plane_grid()
+            idxcoords = self._cart_to_indexcoords(r)
+            coords = np.stack(
+                [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
+            )
+            vals = map_coordinates(
+                self.cube.data, coords, order=1, mode="wrap", prefilter=False
+            )
+
+            # store everything for 3D plane
+            user_vmin = self.vmin.value
+            user_vmax = self.vmax.value
+            vmin = (
+                float(user_vmin)
+                if user_vmin not in (None, "", 0, "0")
+                else np.min(vals)
+            )
+            vmax = (
+                float(user_vmax)
+                if user_vmax not in (None, "", 0, "0")
+                else np.max(vals)
+            )
+
+            norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+            cmap = cm.get_cmap("viridis")
+            rgb = cmap(norm(vals))[..., :3]
+
+            self._last_r = r
+            self._last_vals = vals
+            self._last_rgb = rgb
+            self._last_grid_n = vals.shape[0]
+
+            return
+
+        # ----------------------------------------------------
+        # 1) Compute slice
+        # ----------------------------------------------------
         try:
             r, extent = self._build_plane_grid()
             idxcoords = self._cart_to_indexcoords(r)
@@ -536,16 +594,13 @@ class CubePlaneCut2D(ipw.VBox):
                 self.cube.data, coords, order=1, mode="wrap", prefilter=False
             )
 
-            vmin = (
-                float(self.vmin.value)
-                if self.vmin.value not in (None, "")
-                else np.min(vals)
-            )
-            vmax = (
-                float(self.vmax.value)
-                if self.vmax.value not in (None, "")
-                else np.max(vals)
-            )
+            # --- interpret user inputs ---
+            user_vmin = self.vmin.value
+            user_vmax = self.vmax.value
+
+            # user 0 or empty → treat as "auto"
+            vmin = float(user_vmin) if user_vmin not in (None, "", 0, "0") else None
+            vmax = float(user_vmax) if user_vmax not in (None, "", 0, "0") else None
 
         except Exception:
             self.error.value = "<span style='color:#b00'>Error computing slice</span>"
@@ -553,18 +608,38 @@ class CubePlaneCut2D(ipw.VBox):
                 self._out.clear_output()
             return
 
-        # Draw
+        # ----------------------------------------------------
+        # 2) Determine actual vmin/vmax WITHOUT drawing into widget output
+        #    (this avoids breaking layout!)
+        # ----------------------------------------------------
+        tmp_fig, tmp_ax = plt.subplots()
+        tmp_im = tmp_ax.imshow(vals, vmin=vmin, vmax=vmax)
+        real_vmin = tmp_im.norm.vmin
+        real_vmax = tmp_im.norm.vmax
+        plt.close(tmp_fig)  # IMPORTANT: avoid ghost figures
+
+        # Update widgets ONLY if user left them empty or zero
+        if user_vmin in (None, "", 0, "0"):
+            self.vmin.value = real_vmin
+        if user_vmax in (None, "", 0, "0"):
+            self.vmax.value = real_vmax
+
+        # ----------------------------------------------------
+        # 3) Now do the REAL drawing
+        # ----------------------------------------------------
         with self._out:
             self._out.clear_output(wait=True)
             fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
+
             im = ax.imshow(
                 vals,
                 origin="lower",
                 extent=extent,
                 aspect="equal",
-                vmin=vmin,
-                vmax=vmax,
+                vmin=real_vmin,
+                vmax=real_vmax,
             )
+
             ax.set_xlabel("u (Å)")
             ax.set_ylabel("v (Å)")
             fig.colorbar(im, ax=ax)
@@ -573,6 +648,18 @@ class CubePlaneCut2D(ipw.VBox):
                 ax.contour(
                     vals, levels=8, origin="lower", extent=extent, linewidths=0.8
                 )
+
+            # ------------------------------------------------
+            # Save data for 3D colored plane
+            # ------------------------------------------------
+            norm = mcolors.Normalize(vmin=real_vmin, vmax=real_vmax)
+            cmap = cm.get_cmap("viridis")
+            rgb = cmap(norm(vals))[..., :3]
+
+            self._last_r = r
+            self._last_vals = vals
+            self._last_rgb = rgb
+            self._last_grid_n = vals.shape[0]
 
             plt.show()
 
@@ -746,30 +833,64 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
         except Exception:
             logger.debug("plane show/hide failed", exc_info=True)
 
+    # def update_plane_mesh(self, *, center, normal, width, height, offset=0.0):
+
+    #     if not self.show_plane_checkbox.value:
+    #         self._remove_plane_component()
+    #         return
+
+    #     self._remove_plane_component()
+
+    #     before = {n for n in dir(self.viewer) if n.startswith("component_")}
+
+    #     getattr(self.slice2d, "_last_vals", None)
+    #     rgb = getattr(self.slice2d, "_last_rgb", None)
+
+    #     try:
+    #         # verts, cols = make_plane_mesh(center, normal, width, height, offset, vals_2d=vals)
+    #         verts, cols = make_plane_mesh(
+    #             center, normal, width, height, offset, colors_2d=rgb
+    #         )
+    #         np.array(cols)
+
+    #     except Exception as e:
+    #         print("EXCEPTION in make_plane_mesh:", e)
+    #         return
+
+    #     try:
+    #         self.viewer.shape.add_mesh(verts, cols)
+    #     except Exception as e:
+    #         print("shape.add_mesh failed:", e)
+    #         return
+
+    #     self._capture_newest_component_as_plane(before_attrs=before)
     def update_plane_mesh(self, *, center, normal, width, height, offset=0.0):
-        """Remove old plane component (if any) and create a new plane mesh component."""
-        # if checkbox off, just remove if exists and bail
+
         if not self.show_plane_checkbox.value:
             self._remove_plane_component()
             return
 
-        # remove any existing mesh component to avoid duplicates
         self._remove_plane_component()
 
-        # snapshot component names BEFORE adding
         before = {n for n in dir(self.viewer) if n.startswith("component_")}
 
-        # build and add mesh
-        verts, cols = make_plane_mesh(
-            center, normal, width, height, offset=offset, color=self.plane_color
-        )
+        getattr(self.slice2d, "_last_vals", None)
+        rgb = getattr(self.slice2d, "_last_rgb", None)
+
         try:
+            # ---- Build mesh (vertices + colors) ----
+            verts, cols = make_plane_mesh(
+                center, normal, width, height, offset, colors_2d=rgb
+            )
+
+            # ---- Add mesh to viewer ----
             self.viewer.shape.add_mesh(verts, cols)
-        except Exception:
-            logger.debug("shape.add_mesh failed", exc_info=True)
+
+        except Exception as e:
+            print("Plane mesh update failed:", e)
             return
 
-        # capture the new component for later control
+        # Capture plane component only if everything succeeded
         self._capture_newest_component_as_plane(before_attrs=before)
 
     # convenience used by HandleCubeFiles when inputs are invalid or node cleared
@@ -812,6 +933,7 @@ class HandleCubeFiles(ipw.VBox):
         # 3D viewer + 2D slicer
         self._viewer = CubeArrayData3dViewerWidget(layout=ipw.Layout(width="550px"))
         self.slice2d = CubePlaneCut2D()
+        self._viewer.slice2d = self.slice2d
 
         # Keep the cubes in sync (3D viewer ↔ 2D slicer)
         self._cube_sync = tl.dlink((self._viewer, "cube"), (self.slice2d, "cube"))
@@ -1120,6 +1242,3 @@ class DisplayRenderedCubes(ipw.HBox):
                     (name, (f"{name}.{value['format']}", dict_obj.uuid, folder_uuid))
                 )
         self.rendered_images_widget.options = select_image_list
-
-
-# ===================== END FULL REPLACEMENT BLOCK ==========================
