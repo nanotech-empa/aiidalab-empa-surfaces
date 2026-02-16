@@ -14,7 +14,9 @@ class WrongCvInputError(Exception):
 
     def __str__(self):
         if self.message:
-            return f'Wrong input for the "{self.cv}" collective variable. {self.message}'
+            return (
+                f'Wrong input for the "{self.cv}" collective variable. {self.message}'
+            )
         return f'Wrong input for the "{self.cv}" collective variable.'
 
 
