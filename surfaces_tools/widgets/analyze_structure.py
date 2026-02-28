@@ -184,17 +184,20 @@ class StructureAnalyzer(tr.HasTraits):
             layers_dist.append(abs(iprev - inext))
             iprev = inext
 
-        for i in range(nat):
-            iz = frame.positions[i, 2]
-            if iz > bottom_z - layer_tol and iz < top_z + layer_tol:
-                if not (atype[i] == 3 and found_layer_of_h):
-                    atype[i] = 1
-            else:
-                if np.min([np.abs(iz - top_z), np.abs(iz - bottom_z)]) < np.max(
-                    layers_dist
-                ):
+        try:    
+            for i in range(nat):
+                iz = frame.positions[i, 2]
+                if iz > bottom_z - layer_tol and iz < top_z + layer_tol:
                     if not (atype[i] == 3 and found_layer_of_h):
-                        atype[i] = 2
+                        atype[i] = 1
+                else:
+                    if np.min([np.abs(iz - top_z), np.abs(iz - bottom_z)]) < np.max(
+                        layers_dist
+                    ):
+                        if not (atype[i] == 3 and found_layer_of_h):
+                            atype[i] = 2
+        except:
+            pass
 
         # assign the other types
         metalatingtypes = ("Au", "Ag", "Cu", "Ni", "Co", "Zn", "Mg")

@@ -125,8 +125,11 @@ class ConstraintsWidget(ipw.VBox):
 
     @tr.observe("details")
     def _observe_manager(self, _=None):
-        if self.details and "Slab" in self.details["system_type"]:
-            self.add_constraint()
+        try:
+            if self.details and "Slab" in self.details["system_type"]:
+                self.add_constraint()
+        except:
+            pass
 
     def add_constraint(self, b=None):
         self.constraints.children += (OneConstraint(structure=self.structure),)
