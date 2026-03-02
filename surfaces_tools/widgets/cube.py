@@ -1,22 +1,87 @@
 import copy
 import re
 import tempfile
+from pathlib import PurePosixPath
 
+import aiidalab_widgets_base as awb
 import ase.io.cube
 import ipywidgets as ipw
 import nglview
 import numpy as np
 import toml
 import traitlets as tl
-from aiida import engine, orm, plugins
-from aiida_shell import ShellJob
+from aiida import orm, plugins
 from cubehandler import Cube
+from PIL import ImageColor
 
+CubeHandlerCalculation = plugins.CalculationFactory("nanotech_empa.cubehandler")
 Cp2kOrbitalsWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.orbitals")
 Cp2kGeoOptWorkChain = plugins.WorkflowFactory("nanotech_empa.cp2k.geo_opt")
 Cp2kFragmentSeparationWorkChain = plugins.WorkflowFactory(
     "nanotech_empa.cp2k.fragment_separation"
 )
+ISO_OPTION_PATTERN = re.compile(
+    r"^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*:\s*(#[0-9A-Fa-f]{6})\s*$"
+)
+
+
+def _normalize_color(color):
+    rgb = ImageColor.getrgb(color)
+    return "#{:02X}{:02X}{:02X}".format(*rgb[:3])
+
+
+def _normalize_orientation(camera_orientation):
+    orientation = [float(value) for value in camera_orientation]
+    if len(orientation) != 16:
+        err_msg = f"Camera orientation must contain exactly 16 numbers, but {len(orientation)} were provided."
+        raise ValueError(err_msg)
+    return orientation
+
+
+def _normalize_isovalue_pairs(children):
+    return [
+        [float(child.children[0].value), _normalize_color(child.children[1].value)]
+        for child in children
+    ]
+
+
+def _format_iso_option(isovalue, color):
+    return f"{float(isovalue):.16g}:{_normalize_color(color)}"
+
+
+def _render_name_from_output(output_path):
+    output_name = PurePosixPath(output_path).name
+    suffix = PurePosixPath(output_name).suffix
+    return output_name[: -len(suffix)] if suffix else output_name
+
+
+def _instructions_from_parameters(parameters):
+    instructions = {}
+    for step in parameters.get("steps", []):
+        if step.get("command") != "render":
+            continue
+
+        options = step.get("options", {})
+        args = step.get("args", [])
+        output_path = options.get("output", "")
+        render_name = _render_name_from_output(output_path)
+        image_format = options.get("format", "png").lower()
+        iso_pairs = []
+        for iso_item in options.get("iso", []):
+            match = ISO_OPTION_PATTERN.match(iso_item)
+            if match is None:
+                continue
+            iso_pairs.append([float(match.group(1)), match.group(2).upper()])
+
+        instructions[render_name] = {
+            "cube": PurePosixPath(args[0]).name if args else "",
+            "camera_orientation": [
+                float(value) for value in options.get("orientation", [])
+            ],
+            "isovalues": iso_pairs,
+            "format": image_format,
+        }
+    return instructions
 
 
 class OneIsovalue(ipw.HBox):
@@ -29,7 +94,7 @@ class OneIsovalue(ipw.HBox):
             description="Isovalue",
         )
         self.color_widget = ipw.ColorPicker(
-            concise=False, description="Pick a color", value="cyan", disabled=False
+            concise=False, description="Pick a color", value="#00FFFF", disabled=False
         )
         super().__init__([self.isovalue_widget, self.color_widget])
 
@@ -202,15 +267,47 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
                 c_2.add_surface(color=col, isolevelType="value", isolevel=isov)
 
 
-@engine.calcfunction
-def render_cube_file(settings, remote_folder):
-    fd = orm.FolderData()
-    for name, value in settings.items():
-        full_name = f"{name}.{value['format']}"
-        file = open(full_name, "rb")
-        image = file.read()
-        fd.put_object_from_bytes(image, path=full_name)
-    return {"rendered_images": fd}
+def render_cube_file(settings, code_uuid, render_source_remote_uuid, remote_data_uuid):
+    code = orm.load_code(code_uuid)
+    builder = code.get_builder()
+    builder.parameters = orm.Dict(
+        dict={
+            "steps": [
+                {
+                    "command": "render",
+                    "args": [f"folder1/out_cubes/{value['cube']}"],
+                    "options": {
+                        "orientation": _normalize_orientation(
+                            value["camera_orientation"]
+                        ),
+                        "iso": [
+                            _format_iso_option(isovalue, color)
+                            for isovalue, color in value["isovalues"]
+                        ],
+                        "format": value["format"],
+                        "output": f"out_cubes/{name}.{value['format']}",
+                    },
+                }
+                for name, value in settings.items()
+            ]
+        }
+    )
+    builder.parent_folders = {
+        "folder1": orm.load_node(render_source_remote_uuid),
+        "source_ref": orm.load_node(remote_data_uuid),
+    }
+    builder.metadata.label = "cube-render"
+    builder.metadata.description = (
+        f"Render {len(settings)} cube view(s) from {render_source_remote_uuid}"
+    )
+    builder.metadata.options = {
+        "resources": {
+            "num_machines": 1,
+            "num_mpiprocs_per_machine": 1,
+        },
+        "max_wallclock_seconds": 600,
+    }
+    return builder
 
 
 class HandleCubeFiles(ipw.VBox):
@@ -221,6 +318,7 @@ class HandleCubeFiles(ipw.VBox):
     uks = tl.Bool(False)
     render_instructions = tl.Dict({}, allow_none=True)
     remote_data_uuid = tl.Unicode(allow_none=True)
+    render_source_remote_uuid = tl.Unicode(allow_none=True)
 
     def __init__(self):
         self.node = None
@@ -274,8 +372,24 @@ class HandleCubeFiles(ipw.VBox):
         accordion.selected_index = None
         self.render_instructions_widget.disabled = True
 
-        self.render_all_button = ipw.Button(description="Render all")
-        self.render_all_button.on_click(self.render_all)
+        self.cubehandler_code_widget = awb.ComputationalResourcesWidget(
+            description="Cubehandler code:",
+            default_calc_job_plugin="nanotech_empa.cubehandler",
+        )
+        self.render_submit = awb.SubmitButtonWidget(
+            CubeHandlerCalculation,
+            self.prepare_render_submission,
+            description="Render all",
+            disable_after_submit=False,
+            append_output=False,
+        )
+        self.render_submit.on_submitted(self._refresh_render_results)
+        self.render_process_tree = awb.ProcessNodesTreeWidget()
+        tl.dlink(
+            (self.render_submit, "process"),
+            (self.render_process_tree, "value"),
+            transform=lambda process: process.uuid if process else None,
+        )
 
         # self.select_calculation()
         super().__init__(
@@ -296,7 +410,9 @@ class HandleCubeFiles(ipw.VBox):
                                     ]
                                 ),
                                 accordion,
-                                self.render_all_button,
+                                self.cubehandler_code_widget,
+                                self.render_submit,
+                                self.render_process_tree,
                             ]
                         ),
                     ]
@@ -324,7 +440,7 @@ class HandleCubeFiles(ipw.VBox):
             project="description",
         )
         query.append(
-            ShellJob,
+            CubeHandlerCalculation,
             filters={
                 "label": {"in": ["cube-shrink", "charge-lowres", "ChargeDiff-lowres"]}
             },
@@ -341,10 +457,18 @@ class HandleCubeFiles(ipw.VBox):
             return
         calc = orm.load_node(self.node_pk)
         self.node = calc.outputs.retrieved
-        try:
-            self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
-        except Exception:
-            self.remote_data_uuid = calc.outputs.remote_folder.uuid
+        self.render_source_remote_uuid = calc.outputs.remote_folder.uuid
+
+        parent_folders = getattr(calc.inputs, "parent_folders", None)
+        if parent_folders and "folder1" in parent_folders:
+            self.remote_data_uuid = parent_folders["folder1"].uuid
+        else:
+            try:
+                self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
+            except Exception:
+                self.remote_data_uuid = calc.outputs.remote_folder.uuid
+
+        self.cubehandler_code_widget.value = calc.inputs.code.uuid
 
         orb_options = []
         label = None
@@ -399,13 +523,24 @@ class HandleCubeFiles(ipw.VBox):
         if not self.render_name.value:
             self.error_message.value = "Please provide a render name"
             return
+        if not self.cube_selector.value:
+            self.error_message.value = "Please select a cube file"
+            return
         else:
             self.error_message.value = ""
+        isovalue_pairs = _normalize_isovalue_pairs(
+            self._viewer.isovalues.isovalues.children
+        )
+        if not isovalue_pairs:
+            self.error_message.value = "Please add at least one isovalue"
+            return
         new_dict = copy.deepcopy(self.render_instructions)
         new_dict[self.render_name.value] = {
             "cube": self.cube_selector.value,
-            "camera_orientation": self._viewer.viewer._camera_orientation,
-            "isovalues": self._viewer.isovalues.return_isovalues_and_colors(),
+            "camera_orientation": _normalize_orientation(
+                self._viewer.viewer._camera_orientation
+            ),
+            "isovalues": isovalue_pairs,
             "format": "png",
         }
         self.render_instructions = new_dict
@@ -419,26 +554,66 @@ class HandleCubeFiles(ipw.VBox):
             self.cube_selector.options = []
             self._viewer.cube = None
             self.render_instructions = {}
+            self.remote_data_uuid = None
+            self.render_source_remote_uuid = None
 
     @tl.observe("render_instructions")
     def _observe_render_instructions(self, _=None):
         # Format the render instructions using toml and display them in the widget
         self.render_instructions_widget.value = toml.dumps(self.render_instructions)
 
+    def prepare_render_submission(self):
+        if not self.render_instructions:
+            self.error_message.value = "Please add at least one render instruction"
+            return None
+        if not self.cubehandler_code_widget.value:
+            self.error_message.value = "Please select a cubehandler code"
+            return None
+        if not self.render_source_remote_uuid:
+            self.error_message.value = "No render source remote folder was found"
+            return None
+        if not self.remote_data_uuid:
+            self.error_message.value = "No source remote folder was found"
+            return None
+        if any(not value["isovalues"] for value in self.render_instructions.values()):
+            self.error_message.value = "Each render needs at least one isovalue"
+            return None
+
+        self.error_message.value = ""
+        return render_cube_file(
+            self.render_instructions,
+            self.cubehandler_code_widget.value,
+            self.render_source_remote_uuid,
+            self.remote_data_uuid,
+        )
+
     def render_all(self, _=None):
-        render_cube_file(self.render_instructions, orm.load_node(self.remote_data_uuid))
+        self.render_submit.on_btn_submit_press()
+        return self.render_submit.process
+
+    def _refresh_render_results(self, _=None):
+        if not self.remote_data_uuid:
+            return
+        remote_data_uuid = self.remote_data_uuid
+        self.remote_data_uuid = None
+        self.remote_data_uuid = remote_data_uuid
 
 
 class DisplayRenderedCubes(ipw.HBox):
     remote_data_uuid = tl.Unicode(allow_none=True)
 
     def __init__(self):
+        self._render_records = {}
         self.rendered_images_widget = ipw.Select(
             description="Select an image:",
             layout=ipw.Layout(width="350px"),
             style={"description_width": "initial"},
         )
         self.rendered_images_widget.observe(self.show_image)
+        self.refresh_button = ipw.Button(
+            description="Refresh renders", layout=ipw.Layout(width="160px")
+        )
+        self.refresh_button.on_click(self.refresh)
         self.image = ipw.Image(
             format="png",
             width=600,
@@ -458,7 +633,7 @@ class DisplayRenderedCubes(ipw.HBox):
         accordion.selected_index = None
         super().__init__(
             [
-                self.rendered_images_widget,
+                ipw.VBox([self.refresh_button, self.rendered_images_widget]),
                 ipw.VBox([accordion, self.image]),
             ]
         )
@@ -468,17 +643,26 @@ class DisplayRenderedCubes(ipw.HBox):
             self.render_instructions_widget.value = ""
             self.image.value = b""
             return
-        fname, settings_uuid, folder_uuid = self.rendered_images_widget.value
-        fd = orm.load_node(folder_uuid)
-        settings = orm.load_node(settings_uuid)
-        self.render_instructions_widget.value = toml.dumps(
-            settings.get_dict()[self.rendered_images_widget.label]
-        )
-        self.image.value = fd.get_object_content(fname, mode="rb")
+        calc_uuid, fname, render_name = self.rendered_images_widget.value
+        calc = orm.load_node(calc_uuid)
+        instruction = _instructions_from_parameters(
+            calc.inputs.parameters.get_dict()
+        ).get(render_name, {})
+        self.render_instructions_widget.value = toml.dumps({render_name: instruction})
+        image_format = PurePosixPath(fname).suffix.lower().lstrip(".")
+        if image_format == "jpg":
+            image_format = "jpeg"
+        self.image.format = image_format or "png"
+        self.image.value = calc.outputs.retrieved.get_object_content(fname, mode="rb")
+
+    def refresh(self, _=None):
+        self._observe_remote_data_uuid()
 
     @tl.observe("remote_data_uuid")
     def _observe_remote_data_uuid(self, _=None):
         if not self.remote_data_uuid:
+            self.rendered_images_widget.options = []
+            self.rendered_images_widget.value = None
             return
         query = orm.QueryBuilder()
         query.append(
@@ -487,19 +671,31 @@ class DisplayRenderedCubes(ipw.HBox):
             tag="original_cubes",
         )
         query.append(
-            orm.CalcFunctionNode,
-            filters={"label": "render_cube_file"},
+            CubeHandlerCalculation,
+            filters={"label": "cube-render"},
             with_incoming="original_cubes",
             tag="render_calc",
+            project="*",
         )
-        query.append(orm.Dict, with_outgoing="render_calc", project="*")
-        query.append(orm.FolderData, with_incoming="render_calc", project="uuid")
+        query.order_by({CubeHandlerCalculation: {"ctime": "desc"}})
 
         self.rendered_images_widget.value = None
         select_image_list = []
-        for dict_obj, folder_uuid in query.all():
-            for name, value in dict_obj.items():
-                select_image_list.append(
-                    (name, (f"{name}.{value['format']}", dict_obj.uuid, folder_uuid))
-                )
+        self._render_records = {}
+        for calc in query.all(flat=True):
+            if not calc.is_finished_ok or "retrieved" not in calc.outputs:
+                continue
+            instructions = _instructions_from_parameters(
+                calc.inputs.parameters.get_dict()
+            )
+            retrieved = calc.outputs.retrieved
+            object_names = set(retrieved.list_object_names("out_cubes"))
+            for render_name, value in instructions.items():
+                file_name = f"{render_name}.{value['format']}"
+                if file_name not in object_names:
+                    continue
+                label = f"{render_name} (pk: {calc.pk})"
+                repo_path = f"out_cubes/{file_name}"
+                self._render_records[label] = (calc.uuid, repo_path, render_name)
+                select_image_list.append((label, (calc.uuid, repo_path, render_name)))
         self.rendered_images_widget.options = select_image_list
