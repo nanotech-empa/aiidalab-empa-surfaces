@@ -88,8 +88,8 @@ class OneIsovalue(ipw.HBox):
     def __init__(self, structure=None):
         self.isovalue_widget = ipw.BoundedFloatText(
             value=1e-3,
-            isomin=-1e-1,
-            isomax=1e-1,
+            min=-1e-1,
+            max=1e-1,
             step=1e-5,
             description="Isovalue",
         )
@@ -101,19 +101,19 @@ class OneIsovalue(ipw.HBox):
     # proxy: così min/max/value su OneIsovalue agiscono sul BoundedFloatText
     @property
     def isomin(self):
-        return self.isovalue_widget.isomin
+        return self.isovalue_widget.min
 
     @isomin.setter
     def isomin(self, v):
-        self.isovalue_widget.isomin = v
+        self.isovalue_widget.min = v
 
     @property
     def isomax(self):
-        return self.isovalue_widget.isomax
+        return self.isovalue_widget.max
 
     @isomax.setter
     def isomax(self, v):
-        self.isovalue_widget.isomax = v
+        self.isovalue_widget.max = v
 
     @property
     def value(self):
