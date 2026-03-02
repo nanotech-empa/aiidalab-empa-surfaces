@@ -384,12 +384,6 @@ class HandleCubeFiles(ipw.VBox):
             append_output=False,
         )
         self.render_submit.on_submitted(self._refresh_render_results)
-        self.render_process_tree = awb.ProcessNodesTreeWidget()
-        tl.dlink(
-            (self.render_submit, "process"),
-            (self.render_process_tree, "value"),
-            transform=lambda process: process.uuid if process else None,
-        )
 
         # self.select_calculation()
         super().__init__(
@@ -412,7 +406,6 @@ class HandleCubeFiles(ipw.VBox):
                                 accordion,
                                 self.cubehandler_code_widget,
                                 self.render_submit,
-                                self.render_process_tree,
                             ]
                         ),
                     ]
