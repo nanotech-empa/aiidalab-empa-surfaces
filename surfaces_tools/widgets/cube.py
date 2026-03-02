@@ -23,7 +23,7 @@ class OneIsovalue(ipw.HBox):
     def __init__(self, structure=None):
         self.isovalue_widget = ipw.BoundedFloatText(
             value=1e-3,
-            isomin=1e-5,
+            isomin=-1e-1,
             isomax=1e-1,
             step=1e-5,
             description="Isovalue",
@@ -96,7 +96,7 @@ class IsovaluesWidget(ipw.VBox):
             ]
         )
 
-    def return_values(self):
+    def return_isovalues_and_colors(self):
         return zip(
             *[
                 (child.children[0].value, child.children[1].value)
@@ -177,7 +177,7 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             self.viewer.remove_component(self.viewer.component_0.id)
         self.setup_cube_plot()
         try:
-            isovalues, colors = self.isovalues.return_values()
+            isovalues, colors = self.isovalues.return_isovalues_and_colors()
             self.set_cube_isosurf(
                 isovalues,  # [-0.001, 0.001],
                 colors,  # ["red", "blue"],
@@ -405,7 +405,7 @@ class HandleCubeFiles(ipw.VBox):
         new_dict[self.render_name.value] = {
             "cube": self.cube_selector.value,
             "camera_orientation": self._viewer.viewer._camera_orientation,
-            "isovalue": self._viewer.orb_isosurf_slider.value,
+            "isovalues": self._viewer.isovalues.return_isovalues_and_colors(),
             "format": "png",
         }
         self.render_instructions = new_dict
