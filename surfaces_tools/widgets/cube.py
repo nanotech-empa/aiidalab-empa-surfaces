@@ -275,7 +275,7 @@ def render_cube_file(settings, code_uuid, render_source_remote_uuid, remote_data
             "steps": [
                 {
                     "command": "render",
-                    "args": [f"folder1/out_cubes/{value['cube']}"],
+                    "args": [f"cube_source/{value['cube'].replace('reduced_', '', 1)}"],
                     "options": {
                         "orientation": _normalize_orientation(
                             value["camera_orientation"]
@@ -293,8 +293,7 @@ def render_cube_file(settings, code_uuid, render_source_remote_uuid, remote_data
         }
     )
     builder.parent_folders = {
-        "folder1": orm.load_node(render_source_remote_uuid),
-        "source_ref": orm.load_node(remote_data_uuid),
+        "cube_source": orm.load_node(remote_data_uuid),
     }
     builder.metadata.label = "cube-render"
     builder.metadata.description = (
