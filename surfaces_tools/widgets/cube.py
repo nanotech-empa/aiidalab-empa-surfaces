@@ -703,9 +703,6 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             value=True, description="Show slicing plane in 3D"
         )
 
-        # plane color (RGB 0..1)
-        self.plane_color = (0.6, 0.6, 0.6)
-
         # handle to the shape component that holds our mesh
         self._plane_component = None
 
@@ -833,37 +830,6 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
         except Exception:
             logger.debug("plane show/hide failed", exc_info=True)
 
-    # def update_plane_mesh(self, *, center, normal, width, height, offset=0.0):
-
-    #     if not self.show_plane_checkbox.value:
-    #         self._remove_plane_component()
-    #         return
-
-    #     self._remove_plane_component()
-
-    #     before = {n for n in dir(self.viewer) if n.startswith("component_")}
-
-    #     getattr(self.slice2d, "_last_vals", None)
-    #     rgb = getattr(self.slice2d, "_last_rgb", None)
-
-    #     try:
-    #         # verts, cols = make_plane_mesh(center, normal, width, height, offset, vals_2d=vals)
-    #         verts, cols = make_plane_mesh(
-    #             center, normal, width, height, offset, colors_2d=rgb
-    #         )
-    #         np.array(cols)
-
-    #     except Exception as e:
-    #         print("EXCEPTION in make_plane_mesh:", e)
-    #         return
-
-    #     try:
-    #         self.viewer.shape.add_mesh(verts, cols)
-    #     except Exception as e:
-    #         print("shape.add_mesh failed:", e)
-    #         return
-
-    #     self._capture_newest_component_as_plane(before_attrs=before)
     def update_plane_mesh(self, *, center, normal, width, height, offset=0.0):
 
         if not self.show_plane_checkbox.value:
