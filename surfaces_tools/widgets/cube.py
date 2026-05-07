@@ -81,9 +81,9 @@ def _orthonormal_basis_from_normal(
     return n_hat, u, v
 
 
-def make_plane_mesh(center, normal, width, height, offset=0.0, colors_2d=None):
-    import numpy as np
-
+def make_plane_mesh(
+    center, normal, width, height, offset=0.0, colors_2d=None, max_grid_n=64
+):
     # 1) Build orthonormal basis
     n_hat, u_hat, v_hat = _orthonormal_basis_from_normal(normal)
 
@@ -96,8 +96,10 @@ def make_plane_mesh(center, normal, width, height, offset=0.0, colors_2d=None):
         grid_n = 50
         colors = None
     else:
-        grid_n = colors_2d.shape[0] - 1
-        colors = colors_2d
+        grid_n = min(int(max_grid_n), colors_2d.shape[0] - 1)
+        color_i = np.linspace(0, colors_2d.shape[0] - 1, grid_n, dtype=int)
+        color_j = np.linspace(0, colors_2d.shape[1] - 1, grid_n, dtype=int)
+        colors = colors_2d[np.ix_(color_i, color_j)]
 
     us = np.linspace(-w / 2, w / 2, grid_n + 1)
     vs = np.linspace(-h / 2, h / 2, grid_n + 1)
@@ -122,9 +124,7 @@ def make_plane_mesh(center, normal, width, height, offset=0.0, colors_2d=None):
             if colors is None:
                 col = (0.6, 0.6, 0.6)
             else:
-                v = colors[j, i]
-                col = (v, v, v)
-                col = colors_2d[j, i]  # (3,) RGB tuple floats
+                col = colors[j, i]  # (3,) RGB tuple floats
 
             for p in quad:
                 verts.extend(p.tolist())
@@ -148,8 +148,8 @@ class OneIsovalue(ipw.HBox):
         # Numeric field for the isovalue
         self.isovalue_widget = ipw.BoundedFloatText(
             value=1e-3,
-            isomin=1e-5,
-            isomax=1e-1,
+            min=1e-5,
+            max=1e-1,
             step=1e-5,
             description="Isovalue",
         )
@@ -166,19 +166,19 @@ class OneIsovalue(ipw.HBox):
     # Convenience properties
     @property
     def isomin(self):
-        return self.isovalue_widget.isomin
+        return self.isovalue_widget.min
 
     @isomin.setter
     def isomin(self, v):
-        self.isovalue_widget.isomin = v
+        self.isovalue_widget.min = v
 
     @property
     def isomax(self):
-        return self.isovalue_widget.isomax
+        return self.isovalue_widget.max
 
     @isomax.setter
     def isomax(self, v):
-        self.isovalue_widget.isomax = v
+        self.isovalue_widget.max = v
 
     @property
     def value(self):
@@ -286,6 +286,7 @@ class CubePlaneCut2D(ipw.VBox):
         self._last_r = None
         self._last_vals = None
         self._last_grid_n = None  # utile per sapere m
+        self._updating_color_range = False
 
         # ---- UI fields ----
         self.center_txt = ipw.Text(
@@ -332,16 +333,24 @@ class CubePlaneCut2D(ipw.VBox):
             min=32,
             max=256,
             step=32,
-            description="Resolution",
+            description="2D slice res.",
             continuous_update=False,
             layout=ipw.Layout(width="360px"),
+            style={"description_width": "90px"},
         )
 
-        self.show_contours = ipw.Checkbox(value=False, description="Contours")
+        self.show_contours = ipw.Checkbox(value=False, description="2D contours")
+
+        self.auto_color_range = ipw.Checkbox(
+            value=True,
+            description="Auto color range",
+        )
+        self.auto_color_range.observe(self._on_auto_color_range_toggled, names="value")
 
         self.vmin = ipw.FloatText(
             value=None,
             description="vmin",
+            disabled=True,
             layout=ipw.Layout(width="150px"),
             style={"description_width": "60px"},
         )
@@ -349,6 +358,7 @@ class CubePlaneCut2D(ipw.VBox):
         self.vmax = ipw.FloatText(
             value=None,
             description="vmax",
+            disabled=True,
             layout=ipw.Layout(width="150px"),
             style={"description_width": "60px"},
         )
@@ -359,6 +369,28 @@ class CubePlaneCut2D(ipw.VBox):
             description="Show 2D plot",
         )
         self.show_2d_checkbox.observe(self._on_show_2d_toggled, names="value")
+
+        self.plane_preset = ipw.Dropdown(
+            options=[
+                ("XY", "0 0 1"),
+                ("XZ", "0 1 0"),
+                ("YZ", "1 0 0"),
+            ],
+            description="Plane:",
+            layout=ipw.Layout(width="180px"),
+            style={"description_width": "55px"},
+        )
+        self.apply_plane_preset = ipw.Button(
+            description="Apply",
+            layout=ipw.Layout(width="80px"),
+        )
+        self.apply_plane_preset.on_click(self._on_apply_plane_preset)
+
+        self.center_on_atoms = ipw.Button(
+            description="Center on atoms",
+            layout=ipw.Layout(width="140px"),
+        )
+        self.center_on_atoms.on_click(self._on_center_on_atoms)
 
         self.info = ipw.HTML("")
         self.error = ipw.HTML("")
@@ -373,9 +405,18 @@ class CubePlaneCut2D(ipw.VBox):
                 ipw.HTML("<b>2D plane cut (Cartesian point + normal, PBC)</b>"),
                 ipw.HBox([self.center_txt]),
                 ipw.HBox([self.normal_txt]),
+                ipw.HBox(
+                    [
+                        self.plane_preset,
+                        self.apply_plane_preset,
+                        self.center_on_atoms,
+                    ]
+                ),
                 ipw.HBox([self.offset_txt]),
                 ipw.HBox([self.width, self.height, self.res]),
-                ipw.HBox([self.show_contours, self.vmin, self.vmax]),
+                ipw.HBox(
+                    [self.show_contours, self.auto_color_range, self.vmin, self.vmax]
+                ),
                 self.show_2d_checkbox,
                 self.info,
                 self.error,
@@ -392,6 +433,7 @@ class CubePlaneCut2D(ipw.VBox):
             self.height,
             self.res,
             self.show_contours,
+            self.auto_color_range,
             self.vmin,
             self.vmax,
         ):
@@ -428,6 +470,8 @@ class CubePlaneCut2D(ipw.VBox):
 
     def _on_any_change(self, _=None):
         """Auto-update the slice when inputs change."""
+        if self._updating_color_range:
+            return
         if self._inputs_valid():
             self.error.value = ""
             self.plot_slice()
@@ -448,6 +492,22 @@ class CubePlaneCut2D(ipw.VBox):
             # redraw only if inputs valid
             if self._inputs_valid():
                 self.plot_slice()
+
+    def _on_apply_plane_preset(self, _=None):
+        self.normal_txt.value = self.plane_preset.value
+
+    def _on_center_on_atoms(self, _=None):
+        if self.cube is None:
+            return
+        center = np.mean(self.cube.ase_atoms.get_positions(), axis=0)
+        self.center_txt.value = f"{center[0]:.3f} {center[1]:.3f} {center[2]:.3f}"
+
+    def _on_auto_color_range_toggled(self, change):
+        use_auto = change["new"]
+        self.vmin.disabled = use_auto
+        self.vmax.disabled = use_auto
+        if self._inputs_valid():
+            self.plot_slice()
 
     @staticmethod
     def _parse_vec3(text):
@@ -531,6 +591,32 @@ class CubePlaneCut2D(ipw.VBox):
         idx[:, 2] = f[:, 2] * nz
         return idx.reshape(r.shape)
 
+    def _compute_slice_values(self):
+        r, extent = self._build_plane_grid()
+        idxcoords = self._cart_to_indexcoords(r)
+        coords = np.stack(
+            [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
+        )
+        vals = map_coordinates(
+            self.cube.data, coords, order=1, mode="wrap", prefilter=False
+        )
+        return r, extent, vals
+
+    def _effective_color_range(self, vals):
+        if self.auto_color_range.value:
+            return float(np.min(vals)), float(np.max(vals))
+        return float(self.vmin.value), float(self.vmax.value)
+
+    def _store_slice_cache(self, r, vals, vmin, vmax):
+        norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+        cmap = cm.get_cmap("viridis")
+        rgb = cmap(norm(vals))[..., :3]
+
+        self._last_r = r
+        self._last_vals = vals
+        self._last_rgb = rgb
+        self._last_grid_n = vals.shape[0]
+
     # ------------- Plotting -------------
     def plot_slice(self):
         if self.cube is None:
@@ -545,62 +631,17 @@ class CubePlaneCut2D(ipw.VBox):
 
         if not self.show_2d_checkbox.value:
             # We still compute slice (needed for 3D plane), but do not plot it
-            r, extent = self._build_plane_grid()
-            idxcoords = self._cart_to_indexcoords(r)
-            coords = np.stack(
-                [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
-            )
-            vals = map_coordinates(
-                self.cube.data, coords, order=1, mode="wrap", prefilter=False
-            )
-
-            # store everything for 3D plane
-            user_vmin = self.vmin.value
-            user_vmax = self.vmax.value
-            vmin = (
-                float(user_vmin)
-                if user_vmin not in (None, "", 0, "0")
-                else np.min(vals)
-            )
-            vmax = (
-                float(user_vmax)
-                if user_vmax not in (None, "", 0, "0")
-                else np.max(vals)
-            )
-
-            norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
-            cmap = cm.get_cmap("viridis")
-            rgb = cmap(norm(vals))[..., :3]
-
-            self._last_r = r
-            self._last_vals = vals
-            self._last_rgb = rgb
-            self._last_grid_n = vals.shape[0]
-
+            r, _, vals = self._compute_slice_values()
+            vmin, vmax = self._effective_color_range(vals)
+            self._store_slice_cache(r, vals, vmin, vmax)
             return
 
         # ----------------------------------------------------
         # 1) Compute slice
         # ----------------------------------------------------
         try:
-            r, extent = self._build_plane_grid()
-            idxcoords = self._cart_to_indexcoords(r)
-
-            coords = np.stack(
-                [idxcoords[..., 0], idxcoords[..., 1], idxcoords[..., 2]], axis=0
-            )
-
-            vals = map_coordinates(
-                self.cube.data, coords, order=1, mode="wrap", prefilter=False
-            )
-
-            # --- interpret user inputs ---
-            user_vmin = self.vmin.value
-            user_vmax = self.vmax.value
-
-            # user 0 or empty → treat as "auto"
-            vmin = float(user_vmin) if user_vmin not in (None, "", 0, "0") else None
-            vmax = float(user_vmax) if user_vmax not in (None, "", 0, "0") else None
+            r, extent, vals = self._compute_slice_values()
+            real_vmin, real_vmax = self._effective_color_range(vals)
 
         except Exception:
             self.error.value = "<span style='color:#b00'>Error computing slice</span>"
@@ -608,24 +649,16 @@ class CubePlaneCut2D(ipw.VBox):
                 self._out.clear_output()
             return
 
-        # ----------------------------------------------------
-        # 2) Determine actual vmin/vmax WITHOUT drawing into widget output
-        #    (this avoids breaking layout!)
-        # ----------------------------------------------------
-        tmp_fig, tmp_ax = plt.subplots()
-        tmp_im = tmp_ax.imshow(vals, vmin=vmin, vmax=vmax)
-        real_vmin = tmp_im.norm.vmin
-        real_vmax = tmp_im.norm.vmax
-        plt.close(tmp_fig)  # IMPORTANT: avoid ghost figures
-
-        # Update widgets ONLY if user left them empty or zero
-        if user_vmin in (None, "", 0, "0"):
-            self.vmin.value = real_vmin
-        if user_vmax in (None, "", 0, "0"):
-            self.vmax.value = real_vmax
+        if self.auto_color_range.value:
+            self._updating_color_range = True
+            try:
+                self.vmin.value = real_vmin
+                self.vmax.value = real_vmax
+            finally:
+                self._updating_color_range = False
 
         # ----------------------------------------------------
-        # 3) Now do the REAL drawing
+        # 2) Draw
         # ----------------------------------------------------
         with self._out:
             self._out.clear_output(wait=True)
@@ -645,21 +678,28 @@ class CubePlaneCut2D(ipw.VBox):
             fig.colorbar(im, ax=ax)
 
             if self.show_contours.value:
-                ax.contour(
-                    vals, levels=8, origin="lower", extent=extent, linewidths=0.8
-                )
+                contour_levels = np.linspace(real_vmin, real_vmax, 9)[1:-1]
+                if contour_levels.size and not np.isclose(real_vmin, real_vmax):
+                    ax.contour(
+                        vals,
+                        levels=contour_levels,
+                        origin="lower",
+                        extent=extent,
+                        colors="black",
+                        linewidths=1.2,
+                        alpha=0.65,
+                    )
+                    ax.contour(
+                        vals,
+                        levels=contour_levels,
+                        origin="lower",
+                        extent=extent,
+                        colors="white",
+                        linewidths=0.55,
+                        alpha=0.95,
+                    )
 
-            # ------------------------------------------------
-            # Save data for 3D colored plane
-            # ------------------------------------------------
-            norm = mcolors.Normalize(vmin=real_vmin, vmax=real_vmax)
-            cmap = cm.get_cmap("viridis")
-            rgb = cmap(norm(vals))[..., :3]
-
-            self._last_r = r
-            self._last_vals = vals
-            self._last_rgb = rgb
-            self._last_grid_n = vals.shape[0]
+            self._store_slice_cache(r, vals, real_vmin, real_vmax)
 
             plt.show()
 
@@ -677,6 +717,22 @@ class CubePlaneCut2D(ipw.VBox):
 
         return center, n_hat, offset, w, h
 
+    def return_settings(self):
+        center, normal, offset, width, height = self.current_plane_params()
+        return {
+            "center": center.tolist(),
+            "normal": normal.tolist(),
+            "offset": offset,
+            "width": width,
+            "height": height,
+            "resolution": int(self.res.value),
+            "show_2d": bool(self.show_2d_checkbox.value),
+            "show_contours": bool(self.show_contours.value),
+            "auto_color_range": bool(self.auto_color_range.value),
+            "vmin": float(self.vmin.value),
+            "vmax": float(self.vmax.value),
+        }
+
 
 # ----------------------------- 3D viewer ----------------------------------
 class CubeArrayData3dViewerWidget(ipw.VBox):
@@ -691,16 +747,26 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
         self.structure = None
         self.viewer = nglview.NGLWidget()
         self.isovalues = IsovaluesWidget()
+        self._loaded_cube = None
 
         self.show_isosurfaes_button = ipw.Button(
-            description="Show isosurfaces",
+            description="Update isosurfaces",
             layout={"width": "initial"},
             button_style="success",
         )
-        self.show_isosurfaes_button.on_click(lambda _: self.update_plot())
+        self.show_isosurfaes_button.on_click(lambda _: self.apply_isosurfaces())
 
         self.show_plane_checkbox = ipw.Checkbox(
             value=True, description="Show slicing plane in 3D"
+        )
+        self.plane_resolution = ipw.BoundedIntText(
+            value=48,
+            min=16,
+            max=128,
+            step=16,
+            description="3D plane res.:",
+            layout=ipw.Layout(width="180px"),
+            style={"description_width": "100px"},
         )
 
         # handle to the shape component that holds our mesh
@@ -710,7 +776,13 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             [
                 self.viewer,
                 self.isovalues,
-                ipw.HBox([self.show_isosurfaes_button, self.show_plane_checkbox]),
+                ipw.HBox(
+                    [
+                        self.show_isosurfaes_button,
+                        self.show_plane_checkbox,
+                        self.plane_resolution,
+                    ]
+                ),
             ],
             **kwargs,
         )
@@ -725,6 +797,17 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
     @tl.observe("cube")
     def on_observe_cube(self, _=None):
         if self.cube is None:
+            self.structure = None
+            self._loaded_cube = None
+            for comp_attr in ("_structure_component", "_cube_component"):
+                comp = getattr(self, comp_attr, None)
+                if comp is not None:
+                    try:
+                        self.viewer.remove_component(comp.id)
+                    except Exception:
+                        logger.debug("remove_component failed", exc_info=True)
+                    setattr(self, comp_attr, None)
+            self.hide_and_remove_plane()
             return
         self.isovalues.set_range(
             vmin=float(np.min(self.cube.data)),
@@ -734,6 +817,12 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
         self.update_plot()
 
     def update_plot(self):
+        if self._loaded_cube is self.cube and getattr(self, "_cube_component", None):
+            self.apply_isosurfaces()
+            if self._external_plane_sync_cb:
+                self._external_plane_sync_cb()
+            return
+
         # remove prior structure/cube components
         for comp_attr in ("_structure_component", "_cube_component"):
             comp = getattr(self, comp_attr, None)
@@ -755,16 +844,9 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             ase.io.cube.write_cube(tempf, self.structure, self.cube.data)
             self._cube_component = self.viewer.add_component(tempf.name, ext="cube")
             self._cube_component.clear()
+        self._loaded_cube = self.cube
 
-        # isosurfaces
-        try:
-            isovals, colors = self.isovalues.return_values()
-            self.set_cube_isosurf(isovals, colors)
-        except ValueError:
-            # no isovalues defined yet
-            pass
-        except Exception:
-            logger.debug("set_cube_isosurf failed", exc_info=True)
+        self.apply_isosurfaces()
 
         # rebuild plane last
         if self._external_plane_sync_cb:
@@ -774,6 +856,16 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
                 logger.debug("external plane sync failed", exc_info=True)
 
     # ---------------- isosurfaces ----------------
+    def apply_isosurfaces(self):
+        try:
+            isovals, colors = self.isovalues.return_values()
+            self.set_cube_isosurf(isovals, colors)
+        except ValueError:
+            # no isovalues defined yet
+            pass
+        except Exception:
+            logger.debug("set_cube_isosurf failed", exc_info=True)
+
     def set_cube_isosurf(self, isovals, colors):
         if getattr(self, "_cube_component", None) is None:
             return
@@ -846,7 +938,13 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
         try:
             # ---- Build mesh (vertices + colors) ----
             verts, cols = make_plane_mesh(
-                center, normal, width, height, offset, colors_2d=rgb
+                center,
+                normal,
+                width,
+                height,
+                offset,
+                colors_2d=rgb,
+                max_grid_n=self.plane_resolution.value,
             )
 
             # ---- Add mesh to viewer ----
@@ -886,6 +984,7 @@ class HandleCubeFiles(ipw.VBox):
 
     def __init__(self):
         self.node = None
+        self._cube_cache = {}
 
         # selector first so observers can safely reference it
         self.cube_selector = ipw.Select(
@@ -930,6 +1029,7 @@ class HandleCubeFiles(ipw.VBox):
             self.slice2d.width,
             self.slice2d.height,
             self.slice2d.res,
+            self._viewer.plane_resolution,
         ):
             w.observe(_sync_plane, names="value")
 
@@ -1012,9 +1112,12 @@ class HandleCubeFiles(ipw.VBox):
     def show_selected_cube(self, _=None):
         if not self.cube_selector.value or self.node is None:
             return
-        cube_obj = Cube.from_content(
-            self.node.get_object_content(f"out_cubes/{self.cube_selector.value}")
-        )
+        cube_name = self.cube_selector.value
+        if cube_name not in self._cube_cache:
+            self._cube_cache[cube_name] = Cube.from_content(
+                self.node.get_object_content(f"out_cubes/{cube_name}")
+            )
+        cube_obj = self._cube_cache[cube_name]
         self._viewer.cube = cube_obj
         self._sync_plane()  # draw current plane immediately
 
@@ -1044,6 +1147,7 @@ class HandleCubeFiles(ipw.VBox):
             return
         calc = orm.load_node(self.node_pk)
         self.node = calc.outputs.retrieved
+        self._cube_cache = {}
         try:
             self.remote_data_uuid = calc.inputs.nodes.remote_previous_job.uuid
         except Exception:
@@ -1089,6 +1193,9 @@ class HandleCubeFiles(ipw.VBox):
         self.cube_selector.options = orb_options
 
     def append_render_instructions(self, _=None):
+        if not self.cube_selector.value:
+            self.error_message.value = "Please select a cube file"
+            return
         if not self.render_name.value:
             self.error_message.value = "Please provide a render name"
             return
@@ -1109,6 +1216,9 @@ class HandleCubeFiles(ipw.VBox):
             "isovalue": float(iso_vals[0]) if iso_vals else None,
             "isovalues": iso_vals,
             "colors": iso_cols,
+            "slice": self.slice2d.return_settings(),
+            "show_plane": bool(self._viewer.show_plane_checkbox.value),
+            "plane_resolution": int(self._viewer.plane_resolution.value),
             "format": "png",
         }
         self.render_instructions = new_dict
@@ -1119,6 +1229,7 @@ class HandleCubeFiles(ipw.VBox):
             self.select_calculation()
         else:
             self.node = None
+            self._cube_cache = {}
             self.cube_selector.options = []
             self._viewer.cube = None
             self.render_instructions = {}
