@@ -1,18 +1,75 @@
 """Widget to convert CDXML to planar structures"""
 
-import xml.etree.ElementTree as ET
-import pandas as pd
+import math
 import re
+import xml.etree.ElementTree as ET
+from collections import defaultdict
+from typing import DefaultDict, Optional
+
 import ase
 import ipywidgets as ipw
 import nglview as nv
 import numpy as np
+import pandas as pd
 import traitlets as tr
-from collections import defaultdict
 from ase import Atoms
 from ase.data import chemical_symbols, covalent_radii
 from ase.neighborlist import NeighborList
 from scipy.spatial.distance import pdist
+
+DEFAULT_VALENCES = {
+    "C": 4,
+    "N": 3,
+    "O": 2,
+    "S": 2,
+}
+
+HYDROGEN_BOND_LENGTHS = {
+    "C": 1.09,
+    "N": 1.01,
+    "O": 0.96,
+    "S": 1.34,
+}
+
+CDXML_BOND_ORDER_ARRAY = "cdxml_bond_order"
+CDXML_MAX_BOND_ORDER_ARRAY = "cdxml_max_bond_order"
+FLOAT_RE = r"[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?"
+
+
+def normalize(vector: np.ndarray) -> np.ndarray:
+    """Return a normalized 3-vector, or zeros for a near-zero vector."""
+    vector = np.array(vector, dtype=float)
+    norm = np.linalg.norm(vector)
+    return vector / norm if norm > 1e-12 else np.zeros(3)
+
+
+def rotation_matrix_from_vectors(source: np.ndarray, target: np.ndarray) -> np.ndarray:
+    """Return the rotation matrix that rotates source into target."""
+    source = normalize(source)
+    target = normalize(target)
+    cross = np.cross(source, target)
+    dot = np.dot(source, target)
+    if np.linalg.norm(cross) < 1e-8:
+        return np.eye(3)
+    skew = np.array(
+        [
+            [0, -cross[2], cross[1]],
+            [cross[2], 0, -cross[0]],
+            [-cross[1], cross[0], 0],
+        ]
+    )
+    return np.eye(3) + skew + skew @ skew * ((1 - dot) / (np.linalg.norm(cross) ** 2))
+
+
+def rotate_vector(vector: np.ndarray, axis: np.ndarray, angle: float) -> np.ndarray:
+    """Rotate vector around axis by angle radians."""
+    axis = normalize(axis)
+    vector = np.array(vector, dtype=float)
+    return (
+        vector * math.cos(angle)
+        + np.cross(axis, vector) * math.sin(angle)
+        + axis * np.dot(axis, vector) * (1 - math.cos(angle))
+    )
 
 
 class CdxmlUpload2GnrWidget(ipw.VBox):
@@ -69,10 +126,168 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         self.atoms = None
 
     @staticmethod
-    def add_hydrogen_atoms(atoms: Atoms, bond_orders: list =[],) -> tuple[str, Atoms]:
-        """Add missing hydrogen atoms to the Atoms object based on covalent radii."""
-        message = ""
+    def _hydrogen_count(symbol: str, bond_order: float) -> int:
+        target_valence = DEFAULT_VALENCES.get(symbol)
+        if target_valence is None:
+            return 0
+        return max(0, int(round(target_valence - bond_order)))
 
+    @staticmethod
+    def _expected_neighbor_count(
+        n_hydrogen: int, bond_order: float, max_bond_order: float
+    ) -> int:
+        if n_hydrogen == 3:
+            return 1
+        if n_hydrogen == 2 and max_bond_order >= 1.5:
+            return 1
+        if n_hydrogen == 1 and max_bond_order >= 1.5:
+            return 2
+        return max(1, int(round(bond_order)))
+
+    @staticmethod
+    def _plane_normal(neighbor_vectors: list[np.ndarray]) -> np.ndarray:
+        for i, first in enumerate(neighbor_vectors):
+            for second in neighbor_vectors[i + 1 :]:
+                normal = normalize(np.cross(first, second))
+                if np.linalg.norm(normal) > 1e-8:
+                    return normal
+        return np.array([0.0, 0.0, 1.0])
+
+    @classmethod
+    def _hydrogen_directions(
+        cls,
+        symbol: str,
+        n_hydrogen: int,
+        neighbor_vectors: list[np.ndarray],
+        max_bond_order: float,
+    ) -> tuple[list[np.ndarray], float]:
+        if n_hydrogen <= 0:
+            return [], HYDROGEN_BOND_LENGTHS.get(symbol, 1.1)
+
+        has_multiple_bond = max_bond_order >= 1.5
+        if symbol in {"O", "N"}:
+            v_sum = (
+                np.sum(neighbor_vectors, axis=0) if neighbor_vectors else np.zeros(3)
+            )
+            base_dir = (
+                normalize(-v_sum)
+                if np.linalg.norm(v_sum) > 1e-6
+                else np.array([0.0, 0.0, 1.0])
+            )
+            bond_length = HYDROGEN_BOND_LENGTHS.get(symbol, 1.0)
+
+            if n_hydrogen == 1:
+                if symbol == "O" and len(neighbor_vectors) == 1:
+                    return [
+                        rotate_vector(
+                            -neighbor_vectors[0],
+                            np.array([0.0, 0.0, 1.0]),
+                            math.radians(35),
+                        )
+                    ], bond_length
+                return [base_dir], bond_length
+
+            if n_hydrogen == 2:
+                theta = math.radians(104.5 if symbol == "O" else 107.0)
+                rot_axis = cls._plane_normal(neighbor_vectors)
+                return [
+                    rotate_vector(base_dir, rot_axis, angle)
+                    for angle in (-theta / 2, theta / 2)
+                ], bond_length
+
+            return [base_dir], bond_length
+
+        if symbol != "C":
+            v_sum = (
+                np.sum(neighbor_vectors, axis=0) if neighbor_vectors else np.zeros(3)
+            )
+            avg = (
+                normalize(-v_sum)
+                if np.linalg.norm(v_sum) > 1e-6
+                else np.array([0.0, 0.0, 1.0])
+            )
+            return [avg], HYDROGEN_BOND_LENGTHS.get(symbol, 1.01)
+
+        # CH3: tetrahedral cone around the opposite heavy-atom bond.
+        if n_hydrogen == 3 and len(neighbor_vectors) == 1:
+            v = neighbor_vectors[0]
+            theta = math.radians(109.47)
+            local_dirs = [
+                np.array(
+                    [
+                        math.sin(theta) * math.cos(phi),
+                        math.sin(theta) * math.sin(phi),
+                        math.cos(theta),
+                    ]
+                )
+                for phi in (0, 2 * math.pi / 3, 4 * math.pi / 3)
+            ]
+            rotation = rotation_matrix_from_vectors(np.array([0.0, 0.0, 1.0]), -v)
+            return [-rotation @ direction for direction in local_dirs], 1.10
+
+        # CH2: planar if attached by a multiple/aromatic bond, tetrahedral otherwise.
+        if n_hydrogen == 2:
+            bond_length = 1.09 if has_multiple_bond else 1.10
+            if len(neighbor_vectors) == 1:
+                v = neighbor_vectors[0]
+                if has_multiple_bond:
+                    bis = -v
+                    return [
+                        rotate_vector(bis, np.array([0.0, 0.0, 1.0]), angle)
+                        for angle in (math.radians(60), math.radians(-60))
+                    ], bond_length
+
+                theta = math.radians(109.47)
+                local_dirs = [
+                    np.array(
+                        [
+                            math.sin(theta) * math.cos(phi),
+                            math.sin(theta) * math.sin(phi),
+                            math.cos(theta),
+                        ]
+                    )
+                    for phi in (0, 2 * math.pi / 3)
+                ]
+                rotation = rotation_matrix_from_vectors(np.array([0.0, 0.0, 1.0]), -v)
+                return [rotation @ direction for direction in local_dirs], bond_length
+
+            if len(neighbor_vectors) >= 2:
+                v1, v2 = neighbor_vectors[:2]
+                bis = normalize(-(v1 + v2))
+                plane_normal = cls._plane_normal([v1, v2])
+                if has_multiple_bond:
+                    return [
+                        rotate_vector(bis, plane_normal, angle)
+                        for angle in (math.radians(60), math.radians(-60))
+                    ], bond_length
+
+                angle = math.radians(54.75)
+                return [
+                    math.cos(angle) * bis + math.sin(angle) * plane_normal,
+                    math.cos(angle) * bis - math.sin(angle) * plane_normal,
+                ], bond_length
+
+        # CH: sp3 centers with three planar single bonds get the H out of plane.
+        if n_hydrogen == 1:
+            if len(neighbor_vectors) >= 3 and not has_multiple_bond:
+                return [cls._plane_normal(neighbor_vectors)], 1.09
+            v_sum = (
+                np.sum(neighbor_vectors, axis=0) if neighbor_vectors else np.zeros(3)
+            )
+            avg = (
+                normalize(-v_sum)
+                if np.linalg.norm(v_sum) > 1e-6
+                else cls._plane_normal(neighbor_vectors)
+            )
+            return [avg], 1.09
+
+        return [], HYDROGEN_BOND_LENGTHS.get(symbol, 1.1)
+
+    @classmethod
+    def add_hydrogen_atoms(
+        cls, atoms: Atoms, bond_orders: Optional[list[float]] = None
+    ) -> tuple[str, Atoms]:
+        """Add missing H atoms while preserving the planar CDXML geometry."""
         neighbor_list = NeighborList(
             [covalent_radii[atom.number] for atom in atoms],
             bothways=True,
@@ -80,24 +295,64 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         )
         neighbor_list.update(atoms)
 
-        need_hydrogen = [
-            atom.index
-            for atom in atoms
-            if len(neighbor_list.get_neighbors(atom.index)[0]) < 3
-            and atom.symbol in {"C", "N"}
-        ]
+        if bond_orders is None and CDXML_BOND_ORDER_ARRAY in atoms.arrays:
+            bond_orders = atoms.arrays[CDXML_BOND_ORDER_ARRAY]
+        if bond_orders is None:
+            bond_orders = [
+                len(neighbor_list.get_neighbors(atom.index)[0]) for atom in atoms
+            ]
+        if CDXML_MAX_BOND_ORDER_ARRAY in atoms.arrays:
+            max_bond_orders = atoms.arrays[CDXML_MAX_BOND_ORDER_ARRAY]
+        else:
+            max_bond_orders = np.ones(len(atoms))
 
-        message = f"Added missing Hydrogen atoms: {need_hydrogen}."
+        added_hydrogens = []
 
-        for index in need_hydrogen:
-            vec = np.zeros(3)
+        for index, atom in enumerate(atoms):
+            if atom.symbol == "H":
+                continue
+            n_hydrogen = cls._hydrogen_count(atom.symbol, float(bond_orders[index]))
+            if n_hydrogen == 0:
+                continue
+
+            neighbor_candidates = []
             indices, offsets = neighbor_list.get_neighbors(atoms[index].index)
             for i, offset in zip(indices, offsets):
-                vec += -atoms[index].position + (
-                    atoms.positions[i] + np.dot(offset, atoms.get_cell())
+                if atoms[i].symbol == "H":
+                    continue
+                vec = (
+                    atoms.positions[i]
+                    + np.dot(offset, atoms.get_cell())
+                    - atoms[index].position
                 )
-            vec = -vec / np.linalg.norm(vec) * 1.1 + atoms[index].position
-            atoms.append(ase.Atom("H", vec))
+                vec[2] = 0.0
+                distance = np.linalg.norm(vec[:2])
+                if distance > 1e-8:
+                    neighbor_candidates.append((distance, normalize(vec)))
+
+            expected_neighbors = cls._expected_neighbor_count(
+                n_hydrogen,
+                float(bond_orders[index]),
+                float(max_bond_orders[index]),
+            )
+            neighbor_vectors = [
+                vector
+                for _, vector in sorted(neighbor_candidates, key=lambda item: item[0])[
+                    :expected_neighbors
+                ]
+            ]
+
+            directions, bond_length = cls._hydrogen_directions(
+                atom.symbol,
+                n_hydrogen,
+                neighbor_vectors,
+                float(max_bond_orders[index]),
+            )
+            for direction in directions:
+                atoms.append(ase.Atom("H", atom.position + bond_length * direction))
+                added_hydrogens.append(index)
+
+        message = f"Added missing Hydrogen atoms: {added_hydrogens}."
 
         return message, atoms
 
@@ -106,11 +361,27 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         self.nunits.value = "Infinite"
         self.nunits.disabled = True
 
-        uploaded_file = list(self.file_upload.value.values())[0]
-        cdxml_content = uploaded_file["content"].decode("utf-8")
+        upload_value = self.file_upload.value
+        if not upload_value:
+            return
+        if isinstance(upload_value, dict):
+            uploaded_file = list(upload_value.values())[0]
+        else:
+            uploaded_file = upload_value[0]
+        content = uploaded_file["content"]
+        if isinstance(content, str):
+            cdxml_content = content
+        else:
+            cdxml_content = bytes(content).decode("utf-8")
         try:
-            bond_orders = self.get_total_bond_orders_from_cdxml_string(cdxml_content)
-            self.atoms = self.cdxml_to_ase_from_string(cdxml_content,bond_orders=bond_orders)
+            bond_orders, max_bond_orders = self.get_bond_order_arrays_from_cdxml_string(
+                cdxml_content
+            )
+            self.atoms = self.cdxml_to_ase_from_string(
+                cdxml_content,
+                bond_orders=bond_orders,
+                max_bond_orders=max_bond_orders,
+            )
             (
                 self.crossing_points,
                 self.cdxml_atoms,
@@ -122,7 +393,10 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             self.output_message.value = f"Unexpected error: {exc}"
 
         # Clear the file upload widget
-        self.file_upload.value.clear()
+        if isinstance(self.file_upload.value, dict):
+            self.file_upload.value.clear()
+        else:
+            self.file_upload.value = ()
 
     def _on_button_click(self, _=None):
         """Handles the creation of the ASE model when 'Create model' button is clicked."""
@@ -152,10 +426,33 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             atoms.pbc = True
 
         self.output_message.value, self.structure = self.add_hydrogen_atoms(atoms)
-        #self.structure = struc
-        
+        # self.structure = struc
+
     @staticmethod
-    def get_total_bond_orders_from_cdxml_string(cdxml_content: str) -> list[float]:
+    def _parse_float_list(text: str) -> list[float]:
+        return [float(value) for value in re.findall(FLOAT_RE, text)]
+
+    @staticmethod
+    def _parse_bond_order(value) -> float:
+        if value is None:
+            return 1.0
+        try:
+            return float(value)
+        except ValueError:
+            order_names = {
+                "single": 1.0,
+                "double": 2.0,
+                "triple": 3.0,
+                "quadruple": 4.0,
+                "aromatic": 1.5,
+                "dative": 1.0,
+            }
+            return order_names.get(value.strip().lower(), 1.0)
+
+    @staticmethod
+    def get_bond_order_arrays_from_cdxml_string(
+        cdxml_content: str,
+    ) -> tuple[list[float], list[float]]:
         """
         Parses CDXML content provided as a string and computes the total bond order
         for each atom, including implicit single bonds from graphical electrons (radicals).
@@ -168,10 +465,11 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             cdxml_content (str): The content of the CDXML file as a string.
 
         Returns:
-            List[float]: A list of total bond orders, one for each atom (ordered by atom ID).
+            Two lists ordered like the CDXML atoms: total bond order and maximum
+            explicit bond order per atom.
         """
         # Parse XML content from string
-        #tree = ET.parse(io.StringIO(cdxml_content))
+        # tree = ET.parse(io.StringIO(cdxml_content))
         root = ET.fromstring(cdxml_content)
         # Extract atoms and their 2D positions from 'p' attribute
         atoms = []
@@ -179,26 +477,34 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             pos_str = n.attrib.get("p")
             if pos_str:
                 x_str, y_str = pos_str.strip().split()
-                atoms.append({
-                    "id": n.attrib.get("id"),
-                    "element": n.attrib.get("Element"),
-                    "x": float(x_str),
-                    "y": float(y_str)
-                })
+                atoms.append(
+                    {
+                        "id": n.attrib.get("id"),
+                        "element": n.attrib.get("Element"),
+                        "x": float(x_str),
+                        "y": float(y_str),
+                    }
+                )
         atoms_df = pd.DataFrame(atoms)
+        if atoms_df.empty:
+            return [], []
 
         # Extract bonds between atoms
         bonds = []
         for b in root.iter("b"):
-            bonds.append({
-                "from": b.attrib.get("B"),
-                "to": b.attrib.get("E"),
-                "order": float(b.attrib.get("Order")) if b.attrib.get("Order") else 1.0
-            })
+            bonds.append(
+                {
+                    "from": b.attrib.get("B"),
+                    "to": b.attrib.get("E"),
+                    "order": CdxmlUpload2GnrWidget._parse_bond_order(
+                        b.attrib.get("Order")
+                    ),
+                }
+            )
 
         # Helper function to extract center of a bounding box string
         def parse_bbox_center(bbox_str):
-            coords = list(map(float, re.findall(r"[\d.]+", bbox_str)))
+            coords = CdxmlUpload2GnrWidget._parse_float_list(bbox_str)
             if len(coords) == 4:
                 return (coords[0] + coords[2]) / 2, (coords[1] + coords[3]) / 2
             return None, None
@@ -219,12 +525,17 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             # Method 2: Check represent text content
             if not is_electron:
                 for r in graphic.iter("represent"):
-                    if r.text and r.text.strip() in {"•", ".", "radical", "unpaired electron"}:
+                    if r.text and r.text.strip() in {
+                        "•",
+                        ".",
+                        "radical",
+                        "unpaired electron",
+                    }:
                         is_electron = True
 
             # Method 3: Fallback – small bounding box dimensions
             if not is_electron:
-                coords = list(map(float, re.findall(r"[\d.]+", bbox_str)))
+                coords = CdxmlUpload2GnrWidget._parse_float_list(bbox_str)
                 if len(coords) == 4:
                     width = abs(coords[2] - coords[0])
                     height = abs(coords[3] - coords[1])
@@ -236,43 +547,51 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
             # Assign the electron to the closest atom (if within a reasonable distance)
             x, y = parse_bbox_center(bbox_str)
-            atoms_df["distance"] = ((atoms_df["x"] - x)**2 + (atoms_df["y"] - y)**2)**0.5
+            atoms_df["distance"] = (
+                (atoms_df["x"] - x) ** 2 + (atoms_df["y"] - y) ** 2
+            ) ** 0.5
             closest = atoms_df.loc[atoms_df["distance"].idxmin()]
 
             if closest["distance"] < 15:
-                electron_bonds.append({
-                    "from": closest["id"],
-                    "to": "electron",
-                    "order": 1.0
-                })
+                electron_bonds.append(
+                    {"from": closest["id"], "to": "electron", "order": 1.0}
+                )
 
         # Combine all bonds and accumulate bond orders per atom
         all_bonds = bonds + electron_bonds
-        connectivity = defaultdict(float)
+        connectivity: DefaultDict[str, float] = defaultdict(float)
+        max_connectivity: DefaultDict[str, float] = defaultdict(float)
         for bond in all_bonds:
+            if bond["from"] is None:
+                continue
             connectivity[bond["from"]] += bond["order"]
-            if bond["to"] != "electron":
+            max_connectivity[bond["from"]] = max(
+                max_connectivity[bond["from"]], bond["order"]
+            )
+            if bond["to"] not in {None, "electron"}:
                 connectivity[bond["to"]] += bond["order"]
+                max_connectivity[bond["to"]] = max(
+                    max_connectivity[bond["to"]], bond["order"]
+                )
 
-        # Prepare output sorted by atom ID (as int, if possible)
-        result_df = pd.DataFrame([
-            {"atom_id": atom_id, "total_bond_order": order}
-            for atom_id, order in connectivity.items()
-        ])
+        atom_ids = atoms_df["id"].tolist()
+        return (
+            [connectivity.get(atom_id, 0.0) for atom_id in atom_ids],
+            [max_connectivity.get(atom_id, 0.0) for atom_id in atom_ids],
+        )
 
-        try:
-            result_df["atom_id_int"] = result_df["atom_id"].astype(int)
-            result_df = result_df.sort_values("atom_id_int")
-        except ValueError:
-            result_df = result_df.sort_values("atom_id")
-
-        return result_df["total_bond_order"].tolist()
-
-        
+    @staticmethod
+    def get_total_bond_orders_from_cdxml_string(cdxml_content: str) -> list[float]:
+        return CdxmlUpload2GnrWidget.get_bond_order_arrays_from_cdxml_string(
+            cdxml_content
+        )[0]
 
     @staticmethod
     def cdxml_to_ase_from_string(
-        cdxml_content: str, target_cc_distance: float = 1.43
+        cdxml_content: str,
+        target_cc_distance: float = 1.43,
+        bond_orders: Optional[list[float]] = None,
+        max_bond_orders: Optional[list[float]] = None,
     ) -> ase.Atoms:
         """
         Converts CDXML content provided as a string into an ASE Atoms object,
@@ -298,7 +617,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             # Determine the element symbol
             if "Element" in atom.attrib:
                 # Convert atomic number to element symbol using ASE's chemical_symbols
-                element_number = int(atom.get("Element"))
+                element_number = int(atom.attrib["Element"])
                 if element_number < len(chemical_symbols):
                     element = chemical_symbols[element_number]
                 else:
@@ -320,7 +639,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             raise ValueError("No valid atoms found in the CDXML content.")
 
         # Convert positions to a numpy array
-        positions = np.array(positions)
+        positions_array = np.array(positions)
 
         # Find the smallest C-C distance
         carbon_indices = [i for i, sym in enumerate(symbols) if sym == "C"]
@@ -328,7 +647,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             raise ValueError("Not enough Carbon atoms to calculate C-C distance.")
 
         # Calculate pairwise distances between all Carbon atoms
-        carbon_positions = positions[carbon_indices]
+        carbon_positions = positions_array[carbon_indices]
         cc_distances = pdist(carbon_positions)
 
         # Find the minimum C-C distance
@@ -336,10 +655,28 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
         # Scale coordinates to set the minimum C-C distance to target_cc_distance
         scale_factor = target_cc_distance / min_cc_distance
-        positions *= scale_factor
+        positions_array *= scale_factor
 
         # Create an ASE Atoms object with the scaled positions
-        ase_atoms = ase.Atoms(symbols=symbols, positions=positions)
+        ase_atoms = ase.Atoms(symbols=symbols, positions=positions_array)
+        if bond_orders is not None:
+            if len(bond_orders) != len(ase_atoms):
+                raise ValueError(
+                    "Number of CDXML bond-order entries does not match atoms."
+                )
+            ase_atoms.new_array(
+                CDXML_BOND_ORDER_ARRAY,
+                np.array(bond_orders, dtype=float),
+            )
+        if max_bond_orders is not None:
+            if len(max_bond_orders) != len(ase_atoms):
+                raise ValueError(
+                    "Number of CDXML max-bond-order entries does not match atoms."
+                )
+            ase_atoms.new_array(
+                CDXML_MAX_BOND_ORDER_ARRAY,
+                np.array(max_bond_orders, dtype=float),
+            )
 
         return ase_atoms
 
@@ -463,7 +800,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                         )
                         crossing_points.append(midpoint)
 
-        crossing_points = np.array(crossing_points)
+        crossing_points_array = np.array(crossing_points)
 
         # Parse square parentheses
         brackets = []
@@ -481,20 +818,26 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             return twopoints, atom_positions, isnotperiodic
 
         if len(brackets) == 2:
-            brackets = np.array(brackets)
-            vector = brackets[1] - brackets[0]
+            brackets_array = np.array(brackets)
+            vector = brackets_array[1] - brackets_array[0]
             unit_vector = vector[:2] / np.linalg.norm(vector[:2])
 
             if unit_vector[0] < 0 or unit_vector[1] < 0:
                 unit_vector = -unit_vector
 
-            for i in range(len(crossing_points)):
-                for j in range(i + 1, len(crossing_points)):
-                    vector = crossing_points[j][:2] - crossing_points[i][:2]
+            for i in range(len(crossing_points_array)):
+                for j in range(i + 1, len(crossing_points_array)):
+                    vector = crossing_points_array[j][:2] - crossing_points_array[i][:2]
                     unit_test_vector = vector / np.linalg.norm(vector)
                     if np.dot(unit_test_vector, unit_vector) > 0.99:
                         isnotperiodic = False
-                        return crossing_points[[i, j]], atom_positions, isnotperiodic
+                        return (
+                            np.array(
+                                [crossing_points_array[i], crossing_points_array[j]]
+                            ),
+                            atom_positions,
+                            isnotperiodic,
+                        )
 
         return None, atom_positions, True
 
@@ -560,20 +903,18 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             # Replicate atoms for n_units
             replicated_atoms = bounded_atoms.copy()
             for ni in range(1, n_units):
-                shifted_positions = bounded_atoms.get_positions() + np.array(
+                shifted_atoms = bounded_atoms.copy()
+                shifted_atoms.positions = bounded_atoms.get_positions() + np.array(
                     [ni * norm_vector, 0, 0]
                 )
-                replicated_atoms += ase.Atoms(
-                    bounded_atoms.get_chemical_symbols(), positions=shifted_positions
-                )
+                replicated_atoms += shifted_atoms
 
             # Add atoms shifted beyond xmax
-            shifted_positions = head_atoms.get_positions() + np.array(
+            shifted_head_atoms = head_atoms.copy()
+            shifted_head_atoms.positions = head_atoms.get_positions() + np.array(
                 [(n_units - 1) * norm_vector, 0, 0]
             )
-            replicated_atoms += ase.Atoms(
-                head_atoms.get_chemical_symbols(), positions=shifted_positions
-            )
+            replicated_atoms += shifted_head_atoms
             replicated_atoms += tail_atoms
             atoms = replicated_atoms
 

@@ -160,8 +160,11 @@ class StructureInfoWidget(ipw.Accordion):
     def __init__(self):
         self.info = ipw.Output()
 
+        super().__init__(
+            selected_index=None,
+            children=[ipw.VBox([self.info])],
+        )
         self.set_title(0, "Structure details")
-        super().__init__(selected_index=None)
 
     @tr.observe("details")
     def _observe_details(self, _=None):
@@ -169,6 +172,7 @@ class StructureInfoWidget(ipw.Accordion):
             return
         else:
             self.children = [ipw.VBox([self.info])]
+            self.set_title(0, "Structure details")
             with self.info:
                 clear_output()
                 print(self.details["summary"])
@@ -513,8 +517,6 @@ class UksSectionWidget(ipw.Accordion):
             layout={"width": "140px", "visibility": multiplicity_visibility},
         )
 
-        self.set_title(0, "Spin-polarized calculation")
-
         self.uks_box = [
             ipw.VBox(
                 [
@@ -534,6 +536,7 @@ class UksSectionWidget(ipw.Accordion):
         super().__init__(selected_index=None)
 
         self.children = self.no_uks_box
+        self.set_title(0, "Spin-polarized calculation")
 
     def return_dict(self):
         to_return = {
@@ -560,6 +563,7 @@ class UksSectionWidget(ipw.Accordion):
     @tr.observe("uks")
     def _observe_uks(self, value=None):
         self.children = self.uks_box if value["new"] else self.no_uks_box
+        self.set_title(0, "Spin-polarized calculation")
 
     def traits_to_link(self):
         return ["details", "uks", "net_charge"]
@@ -608,8 +612,6 @@ class CellSectionWidget(ipw.Accordion):
         )
         tr.link((self, "do_cell_opt"), (self.opt_cell, "value"))
 
-        self.set_title(0, "Cell optimization")
-
         super().__init__(
             selected_index=None,
             children=[
@@ -623,6 +625,7 @@ class CellSectionWidget(ipw.Accordion):
                 )
             ],
         )
+        self.set_title(0, "Cell optimization")
 
     def return_dict(self):
         sys_params = {"symmetry": self.cell_symmetry.value}
