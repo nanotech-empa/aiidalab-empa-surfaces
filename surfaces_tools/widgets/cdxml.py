@@ -91,6 +91,11 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
         # Additional widgets
         self.nunits = ipw.Text(description="N units", value="Infinite", disabled=True)
+        self.use_clever_hydrogenation = ipw.Checkbox(
+            description="Use clever hydrogenation",
+            value=True,
+            indent=False,
+        )
         self.create_button = ipw.Button(
             description="Create model",
             button_style="success",
@@ -113,6 +118,7 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             children=[
                 self.file_upload,
                 self.nunits,
+                self.use_clever_hydrogenation,
                 supported_formats,
                 self.create_button,
                 self.output_message,
@@ -285,7 +291,10 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
 
     @classmethod
     def add_hydrogen_atoms(
-        cls, atoms: Atoms, bond_orders: Optional[list[float]] = None
+        cls,
+        atoms: Atoms,
+        bond_orders: Optional[list[float]] = None,
+        use_clever_hydrogenation: bool = True,
     ) -> tuple[str, Atoms]:
         """Add missing H atoms while preserving the planar CDXML geometry."""
         neighbor_list = NeighborList(
@@ -294,6 +303,33 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
             self_interaction=False,
         )
         neighbor_list.update(atoms)
+
+        if not use_clever_hydrogenation:
+            need_hydrogen = [
+                atom.index
+                for atom in atoms
+                if len(neighbor_list.get_neighbors(atom.index)[0]) < 3
+                and atom.symbol == "C"
+            ]
+
+            for index in need_hydrogen:
+                vec = np.zeros(3)
+                indices, offsets = neighbor_list.get_neighbors(atoms[index].index)
+                for i, offset in zip(indices, offsets):
+                    vec += -atoms[index].position + (
+                        atoms.positions[i] + np.dot(offset, atoms.get_cell())
+                    )
+                vec_norm = np.linalg.norm(vec)
+                if vec_norm > 1e-12:
+                    position = -vec / vec_norm * 1.1 + atoms[index].position
+                else:
+                    position = atoms[index].position + np.array([0.0, 0.0, 1.1])
+                atoms.append(ase.Atom("H", position))
+
+            message = (
+                f"Added missing Hydrogen atoms (safe hydrogenation): {need_hydrogen}."
+            )
+            return message, atoms
 
         if bond_orders is None and CDXML_BOND_ORDER_ARRAY in atoms.arrays:
             bond_orders = atoms.arrays[CDXML_BOND_ORDER_ARRAY]
@@ -352,7 +388,9 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
                 atoms.append(ase.Atom("H", atom.position + bond_length * direction))
                 added_hydrogens.append(index)
 
-        message = f"Added missing Hydrogen atoms: {added_hydrogens}."
+        message = (
+            f"Added missing Hydrogen atoms (clever hydrogenation): {added_hydrogens}."
+        )
 
         return message, atoms
 
@@ -425,7 +463,10 @@ class CdxmlUpload2GnrWidget(ipw.VBox):
         if self.nunits.value == "Infinite":
             atoms.pbc = True
 
-        self.output_message.value, self.structure = self.add_hydrogen_atoms(atoms)
+        self.output_message.value, self.structure = self.add_hydrogen_atoms(
+            atoms,
+            use_clever_hydrogenation=self.use_clever_hydrogenation.value,
+        )
         # self.structure = struc
 
     @staticmethod
