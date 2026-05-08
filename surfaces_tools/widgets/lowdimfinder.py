@@ -2,6 +2,10 @@
 Low dimensionality atom group finder, which analyses a bulk crystal and returns
 groups of atoms which are held together by weak (van der Waals) forces as
 separate structures.
+
+Vendored from epfl-theos/tool-ml-layer-finder, compute/utils/lowdimfinder.py,
+with the local get_group_data() output extended to include unit_cell_ids for
+the structure analyzer.
 """
 
 __copyright__ = (

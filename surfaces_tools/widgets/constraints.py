@@ -134,10 +134,10 @@ class ConstraintsWidget(ipw.VBox):
             and self.details
             and "Slab" in self.details["system_type"]
         ):
+            slab_layers = self.details["slab_layers"]
             to_fix = list(
                 self.details["bottom_H"]
-                + self.details["slab_layers"][0]
-                + self.details["slab_layers"][1]
+                + [atom for layer in slab_layers[:2] for atom in layer]
             )
             self.constraints.children[0].constraint_widget.value = (
                 "fixed xyz " + awb.utils.list_to_string_range(to_fix)
