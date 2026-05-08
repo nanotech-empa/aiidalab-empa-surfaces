@@ -23,6 +23,7 @@ class BuildSlab(ipw.VBox):
             description="Surface",
             options=[
                 "Au(111)",
+                "Au-herringbone",
                 "Au(110)2x1",
                 "Au(110)3x1",
                 "Au(110)4x1",

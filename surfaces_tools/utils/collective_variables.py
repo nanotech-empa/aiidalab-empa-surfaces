@@ -8,12 +8,16 @@ layout = {"width": "70%"}
 
 class WrongCvInputError(Exception):
     def __init__(self, cv, message=None):
-        raise_message = (
-            f"""Wrong input for the "{cv}" collective variable.""" + f" {message}"
-            if message
-            else ""
-        )
-        super().__init__(raise_message)
+        self.cv = cv
+        self.message = message
+        super().__init__(cv, message)
+
+    def __str__(self):
+        if self.message:
+            return (
+                f'Wrong input for the "{self.cv}" collective variable. {self.message}'
+            )
+        return f'Wrong input for the "{self.cv}" collective variable.'
 
 
 class DistanceCV:

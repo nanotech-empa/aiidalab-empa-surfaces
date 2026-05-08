@@ -1,5 +1,10 @@
 import base64
 import io
+import math
+
+import matplotlib.pyplot as plt
+import numpy as np
+from ase.visualize.plot import plot_atoms
 
 
 def ase_to_thumbnail(structure, file_format=None):
@@ -7,7 +12,23 @@ def ase_to_thumbnail(structure, file_format=None):
 
     bytes_io = io.BytesIO()
     file_format = file_format if file_format else "png"
-    structure.write(bytes_io, format=file_format)
+    cell = structure.cell.array
+    x_extent = np.max(np.dot(cell, [1, 0, 0])) - np.min(np.dot(cell, [1, 0, 0]))
+    y_extent = np.max(np.dot(cell, [0, 1, 0])) - np.min(np.dot(cell, [0, 1, 0]))
+
+    lx = 5
+    ly = lx * y_extent / x_extent
+    if math.isnan(ly):
+        ly = 5
+    fig, ax = plt.subplots(figsize=(lx, ly))
+    plot_atoms(structure, ax=ax)
+
+    plt.axis("off")
+    plt.tight_layout()
+    plt.savefig(
+        bytes_io, dpi=75, bbox_inches="tight", format=file_format, transparent=True
+    )
+    plt.close()
     return base64.b64encode(bytes_io.getvalue()).decode()
 
 
