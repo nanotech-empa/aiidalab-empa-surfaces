@@ -17,16 +17,7 @@ def to_ranges(iterable):
 
 
 def mol_ids_range(ismol):
-    # Shifts the list by +1.
-    range_string = ""
-    shifted_list = [i + 1 for i in ismol]
-    ranges = list(to_ranges(shifted_list))
-    for i in range(len(ranges)):
-        if ranges[i][1] > ranges[i][0]:
-            range_string += f"{ranges[i][0]}..{ranges[i][1]}"
-        else:
-            range_string += f"{ranges[i][0]} "
-    return range_string
+    return awb.utils.list_to_string_range(ismol)
 
 
 def conne_matrix(atoms):
@@ -253,13 +244,8 @@ class StructureAnalyzer(tr.HasTraits):
         return isconnected
 
     def string_range_to_list(self, a):
-        singles = [int(s) - 1 for s in a.split() if s.isdigit()]
-        ranges = [r for r in a.split() if ".." in r]
-        for r in ranges:
-            t = r.split("..")
-            to_add = [i - 1 for i in range(int(t[0]), int(t[1]) + 1)]
-            singles += to_add
-        return sorted(singles)
+        atom_indices, _ = awb.utils.string_range_to_list(a)
+        return atom_indices
 
     @tr.observe("structure")
     def _observe_structure(self, _=None):
