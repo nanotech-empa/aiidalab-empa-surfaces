@@ -221,9 +221,18 @@ class ConstraintsWidget(ipw.VBox):
                     + " ,"
                 )
                 colvars += " " + c.constraint_widget.value + " ,"
-        return {
-            "sys_params": {"constraints": constraints[:-1], "colvars": colvars[:-1]}
-        }
+        constraints = constraints[:-1]
+        colvars = colvars[:-1]
+
+        try:
+            if constraints:
+                cp2k_utils.get_constraints_section(constraints)
+            if colvars:
+                cp2k_utils.get_colvars_section(colvars)
+        except ValueError as exc:
+            raise ValueError(f"Invalid constraint atom indices: {exc}") from exc
+
+        return {"sys_params": {"constraints": constraints, "colvars": colvars}}
 
     def traits_to_link(self):
         return ["details", "structure"]
