@@ -364,11 +364,6 @@ class HandleCubeFiles(ipw.VBox):
             layout=ipw.Layout(width="380px", height="300px"),
         )
 
-        accordion = ipw.Accordion(
-            children=[self.render_instructions_widget], layout=ipw.Layout(width="400px")
-        )
-        accordion.set_title(0, "Render instructions")
-        accordion.selected_index = None
         self.render_instructions_widget.disabled = True
 
         self.cubehandler_code_widget = awb.ComputationalResourcesWidget(
@@ -385,6 +380,8 @@ class HandleCubeFiles(ipw.VBox):
         self.render_submit.on_submitted(self._refresh_render_results)
 
         # self.select_calculation()
+        # The render submission controls require cubehandler's render command, which
+        # is not available in the currently pinned cubehandler dependency.
         super().__init__(
             [
                 # self.select_calc_widget,
@@ -394,17 +391,7 @@ class HandleCubeFiles(ipw.VBox):
                         ipw.VBox(
                             [
                                 self.cube_selector,
-                                self.camera_orientation,
-                                ipw.HBox(
-                                    [
-                                        self.render_this_view,
-                                        self.render_name,
-                                        self.error_message,
-                                    ]
-                                ),
-                                accordion,
-                                self.cubehandler_code_widget,
-                                self.render_submit,
+                                self.error_message,
                             ]
                         ),
                     ]
