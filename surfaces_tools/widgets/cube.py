@@ -357,6 +357,14 @@ class HandleCubeFiles(ipw.VBox):
             layout=ipw.Layout(width="276px"),
             style={"description_width": "initial"},
         )
+        self.render_wip_message = ipw.HTML(
+            "<div style='border-left: 4px solid #f0ad4e; padding: 6px 10px; "
+            "background: #fff8e8; max-width: 380px;'>"
+            "<strong>&#9888; High-resolution rendering is work in progress.</strong><br>"
+            "Cube file visualization is available now; render submission will be "
+            "enabled once cubehandler rendering support is merged."
+            "</div>"
+        )
         self.error_message = ipw.HTML()
         self.render_instructions_widget = ipw.Textarea(
             description="Render instructions:",
@@ -391,6 +399,7 @@ class HandleCubeFiles(ipw.VBox):
                         ipw.VBox(
                             [
                                 self.cube_selector,
+                                self.render_wip_message,
                                 self.error_message,
                             ]
                         ),
