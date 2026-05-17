@@ -416,9 +416,15 @@ class HandleCubeFiles(ipw.VBox):
 
         if not self.cube_selector.value:
             return
-        self._viewer.cube = Cube.from_content(
-            self.node.get_object_content(f"out_cubes/{self.cube_selector.value}")
-        )
+        try:
+            self._viewer.cube = Cube.from_content(
+                self.node.get_object_content(f"out_cubes/{self.cube_selector.value}")
+            )
+        except FileNotFoundError:
+            self.error_message.value = (
+                "<span style='color:red'>Selected cube file is no longer available "
+                "in the retrieved out_cubes folder.</span>"
+            )
 
     def get_calcs(self):
         query = orm.QueryBuilder()
@@ -463,12 +469,26 @@ class HandleCubeFiles(ipw.VBox):
         self.cubehandler_code_widget.value = calc.inputs.code.uuid
 
         orb_options = []
-        label = None
         pattern = re.compile(
             r"WFN_(\d+)_([12])\-"
         )  # captures orbital number and spin (1 or 2)
 
-        for name in self.node.list_object_names("out_cubes"):
+        try:
+            cube_names = self.node.list_object_names("out_cubes")
+        except (FileNotFoundError, NotADirectoryError):
+            self.cube_selector.value = None
+            self.cube_selector.options = []
+            self.error_message.value = (
+                f"<span style='color:red'>Node {self.node_pk} has no retrieved "
+                "out_cubes folder. Select a finished cubehandler calculation "
+                "created with the current nanotech_empa.cubehandler workflow, "
+                "or rerun cubehandler for this calculation.</span>"
+            )
+            return
+
+        self.error_message.value = ""
+        for name in cube_names:
+            label = None
             if "WFN" in name:
 
                 m = pattern.search(name)
@@ -476,13 +496,12 @@ class HandleCubeFiles(ipw.VBox):
                     continue  # skip unexpected names
 
                 n_orb = int(m.group(1))  # e.g. 00002 -> 2
-                spin = "UP-"
-                if int(m.group(2)) == 2:
-                    spin = "DW-"
+                spin_index = int(m.group(2))
 
                 # choose the correct HOMO index to compare against
                 if self.uks:
-                    n_morb = self.nel_up if spin == "UP" else self.nel_dw
+                    n_morb = self.nel_up if spin_index == 1 else self.nel_dw
+                    spin = "UP-" if spin_index == 1 else "DW-"
                 else:
                     spin = ""
                     n_morb = self.nel_up  # only spin-1 files exist in RKS
