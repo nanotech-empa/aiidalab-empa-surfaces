@@ -1,9 +1,11 @@
+import aiidalab_widgets_base as awb
 import ipywidgets as ipw
 import traitlets as tr
+import re
 from aiida_nanotech_empa.workflows.cp2k import cp2k_utils
 from ase import Atoms
 
-from .analyze_structure import mol_ids_range
+from ..utils.atom_indices import string_range_to_list
 
 
 class OneColvar(ipw.HBox):
@@ -135,13 +137,13 @@ class ConstraintsWidget(ipw.VBox):
             and self.details
             and "Slab" in self.details["system_type"]
         ):
+            slab_layers = self.details["slab_layers"]
             to_fix = list(
                 self.details["bottom_H"]
-                + self.details["slab_layers"][0]
-                + self.details["slab_layers"][1]
+                + [atom for layer in slab_layers[:2] for atom in layer]
             )
             self.constraints.children[0].constraint_widget.value = (
-                "fixed xyz " + mol_ids_range(to_fix)
+                "fixed xyz " + awb.utils.list_to_string_range(to_fix)
             )
 
     def _observe_help(self, change):
@@ -188,6 +190,49 @@ class ConstraintsWidget(ipw.VBox):
     def remove_constraint(self, b=None):
         self.constraints.children = self.constraints.children[:-1]
 
+    @staticmethod
+    def _compact_atom_indices(atom_text):
+        atom_indices, is_valid = string_range_to_list(atom_text, shift=0)
+        if not is_valid:
+            raise ValueError(f"Invalid fixed atom indices: {atom_text!r}")
+        if not atom_indices:
+            return ""
+
+        compact = []
+        start = atom_indices[0]
+        previous = atom_indices[0]
+        for index in atom_indices[1:]:
+            if index == previous + 1:
+                previous = index
+                continue
+            if previous - start >= 2:
+                compact.append(f"{start}..{previous}")
+            else:
+                compact.extend(str(i) for i in range(start, previous + 1))
+            start = index
+            previous = index
+
+        if previous - start >= 2:
+            compact.append(f"{start}..{previous}")
+        else:
+            compact.extend(str(i) for i in range(start, previous + 1))
+        return " ".join(compact)
+
+    @classmethod
+    def _normalize_fixed_constraint(cls, constraint_text):
+        match = re.match(
+            r"^\s*fixed(?:\s+(?P<components>[xyzXYZ]+))?\s*(?P<indices>.*)$",
+            constraint_text,
+        )
+        if not match:
+            return constraint_text
+
+        components = (match.group("components") or "xyz").lower()
+        compact_indices = cls._compact_atom_indices(match.group("indices").strip())
+        if compact_indices:
+            return f"fixed {components} {compact_indices}"
+        return f"fixed {components}"
+
     def return_dict(self):
         # 'fixed z 3..18 , collective 1 [ev/angstrom^2] 40 [angstrom] 0.75'
         # distance atoms 1 2
@@ -202,7 +247,12 @@ class ConstraintsWidget(ipw.VBox):
         ncolvars = 0
         for c in self.constraints.children:
             if len(c.children) == 1:
-                constraints += " " + c.constraint_widget.value + " ,"
+                constraint_value = c.constraint_widget.value.strip()
+                if constraint_value.lower().startswith("fixed"):
+                    constraint_value = self._normalize_fixed_constraint(
+                        constraint_value
+                    )
+                constraints += " " + constraint_value + " ,"
             else:
                 ncolvars += 1
                 cvtype = c.constraint_widget.value.split()[0].lower().split("_")[0]

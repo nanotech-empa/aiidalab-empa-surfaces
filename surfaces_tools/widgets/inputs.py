@@ -8,6 +8,7 @@ from aiida import orm
 from ase import Atoms
 from IPython.display import clear_output, display
 
+from ..utils.atom_indices import string_range_to_list
 from ..utils.cp2k_input_validity import validate_input
 from . import analyze_structure, constraints, stack
 
@@ -563,9 +564,7 @@ class UksSectionWidget(ipw.Accordion):
         if self.uks:
             magnetization_per_site = np.zeros(self.details["numatoms"])
             for spinset in self.spins.items:
-                atom_indices, is_valid = awb.utils.string_range_to_list(
-                    spinset.selection.value
-                )
+                atom_indices, is_valid = string_range_to_list(spinset.selection.value)
                 if not is_valid:
                     raise ValueError(
                         f"Invalid spin atom indices: {spinset.selection.value!r}"

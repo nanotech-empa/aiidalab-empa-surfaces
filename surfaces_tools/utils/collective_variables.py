@@ -1,17 +1,18 @@
 import ipywidgets as ipw
-import aiidalab_widgets_base as awb
 import numpy as np
 from IPython.display import clear_output, display
+
+from surfaces_tools.utils.atom_indices import string_range_to_list
 
 style = {"description_width": "120px"}
 layout = {"width": "70%"}
 
 
 def _parse_atom_indices(value):
-    indices, is_valid = awb.utils.string_range_to_list(value)
+    indices, is_valid = string_range_to_list(value, shift=0)
     if not is_valid:
         raise ValueError(f"Invalid atom index range: {value!r}")
-    return [i + 1 for i in indices]
+    return indices
 
 
 def _format_atom_indices(indices):
