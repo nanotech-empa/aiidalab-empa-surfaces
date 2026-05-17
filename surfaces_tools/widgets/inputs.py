@@ -118,7 +118,10 @@ class InputDetails(ipw.VBox):
 
         # Retrieve all widgets values.
         for section in self.displayed_sections:
-            to_add = section.return_dict()
+            try:
+                to_add = section.return_dict()
+            except ValueError as exc:
+                return False, str(exc), final_dictionary
             if to_add:
                 for key in to_add.keys():
                     if key in final_dictionary.keys():
@@ -160,7 +163,7 @@ class StructureInfoWidget(ipw.Accordion):
     def __init__(self):
         self.info = ipw.Output()
 
-        super().__init__(selected_index=None, children=[ipw.VBox([self.info])])
+        super().__init__(children=[ipw.VBox([self.info])], selected_index=None)
         self.set_title(0, "Structure details")
 
     @tr.observe("details")
@@ -546,7 +549,9 @@ class UksSectionWidget(ipw.Accordion):
         ]
         self.no_uks_box = [ipw.HBox([self.uks_toggle, self.charge])]
 
-        super().__init__(selected_index=None, children=self.no_uks_box)
+        super().__init__(selected_index=None)
+
+        self.children = self.no_uks_box
         self.set_title(0, "Spin-polarized calculation")
 
     def return_dict(self):
@@ -558,9 +563,24 @@ class UksSectionWidget(ipw.Accordion):
         if self.uks:
             magnetization_per_site = np.zeros(self.details["numatoms"])
             for spinset in self.spins.items:
-                magnetization_per_site[
-                    awb.utils.string_range_to_list(spinset.selection.value)[0]
-                ] = spinset.starting_magnetization.value
+                atom_indices, is_valid = awb.utils.string_range_to_list(
+                    spinset.selection.value
+                )
+                if not is_valid:
+                    raise ValueError(
+                        f"Invalid spin atom indices: {spinset.selection.value!r}"
+                    )
+                if any(
+                    atom_index < 0 or atom_index >= self.details["numatoms"]
+                    for atom_index in atom_indices
+                ):
+                    raise ValueError(
+                        "Spin atom indices must be between 1 and "
+                        f"{self.details['numatoms']}."
+                    )
+                magnetization_per_site[atom_indices] = (
+                    spinset.starting_magnetization.value
+                )
             to_return.update(
                 {
                     "multiplicity": self.multiplicity.value,
