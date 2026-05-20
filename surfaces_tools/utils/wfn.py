@@ -5,17 +5,19 @@ from aiida import common, orm
 
 
 def find_first_workchain(node):
-    """Find the first workchain in the provenance."""
+    """Find the topmost workchain in the provenance."""
     if isinstance(node, orm.StructureData):
         previous_node = node.creator
     else:
         previous_node = node
+
+    topmost_workchain = None
     while previous_node is not None:
         if isinstance(previous_node, orm.WorkChainNode):
-            return previous_node
+            topmost_workchain = previous_node
         previous_node = previous_node.caller
 
-    return None
+    return topmost_workchain
 
 
 def get_cp2k_code(process_node):
