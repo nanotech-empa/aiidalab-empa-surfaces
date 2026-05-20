@@ -6,16 +6,29 @@ from aiida import common, orm
 
 def find_first_workchain(node):
     """Find the first workchain in the provenance."""
-    lastcalling = None
     if isinstance(node, orm.StructureData):
         previous_node = node.creator
     else:
         previous_node = node
     while previous_node is not None:
-        lastcalling = previous_node
-        previous_node = lastcalling.caller
+        if isinstance(previous_node, orm.WorkChainNode):
+            return previous_node
+        previous_node = previous_node.caller
 
-    return lastcalling
+    return None
+
+
+def get_cp2k_code(process_node):
+    """Return the CP2K code from supported workchain input layouts."""
+    try:
+        return process_node.inputs.code
+    except common.NotExistentAttributeError:
+        pass
+
+    try:
+        return process_node.inputs.cp2k.code
+    except common.NotExistentAttributeError:
+        return None
 
 
 def remote_file_exists(computer, filepath):
@@ -58,10 +71,11 @@ def structure_available_wfn(
     if generating_workchain is None:
         return None
 
-    if generating_workchain.inputs.code.computer is None:
+    code = get_cp2k_code(generating_workchain)
+    if code is None or code.computer is None:
         return None
 
-    hostname = generating_workchain.inputs.code.computer.hostname
+    hostname = code.computer.hostname
 
     if hostname != current_hostname:
         return None
@@ -134,6 +148,8 @@ def structure_available_wfn(
     elif generating_workchain.label in ["CP2K_GeoOpt", "CP2K_CellOpt"]:
         # In all other cases (e.g. geo opt, replica, ...) use the standard name.
         wfn_name = "aiida-RESTART.wfn"
+    else:
+        return None
 
     wfn_exists = False
     try:  # noqa: TC101, TRY101
@@ -144,7 +160,7 @@ def structure_available_wfn(
         )
 
         wfn_exists = remote_file_exists(
-            generating_workchain.inputs.code.computer, wfn_search_path
+            code.computer, wfn_search_path
         )
     except common.NotExistentAttributeError:
         pass
@@ -154,7 +170,7 @@ def structure_available_wfn(
 
     if create_a_copy:
         copy_wfn(
-            computer=generating_workchain.inputs.code.computer,
+            computer=code.computer,
             wfn_search_path=wfn_search_path,
             wfn_name=generating_workchain.outputs.remote_folder.get_remote_path()
             + "/"
