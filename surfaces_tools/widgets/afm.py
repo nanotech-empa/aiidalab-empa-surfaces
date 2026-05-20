@@ -1,5 +1,6 @@
 import io
 import zipfile
+from html import escape
 from pathlib import Path
 
 import ipywidgets as ipw
@@ -9,6 +10,11 @@ from aiida import orm
 from IPython.display import clear_output
 
 from surfaces_tools.utils import spm
+
+
+def download_link(filename):
+    href = f"/files/apps/surfaces/tmp/{escape(filename)}"
+    return f'<a href="{href}" download="{escape(filename)}">download zip</a>'
 
 
 def load_afm_pp_data(afm_pp_calc):
@@ -188,7 +194,7 @@ class ViewAfmLegacy(ipw.VBox):
         with open("tmp/" + filename, "wb") as f:
             f.write(zip_buffer.getvalue())
         self.download_zip_link.value = (
-            f'<a href="tmp/{filename}" target="_blank">download zip</a>'
+            download_link(filename)
         )
 
 
@@ -307,5 +313,5 @@ class ViewAfmWidget(ipw.VBox):
         with open("tmp/" + filename, "wb") as f:
             f.write(zip_buffer.getvalue())
         self.download_zip_link.value = (
-            f'<a href="tmp/{filename}" target="_blank">download zip</a>'
+            download_link(filename)
         )

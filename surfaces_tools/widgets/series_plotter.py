@@ -2,6 +2,7 @@ import copy
 import io
 import os
 import zipfile
+from html import escape
 
 import ipywidgets as ipw
 import matplotlib
@@ -10,6 +11,11 @@ import numpy as np
 from IPython.display import HTML, display
 
 from ..utils import igor
+
+
+def download_link(filename):
+    href = f"/files/apps/surfaces/tmp/{escape(filename)}"
+    return f'<a href="{href}" download="{escape(filename)}">download zip</a>'
 
 colormaps = ["seismic", "gist_heat"]
 
@@ -337,7 +343,7 @@ class SeriesPlotter:
             f.write(zip_buffer.getvalue())
 
         with self.link_out:
-            display(HTML(f'<a href="tmp/{filename}" target="_blank">download zip</a>'))
+            display(HTML(download_link(filename)))
 
     def data_to_zip(self, zip_file):
         index_list = self.select_indexes_function()
