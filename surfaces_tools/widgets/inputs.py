@@ -780,6 +780,7 @@ SECTIONS_TO_DISPLAY = {
         UksSectionWidget,
         StructureInfoWidget,
         constraints.ConstraintsWidget,
+        ForcePeriodicWidget,
         ReplicaWidget,
     ],
     "Neb": [
@@ -787,6 +788,7 @@ SECTIONS_TO_DISPLAY = {
         UksSectionWidget,
         StructureInfoWidget,
         constraints.ConstraintsWidget,
+        ForcePeriodicWidget,
         NebWidget,
     ],
     "Phonons": [
