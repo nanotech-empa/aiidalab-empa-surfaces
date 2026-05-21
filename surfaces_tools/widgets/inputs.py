@@ -25,6 +25,7 @@ LAYOUT2 = {"width": "35%"}
 class InputDetails(ipw.VBox):
     structure = tr.Instance(Atoms, allow_none=True)  # needed for colvars
     structure_node = tr.Instance(orm.Data, allow_none=True)
+    initial_structure_node = tr.Instance(orm.Data, allow_none=True)
     structure_manager = tr.Any(allow_none=True)
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
     details = tr.Dict()
@@ -732,6 +733,7 @@ class NebWidget(ipw.VBox):
     def traits_to_link(self):
         return [
             "structure_node",
+            "initial_structure_node",
             "structure_manager",
             "n_replica_trait",
             "nproc_replica_trait",
