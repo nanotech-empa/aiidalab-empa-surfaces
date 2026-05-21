@@ -318,6 +318,7 @@ class NebReplicaRow(ipw.VBox):
 
 class NebWidget(ipw.VBox):
     structure_node = tr.Instance(orm.Data, allow_none=True)
+    initial_structure_node = tr.Instance(orm.Data, allow_none=True)
     structure_manager = tr.Any(allow_none=True)
     n_replica_trait = tr.Int()
     nproc_replica_trait = tr.Int()
@@ -333,8 +334,13 @@ class NebWidget(ipw.VBox):
         info_restart = ipw.HTML(
             value="""If you want to restart from a previous NEB calculation, enter the PK of the NEB calculation.<br>
             Otherwise define the endpoint first, then optionally define intermediate replicas.<br>
-            The initial replica is always the selected structure above and cannot be changed from this table.<br>""",
+            The initial replica is frozen when the first structure is selected. Use the explicit button below to change it.<br>""",
             layout={"width": "90%"},
+        )
+        self.initial_pk = ipw.HTML("Initial replica PK: not set")
+        self.set_initial_from_current_button = ipw.Button(
+            description="Set initial from current visualized",
+            layout={"width": "240px"},
         )
 
         self.last_replica_pk = ipw.IntText(
@@ -417,6 +423,7 @@ class NebWidget(ipw.VBox):
 
         self.replica_rows = []
         self.last_replica_pk.observe(self.update_replica_table, "value")
+        self.set_initial_from_current_button.on_click(lambda _: self.set_initial_from_current())
         self.last_from_current.on_click(lambda _: self.set_last_from_current())
         self.last_show.on_click(lambda _: self.show_last())
         self.n_intermediate.observe(self.on_n_intermediate_change, "value")
@@ -426,6 +433,7 @@ class NebWidget(ipw.VBox):
             children=[
                 self.restart_from,
                 info_restart,
+                ipw.HBox([self.initial_pk, self.set_initial_from_current_button]),
                 ipw.HBox([self.last_replica_pk, self.last_from_current, self.last_show]),
                 self.n_intermediate,
                 self.rows_box,
@@ -477,6 +485,11 @@ class NebWidget(ipw.VBox):
             return
         self.structure_manager.input_structure = node
 
+    def set_initial_from_current(self):
+        node = self._store_current_structure()
+        self.initial_structure_node = node
+        self.update_replica_table()
+
     def set_last_from_current(self):
         node = self._store_current_structure()
         self.last_replica_pk.value = node.pk
@@ -495,14 +508,14 @@ class NebWidget(ipw.VBox):
 
     def _node_from_label(self, label):
         if label == "initial":
-            return self.structure_node
+            return self.initial_structure_node
         if label == "last":
             return orm.load_node(int(self.last_replica_pk.value))
         row_index = int(label.split("_")[-1])
         return self.replica_rows[row_index].get_node()
 
     def _ordered_nodes_with_labels(self, require_complete=False):
-        labels_nodes = [("initial", self.structure_node)]
+        labels_nodes = [("initial", self.initial_structure_node)]
         for i, row in enumerate(self.replica_rows):
             node = row.get_node()
             if require_complete and node is None:
@@ -551,6 +564,7 @@ class NebWidget(ipw.VBox):
         node.label = f"NEB interpolated replica {row.index}"
         row.pk.value = node.pk
         row.status.value = f"<span style='color:green'>Stored interpolated replica PK {node.pk}</span>"
+        self._show_node(node)
 
     def _symbols(self, node):
         return node.get_ase().get_chemical_symbols()
@@ -594,6 +608,8 @@ class NebWidget(ipw.VBox):
         initial = labels_nodes[0][1]
         if initial is None:
             raise ValueError("Select the initial structure above.")
+        if not initial.is_stored:
+            initial.store()
         for label, node in labels_nodes[1:]:
             self._validate_pair(initial, node, raise_on_error=True)
         return labels_nodes
@@ -611,7 +627,7 @@ class NebWidget(ipw.VBox):
         previous = None
         for index, (label, node) in enumerate(labels_nodes):
             name = "Initial" if label == "initial" else "Last" if label == "last" else f"Intermediate {index}"
-            pk = "" if node is None else str(node.pk)
+            pk = "" if node is None or node.pk is None else str(node.pk)
             distance = "-"
             status = ""
             color = "black"
@@ -638,6 +654,12 @@ class NebWidget(ipw.VBox):
                 previous = node
         rows_html.append("</table>")
         self.replica_table.value = "".join(rows_html)
+        if self.initial_structure_node is None:
+            self.initial_pk.value = "Initial replica PK: not set"
+        elif self.initial_structure_node.pk is None:
+            self.initial_pk.value = "Initial replica PK: unstored"
+        else:
+            self.initial_pk.value = f"Initial replica PK: {self.initial_structure_node.pk}"
 
     def on_n_intermediate_change(self, _=None):
         nrows = max(0, int(self.n_intermediate.value or 0))
@@ -672,6 +694,8 @@ class NebWidget(ipw.VBox):
         else:
             labels_nodes = self.validate_replicas()
             n_replica = len(labels_nodes)
+            initial_node = labels_nodes[0][1]
+            the_dict["initial_uuid"] = initial_node.uuid
             replica_uuids = [node.uuid for _, node in labels_nodes[1:]]
 
         the_dict["neb_params"] = {
@@ -693,7 +717,13 @@ class NebWidget(ipw.VBox):
         self.nproc_rep.value = str(self.nproc_replica_trait)
 
     @tr.observe("structure_node")
-    def _observe_structure_node(self, _=None):
+    def _observe_structure_node(self, change=None):
+        if self.initial_structure_node is None and self.structure_node is not None:
+            self.initial_structure_node = self.structure_node
+        self.update_replica_table()
+
+    @tr.observe("initial_structure_node")
+    def _observe_initial_structure_node(self, _=None):
         self.update_replica_table()
 
     def on_n_replica_per_group_change(self, _=None):
