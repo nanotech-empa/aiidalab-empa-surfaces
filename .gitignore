@@ -5,6 +5,12 @@
 ### Linux ###
 *~
 
+# Local notebook/session artifacts
+*-0.ipynb
+*-1.ipynb
+*-2.ipynb
+tmp/
+
 # temporary files which can be created if a process still has a handle open of a deleted file
 .fuse_hidden*
 
