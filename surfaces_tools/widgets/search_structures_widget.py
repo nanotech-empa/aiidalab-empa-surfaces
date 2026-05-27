@@ -10,6 +10,9 @@ VIEWERS = {
     "CP2K_AdsorptionE": "view_adsorption_energy.ipynb",
     "CP2K_GeoOpt": "view_geometry_optimization.ipynb",
     "CP2K_CellOpt": "view_geometry_optimization.ipynb",
+    "CP2K_SCF": "view_geometry_optimization.ipynb",
+    "CP2K_SCF_overlap": "view_geometry_optimization.ipynb",
+    "CP2K_SCF_bader": "view_geometry_optimization.ipynb",
     "CP2K_ORBITALS": "view_orbitals.ipynb",
     "CP2K_PDOS": "view_pdos.ipynb",
     "CP2K_STM": "view_stm.ipynb",
@@ -226,10 +229,16 @@ class SearchStructuresWidget(ipw.VBox):
                 for node in entry["workflows"][workflow]:
                     energy = None
                     pk_eq_geo = None
-                    if node.label == "CP2K_GeoOpt":
+                    if node.label in (
+                        "CP2K_GeoOpt",
+                        "CP2K_CellOpt",
+                        "CP2K_SCF",
+                        "CP2K_SCF_overlap",
+                        "CP2K_SCF_bader",
+                    ):
                         try:
                             energy = node.outputs.output_parameters.get_dict()["energy"]
-                        except AttributeError:
+                        except (AttributeError, KeyError):
                             energy = None
                         try:
                             pk_eq_geo = node.outputs.output_structure.pk
