@@ -19,6 +19,7 @@ def get_start_widget(appbase, jupbase):
 
     <td valign="top"><ul>
         <li><a href="{appbase}/submit_geometry_optimization.ipynb" target="_blank">Geometry optimization</a>
+        <li><a href="{appbase}/submit_scf.ipynb" target="_blank">SCF energy</a>
         <li><a href="{appbase}/submit_adsorption_energy.ipynb" target="_blank">Adsorption energy</a>
         <li><a href="{appbase}/submit_phonons.ipynb" target="_blank">Phonons</a>
         <li><a href="{appbase}/submit_replica_chain.ipynb" target="_blank">Replica chain</a>
