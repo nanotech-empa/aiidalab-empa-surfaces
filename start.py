@@ -15,6 +15,17 @@ ICONS = {
             <path d="M24 25l7 3M33 32l-4 5" />
         </svg>
     """,
+    "scf": """
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M13 46h38" />
+            <path d="M18 38c6-18 12-18 18 0s11 10 16-8" />
+            <circle cx="20" cy="24" r="5" />
+            <circle cx="34" cy="20" r="4" />
+            <circle cx="45" cy="30" r="5" />
+            <path d="M25 23l5-2M38 23l4 4" />
+            <path d="M22 52h20" opacity=".55" />
+        </svg>
+    """,
     "adsorption": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
             <path d="M10 45h44M15 51h34M18 39h28" />
@@ -101,6 +112,7 @@ ITEMS = [
         "Density functional theory",
         [
             ("geometry", "Geometry optimization", "Relax a structure to a local minimum.", "submit_geometry_optimization.ipynb"),
+            ("scf", "SCF energy", "Single-point CP2K energy and optional remote overlap matrix.", "submit_scf.ipynb"),
             ("adsorption", "Adsorption energy", "Compare adsorbed and reference systems.", "submit_adsorption_energy.ipynb"),
             ("phonons", "Phonons", "Vibrational modes and finite-difference displacements.", "submit_phonons.ipynb"),
             ("replica", "Replica chain", "Constrained replicas along a reaction coordinate.", "submit_replica_chain.ipynb"),
