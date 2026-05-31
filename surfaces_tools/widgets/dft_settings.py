@@ -4,12 +4,21 @@ import ipywidgets as ipw
 
 
 DEFAULTS = {
+    "PBE": {
+        "basis_set_file_names": "BASIS_MOLOPT",
+        "potential_file_name": "POTENTIAL",
+        "basis_set_key": "basis_set",
+        "potential_key": "pseudopotential",
+        "aux_basis_set_key": "",
+    },
+    "PBE0": {
+        "basis_set_file_names": "BASIS_MOLOPT_UZH, BASIS_ADMM_UZH",
+        "potential_file_name": "POTENTIAL_UZH",
+        "basis_set_key": "pbe0_basis_set",
+        "potential_key": "pbe0_pseudopotential",
+        "aux_basis_set_key": "pbe0_aux_basis_set",
+    },
     "xc_functional": "PBE",
-    "basis_set_file_names": "BASIS_MOLOPT",
-    "potential_file_name": "POTENTIAL",
-    "basis_set_key": "basis_set",
-    "potential_key": "pseudopotential",
-    "aux_basis_set_key": "",
     "hfx_fraction": 0.25,
     "hfx_cutoff_radius": 10.0,
     "hfx_max_memory": 80000,
@@ -40,32 +49,32 @@ class DftSettingsWidget(ipw.VBox):
             style={"description_width": "initial"},
         )
         self.basis_set_file_names = ipw.Text(
-            value=DEFAULTS["basis_set_file_names"],
+            value=DEFAULTS["PBE"]["basis_set_file_names"],
             description="Basis files:",
             placeholder="BASIS_MOLOPT or BASIS_MOLOPT_UZH, BASIS_ADMM_UZH",
             style={"description_width": "initial"},
             layout={"width": "70%"},
         )
         self.potential_file_name = ipw.Text(
-            value=DEFAULTS["potential_file_name"],
+            value=DEFAULTS["PBE"]["potential_file_name"],
             description="Potential file:",
             style={"description_width": "initial"},
             layout={"width": "320px"},
         )
         self.basis_set_key = ipw.Text(
-            value=DEFAULTS["basis_set_key"],
+            value=DEFAULTS["PBE"]["basis_set_key"],
             description="Basis map:",
             style={"description_width": "initial"},
             layout={"width": "320px"},
         )
         self.potential_key = ipw.Text(
-            value=DEFAULTS["potential_key"],
+            value=DEFAULTS["PBE"]["potential_key"],
             description="Potential map:",
             style={"description_width": "initial"},
             layout={"width": "320px"},
         )
         self.aux_basis_set_key = ipw.Text(
-            value=DEFAULTS["aux_basis_set_key"],
+            value=DEFAULTS["PBE"]["aux_basis_set_key"],
             description="Aux basis map:",
             placeholder="Optional atomic_kinds.yml key for BASIS_SET RI_AUX",
             style={"description_width": "initial"},
@@ -114,6 +123,7 @@ class DftSettingsWidget(ipw.VBox):
             layout={"width": "260px"},
         )
         self.hfx_box = ipw.VBox([])
+        self._previous_functional = self.xc_functional.value
         self.xc_functional.observe(self._update_functional_options, "value")
         super().__init__(
             [
@@ -131,7 +141,28 @@ class DftSettingsWidget(ipw.VBox):
         )
         self._update_functional_options()
 
-    def _update_functional_options(self, _=None):
+    def _apply_functional_defaults(self, functional):
+        defaults = DEFAULTS[functional]
+        self.basis_set_file_names.value = defaults["basis_set_file_names"]
+        self.potential_file_name.value = defaults["potential_file_name"]
+        self.basis_set_key.value = defaults["basis_set_key"]
+        self.potential_key.value = defaults["potential_key"]
+        self.aux_basis_set_key.value = defaults["aux_basis_set_key"]
+
+    def _update_functional_options(self, change=None):
+        if change is not None:
+            old_defaults = DEFAULTS[self._previous_functional]
+            current_values = {
+                "basis_set_file_names": self.basis_set_file_names.value,
+                "potential_file_name": self.potential_file_name.value,
+                "basis_set_key": self.basis_set_key.value,
+                "potential_key": self.potential_key.value,
+                "aux_basis_set_key": self.aux_basis_set_key.value,
+            }
+            if all(current_values[key] == old_defaults[key] for key in old_defaults):
+                self._apply_functional_defaults(self.xc_functional.value)
+            self._previous_functional = self.xc_functional.value
+
         self.hfx_box.children = (
             [
                 ipw.HBox(
@@ -152,15 +183,16 @@ class DftSettingsWidget(ipw.VBox):
             for item in self.basis_set_file_names.value.replace(";", ",").split(",")
             if item.strip()
         ]
-        if ", ".join(basis_files) != DEFAULTS["basis_set_file_names"]:
+        defaults = DEFAULTS[self.xc_functional.value]
+        if ", ".join(basis_files) != defaults["basis_set_file_names"]:
             params["basis_set_file_names"] = basis_files
-        if self.potential_file_name.value.strip() != DEFAULTS["potential_file_name"]:
+        if self.potential_file_name.value.strip() != defaults["potential_file_name"]:
             params["potential_file_name"] = self.potential_file_name.value.strip()
-        if self.basis_set_key.value.strip() != DEFAULTS["basis_set_key"]:
+        if self.basis_set_key.value.strip() != defaults["basis_set_key"]:
             params["basis_set_key"] = self.basis_set_key.value.strip()
-        if self.potential_key.value.strip() != DEFAULTS["potential_key"]:
+        if self.potential_key.value.strip() != defaults["potential_key"]:
             params["potential_key"] = self.potential_key.value.strip()
-        if self.aux_basis_set_key.value.strip():
+        if self.aux_basis_set_key.value.strip() != defaults["aux_basis_set_key"]:
             params["aux_basis_set_key"] = self.aux_basis_set_key.value.strip()
 
         for widget, key, label in (
