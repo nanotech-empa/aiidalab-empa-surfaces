@@ -22,6 +22,8 @@ DEFAULTS = {
     "hfx_fraction": 0.25,
     "hfx_cutoff_radius": 10.0,
     "hfx_max_memory": 80000,
+    "ot_minimizer": "CG",
+    "admm_purification_method": "NONE",
 }
 
 
@@ -122,6 +124,20 @@ class DftSettingsWidget(ipw.VBox):
             style={"description_width": "initial"},
             layout={"width": "260px"},
         )
+        self.ot_minimizer = ipw.Dropdown(
+            value=DEFAULTS["ot_minimizer"],
+            options=[("CG", "CG"), ("DIIS", "DIIS")],
+            description="OT minimizer:",
+            style={"description_width": "initial"},
+            layout={"width": "220px"},
+        )
+        self.admm_purification_method = ipw.Dropdown(
+            value=DEFAULTS["admm_purification_method"],
+            options=[("NONE", "NONE"), ("MO_DIAG", "MO_DIAG")],
+            description="ADMM purification:",
+            style={"description_width": "initial"},
+            layout={"width": "320px"},
+        )
         self.hfx_box = ipw.VBox([])
         self._previous_functional = self.xc_functional.value
         self.xc_functional.observe(self._update_functional_options, "value")
@@ -136,6 +152,7 @@ class DftSettingsWidget(ipw.VBox):
                 self.basis_set_overrides,
                 self.aux_basis_set_overrides,
                 self.potential_overrides,
+                ipw.HBox([self.ot_minimizer]),
                 self.hfx_box,
             ]
         )
@@ -167,7 +184,8 @@ class DftSettingsWidget(ipw.VBox):
             [
                 ipw.HBox(
                     [self.hfx_fraction, self.hfx_cutoff_radius, self.hfx_max_memory]
-                )
+                ),
+                ipw.HBox([self.admm_purification_method]),
             ]
             if self.xc_functional.value == "PBE0"
             else []
@@ -204,10 +222,14 @@ class DftSettingsWidget(ipw.VBox):
             if parsed:
                 params[key] = parsed
 
+        if self.ot_minimizer.value != DEFAULTS["ot_minimizer"]:
+            params["ot_minimizer"] = self.ot_minimizer.value
+
         if self.xc_functional.value == "PBE0":
             params["hfx_fraction"] = self.hfx_fraction.value
             params["hfx_cutoff_radius"] = self.hfx_cutoff_radius.value
             params["hfx_max_memory"] = self.hfx_max_memory.value
+            params["admm_purification_method"] = self.admm_purification_method.value
         return params
 
     def update_dft_params(self, dft_params):
