@@ -686,6 +686,7 @@ class NebWidget(ipw.VBox):
         self.n_replica_per_group.value = old_value if old_value in factors else 1
 
     def return_dict(self):
+        nproc_rep = max(1, int(self.nproc_rep.value or 1))
         the_dict = {}
         if self.restart_from.value != "":
             the_dict["restart_from"] = orm.load_node(self.restart_from.value).uuid
@@ -703,7 +704,7 @@ class NebWidget(ipw.VBox):
             "rotate_frames": cp2k_bool(self.rotate_frames.value),
             "band_type": self.band_type.value,
             "k_spring": self.k_spring.value,
-            "nproc_rep": int(self.nproc_rep.value),
+            "nproc_rep": nproc_rep,
             "number_of_replica": n_replica,
             "nsteps_it": int(self.nsteps_it.value),
             "optimize_end_points": cp2k_bool(self.optimize_endpoints.value),
@@ -714,7 +715,7 @@ class NebWidget(ipw.VBox):
 
     @tr.observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
-        self.nproc_rep.value = str(self.nproc_replica_trait)
+        self.nproc_rep.value = str(max(1, int(self.nproc_replica_trait or 1)))
 
     @tr.observe("structure_node")
     def _observe_structure_node(self, change=None):
