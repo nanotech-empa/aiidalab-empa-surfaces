@@ -120,9 +120,9 @@ class DftSettingsWidget(ipw.VBox):
         )
         self.hfx_max_memory = ipw.IntText(
             value=DEFAULTS["hfx_max_memory"],
-            description="HF max memory:",
+            description="HF max memory [MiB/rank]:",
             style={"description_width": "initial"},
-            layout={"width": "260px"},
+            layout={"width": "320px"},
         )
         self.ot_minimizer = ipw.Dropdown(
             value=DEFAULTS["ot_minimizer"],
@@ -138,9 +138,17 @@ class DftSettingsWidget(ipw.VBox):
             style={"description_width": "initial"},
             layout={"width": "320px"},
         )
+        self.show_info = ipw.Checkbox(
+            value=False,
+            description="Show DFT field help",
+            indent=False,
+            style={"description_width": "initial"},
+        )
+        self.info_box = ipw.HTML(layout={"width": "90%"})
         self.hfx_box = ipw.VBox([])
         self._previous_functional = self.xc_functional.value
         self.xc_functional.observe(self._update_functional_options, "value")
+        self.show_info.observe(self._update_info_box, "value")
         super().__init__(
             [
                 ipw.HBox([self.xc_functional]),
@@ -152,11 +160,37 @@ class DftSettingsWidget(ipw.VBox):
                 self.basis_set_overrides,
                 self.aux_basis_set_overrides,
                 self.potential_overrides,
+                self.show_info,
+                self.info_box,
                 ipw.HBox([self.ot_minimizer]),
                 self.hfx_box,
             ]
         )
         self._update_functional_options()
+        self._update_info_box()
+
+    def _update_info_box(self, _=None):
+        if not self.show_info.value:
+            self.info_box.value = ""
+            return
+        self.info_box.value = """
+        <div style='line-height:1.45; max-width: 1000px;'>
+          <strong>Basis and potential fields.</strong>
+          <code>Basis files</code> is a comma-separated list of CP2K basis files.
+          <code>Potential file</code> is the CP2K pseudopotential file.
+          <code>Basis map</code>, <code>Potential map</code>, and <code>Aux basis map</code>
+          are keys in <code>atomic_kinds.yml</code> used to select the default value for each element.<br>
+          <strong>Override fields.</strong>
+          The basis, aux-basis, and potential override boxes expect JSON objects mapping element symbols to CP2K names,
+          for example <code>{&quot;B&quot;: &quot;DZVP-MOLOPT-SR-GTH&quot;, &quot;N&quot;: &quot;DZVP-MOLOPT-SR-GTH&quot;}</code>.
+          These values override the map-derived defaults only for the listed elements.<br>
+          <strong>PBE0 fields.</strong>
+          <code>HF fraction</code> is the exact-exchange fraction.
+          <code>HF cutoff radius</code> is the truncated Coulomb cutoff radius in Angstrom.
+          <code>HF max memory</code> is CP2K HF memory in MiB per MPI process/rank.
+          <code>ADMM purification</code> controls the CP2K ADMM purification method; <code>NONE</code> is the default for diagonalization workflows with added MOs.
+        </div>
+        """
 
     def _apply_functional_defaults(self, functional):
         defaults = DEFAULTS[functional]
