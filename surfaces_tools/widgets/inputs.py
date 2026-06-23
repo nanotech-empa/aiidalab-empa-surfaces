@@ -499,7 +499,7 @@ class NebWidget(ipw.VBox):
         self._sync_state()
 
     @tr.observe("neb_state")
-    def _observe_neb_state(self, _=None):
+    def _observe_neb_state(self, change=None):
         state = dict(self.neb_state or {})
         if not state:
             return
@@ -508,19 +508,15 @@ class NebWidget(ipw.VBox):
             self.restart_from.value = state.get("restart_from", "")
             self.last_replica_pk.value = int(state.get("last_pk", 0) or 0)
             self.n_intermediate.value = int(state.get("n_intermediate", 0) or 0)
-            for row, pk in zip(self.replica_rows, state.get("intermediate_pks", [])):
+            pks = state.get("intermediate_pks", [])
+            coeffs = state.get("coefficients", [])
+            for row, pk in zip(self.replica_rows, pks):
                 row.pk.value = int(pk or 0)
-            for row, coeff in zip(self.replica_rows, state.get("coefficients", [])):
+            for row, coeff in zip(self.replica_rows, coeffs):
                 row.coefficient.value = float(coeff)
-            self.align_frames.value = bool(
-                state.get("align_frames", self.align_frames.value)
-            )
-            self.rotate_frames.value = bool(
-                state.get("rotate_frames", self.rotate_frames.value)
-            )
-            self.optimize_endpoints.value = bool(
-                state.get("optimize_endpoints", self.optimize_endpoints.value)
-            )
+            self.align_frames.value = bool(state.get("align_frames", self.align_frames.value))
+            self.rotate_frames.value = bool(state.get("rotate_frames", self.rotate_frames.value))
+            self.optimize_endpoints.value = bool(state.get("optimize_endpoints", self.optimize_endpoints.value))
             self.band_type.value = state.get("band_type", self.band_type.value)
             self.k_spring.value = state.get("k_spring", self.k_spring.value)
             self.nsteps_it.value = state.get("nsteps_it", self.nsteps_it.value)
@@ -802,8 +798,8 @@ class NebWidget(ipw.VBox):
 
     def traits_to_link(self):
         return [
-            "initial_structure_node",
             "structure_node",
+            "initial_structure_node",
             "structure_manager",
             "neb_state",
             "n_replica_trait",
