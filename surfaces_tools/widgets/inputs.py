@@ -25,7 +25,9 @@ LAYOUT2 = {"width": "35%"}
 class InputDetails(ipw.VBox):
     structure = tr.Instance(Atoms, allow_none=True)  # needed for colvars
     structure_node = tr.Instance(orm.Data, allow_none=True)
+    initial_structure_node = tr.Instance(orm.Data, allow_none=True)
     structure_manager = tr.Any(allow_none=True)
+    neb_state = tr.Dict(default_value={})
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
     details = tr.Dict()
     protocol = tr.Unicode()
@@ -320,6 +322,7 @@ class NebWidget(ipw.VBox):
     structure_node = tr.Instance(orm.Data, allow_none=True)
     initial_structure_node = tr.Instance(orm.Data, allow_none=True)
     structure_manager = tr.Any(allow_none=True)
+    neb_state = tr.Dict(default_value={})
     n_replica_trait = tr.Int()
     nproc_replica_trait = tr.Int()
     n_replica_per_group_trait = tr.Int()
@@ -422,12 +425,20 @@ class NebWidget(ipw.VBox):
         )
 
         self.replica_rows = []
+        self._updating_from_state = False
+        self.restart_from.observe(self._observe_state_value, "value")
         self.last_replica_pk.observe(self.update_replica_table, "value")
         self.set_initial_from_current_button.on_click(lambda _: self.set_initial_from_current())
         self.last_from_current.on_click(lambda _: self.set_last_from_current())
         self.last_show.on_click(lambda _: self.show_last())
         self.n_intermediate.observe(self.on_n_intermediate_change, "value")
         self.n_replica_per_group.observe(self.on_n_replica_per_group_change, "value")
+        self.align_frames.observe(self._observe_state_value, "value")
+        self.rotate_frames.observe(self._observe_state_value, "value")
+        self.optimize_endpoints.observe(self._observe_state_value, "value")
+        self.band_type.observe(self._observe_state_value, "value")
+        self.k_spring.observe(self._observe_state_value, "value")
+        self.nsteps_it.observe(self._observe_state_value, "value")
 
         super().__init__(
             children=[
@@ -464,6 +475,58 @@ class NebWidget(ipw.VBox):
             ],
         )
         self.on_n_intermediate_change()
+
+    def _current_state(self):
+        return {
+            "restart_from": self.restart_from.value,
+            "last_pk": int(self.last_replica_pk.value or 0),
+            "n_intermediate": int(self.n_intermediate.value or 0),
+            "intermediate_pks": [int(row.pk.value or 0) for row in self.replica_rows],
+            "coefficients": [float(row.coefficient.value) for row in self.replica_rows],
+            "align_frames": bool(self.align_frames.value),
+            "rotate_frames": bool(self.rotate_frames.value),
+            "optimize_endpoints": bool(self.optimize_endpoints.value),
+            "band_type": self.band_type.value,
+            "k_spring": self.k_spring.value,
+            "nsteps_it": self.nsteps_it.value,
+        }
+
+    def _sync_state(self):
+        if not self._updating_from_state:
+            self.neb_state = self._current_state()
+
+    def _observe_state_value(self, _=None):
+        self._sync_state()
+
+    @tr.observe("neb_state")
+    def _observe_neb_state(self, _=None):
+        state = dict(self.neb_state or {})
+        if not state:
+            return
+        self._updating_from_state = True
+        try:
+            self.restart_from.value = state.get("restart_from", "")
+            self.last_replica_pk.value = int(state.get("last_pk", 0) or 0)
+            self.n_intermediate.value = int(state.get("n_intermediate", 0) or 0)
+            for row, pk in zip(self.replica_rows, state.get("intermediate_pks", [])):
+                row.pk.value = int(pk or 0)
+            for row, coeff in zip(self.replica_rows, state.get("coefficients", [])):
+                row.coefficient.value = float(coeff)
+            self.align_frames.value = bool(
+                state.get("align_frames", self.align_frames.value)
+            )
+            self.rotate_frames.value = bool(
+                state.get("rotate_frames", self.rotate_frames.value)
+            )
+            self.optimize_endpoints.value = bool(
+                state.get("optimize_endpoints", self.optimize_endpoints.value)
+            )
+            self.band_type.value = state.get("band_type", self.band_type.value)
+            self.k_spring.value = state.get("k_spring", self.k_spring.value)
+            self.nsteps_it.value = state.get("nsteps_it", self.nsteps_it.value)
+        finally:
+            self._updating_from_state = False
+        self.update_replica_table()
 
     def _store_current_structure(self):
         if self.structure_manager is None:
@@ -564,6 +627,7 @@ class NebWidget(ipw.VBox):
         node.label = f"NEB interpolated replica {row.index}"
         row.pk.value = node.pk
         row.status.value = f"<span style='color:green'>Stored interpolated replica PK {node.pk}</span>"
+        self._sync_state()
         self._show_node(node)
 
     def _symbols(self, node):
@@ -654,6 +718,7 @@ class NebWidget(ipw.VBox):
                 previous = node
         rows_html.append("</table>")
         self.replica_table.value = "".join(rows_html)
+        self._sync_state()
         if self.initial_structure_node is None:
             self.initial_pk.value = "Initial replica PK: not set"
         elif self.initial_structure_node.pk is None:
@@ -665,9 +730,14 @@ class NebWidget(ipw.VBox):
         nrows = max(0, int(self.n_intermediate.value or 0))
         self.n_intermediate.value = nrows
         current_values = [row.pk.value for row in self.replica_rows]
+        current_coefficients = [row.coefficient.value for row in self.replica_rows]
         self.replica_rows = [NebReplicaRow(self, i + 1) for i in range(nrows)]
         for row, value in zip(self.replica_rows, current_values):
             row.pk.value = value
+        for row, coefficient in zip(self.replica_rows, current_coefficients):
+            row.coefficient.value = coefficient
+        for row in self.replica_rows:
+            row.coefficient.observe(self._observe_state_value, "value")
         self.rows_box.children = self.replica_rows
         self.update_replica_table()
 
@@ -732,8 +802,10 @@ class NebWidget(ipw.VBox):
 
     def traits_to_link(self):
         return [
+            "initial_structure_node",
             "structure_node",
             "structure_manager",
+            "neb_state",
             "n_replica_trait",
             "nproc_replica_trait",
             "n_replica_per_group_trait",
