@@ -38,6 +38,7 @@ class Fragment(ipw.VBox):
         )
 
         self.output = ipw.Output()
+        self.resources_message = awb.utils.StatusHTML()
 
         # Delete button.
         self.delete_button = ipw.Button(description="Delete", button_style="danger")
@@ -59,6 +60,7 @@ class Fragment(ipw.VBox):
                 self.charge,
                 self.output,
                 ipw.HTML("Resources:"),
+                self.resources_message,
                 self.resources,
                 self.delete_button,
             ],
@@ -76,9 +78,36 @@ class Fragment(ipw.VBox):
         self.master_class.delete_fragment(self)
 
     def estimate_computational_resources(self, whole_structure, selected_code):
-        self.structure_analyzer.structure = whole_structure[
-            string_range_to_list(self.indices.value)[0]
+        indices, is_valid = string_range_to_list(self.indices.value)
+        if not is_valid or not indices:
+            self.resources_message.message = (
+                "<span style='color:red'>Error:</span> "
+                "Select at least one atom before estimating resources."
+            )
+            return
+
+        out_of_range = [
+            index + 1
+            for index in indices
+            if index < 0 or index >= len(whole_structure)
         ]
+        if out_of_range:
+            self.resources_message.message = (
+                "<span style='color:red'>Error:</span> "
+                f"Atom indices out of range: {out_of_range}"
+            )
+            return
+
+        selected_structure = whole_structure[indices]
+        if len(selected_structure) == 0:
+            self.resources_message.message = (
+                "<span style='color:red'>Error:</span> "
+                "The selected fragment contains no atoms."
+            )
+            return
+
+        self.resources_message.message = ""
+        self.structure_analyzer.structure = selected_structure
         self.resources_estimator.details = self.structure_analyzer.details
         self.resources_estimator.selected_code = selected_code
         self.resources_estimator.estimate_resources()
