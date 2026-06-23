@@ -23,6 +23,14 @@ def boxfilter(x, thr):
     # Piero Gasparotto
 
 
+def estimate_layer_coverage(two_d_atoms, area):
+    if len(two_d_atoms) == 0:
+        return 0.0
+    if len(two_d_atoms) < 3:
+        return 1.0
+    return ConvexHull(two_d_atoms).volume / area
+
+
 def get_types(frame):  # classify the atmos in:
     # 0=molecule
     # 1=slab atoms
@@ -93,8 +101,7 @@ def get_types(frame):  # classify the atmos in:
         ]
         coverage = 0
         if len(two_d_atoms) > max_atoms_in_a_layer / 4:
-            hull = ConvexHull(two_d_atoms)
-            coverage = hull.volume / area
+            coverage = estimate_layer_coverage(two_d_atoms, area)
         if coverage > 0.3:
             found_top_surf = True
         else:
@@ -110,8 +117,7 @@ def get_types(frame):  # classify the atmos in:
         ]
         coverage = 0
         if len(two_d_atoms) > max_atoms_in_a_layer / 4:
-            hull = ConvexHull(two_d_atoms)
-            coverage = hull.volume / area
+            coverage = estimate_layer_coverage(two_d_atoms, area)
         if coverage > 0.3 and len(two_d_atoms) > max_atoms_in_a_layer / 4:
             found_bottom_surf = True
         else:
