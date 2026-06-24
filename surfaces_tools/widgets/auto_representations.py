@@ -34,7 +34,14 @@ def _make_representation(
     atom_show_threshold=1,
 ):
     representation = awb_viewers.NglViewerRepresentation(
-        style_id=style_id or f"{viewer.REPRESENTATION_PREFIX}{name}",
+        style_id=style_id
+        or awb_viewers.encode_representation_style_id(
+            viewer.REPRESENTATION_PREFIX,
+            representation_type=representation_type,
+            size=3,
+            color="element",
+            token=name,
+        ),
         indices=indices,
         deletable=deletable,
         atom_show_threshold=atom_show_threshold,
