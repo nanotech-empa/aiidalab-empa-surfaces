@@ -23,16 +23,51 @@ def molecule_and_non_molecule_atoms(details, natoms):
     return molecules_atoms, non_molecule_atoms
 
 
-def _make_representation(viewer, name, indices, representation_type):
+def _make_representation(
+    viewer,
+    name,
+    indices,
+    representation_type,
+    *,
+    style_id=None,
+    deletable=True,
+    atom_show_threshold=1,
+):
     representation = awb_viewers.NglViewerRepresentation(
-        style_id=f"{viewer.REPRESENTATION_PREFIX}{name}",
+        style_id=style_id or f"{viewer.REPRESENTATION_PREFIX}{name}",
         indices=indices,
+        deletable=deletable,
+        atom_show_threshold=atom_show_threshold,
     )
     representation.type.value = representation_type
     representation.size.value = 3
     representation.color.value = "element"
     representation.viewer_class = viewer
     return representation
+
+
+def reset_default_representation(viewer):
+    """Reset a StructureDataViewer to one default all-atom representation."""
+    structure = viewer.structure
+    if not isinstance(structure, Atoms):
+        return
+
+    default_representation = _make_representation(
+        viewer,
+        "default",
+        list(range(len(structure))),
+        "ball+stick",
+        style_id=viewer.DEFAULT_REPRESENTATION,
+        deletable=False,
+        atom_show_threshold=0,
+    )
+    viewer._all_representations = [default_representation]
+
+    for array in list(structure.arrays):
+        if array.startswith(viewer.REPRESENTATION_PREFIX):
+            del structure.arrays[array]
+
+    viewer._apply_representations()
 
 
 def apply_auto_representations(viewer, details):
@@ -53,6 +88,9 @@ def apply_auto_representations(viewer, details):
             "molecules",
             molecules_atoms,
             "ball+stick",
+            style_id=viewer.DEFAULT_REPRESENTATION,
+            deletable=False,
+            atom_show_threshold=0,
         )
     ]
     if non_molecule_atoms:
@@ -101,6 +139,12 @@ class AutoRepresentationWidget(ipw.VBox):
         self.button.on_click(self.apply)
         self.status = ipw.HTML()
         super().__init__(children=[self.button, self.status], **kwargs)
+        self.observe(self._observe_structure, names="structure")
+
+    def _observe_structure(self, _=None):
+        if isinstance(getattr(self.viewer, "structure", None), Atoms):
+            reset_default_representation(self.viewer)
+        self.status.value = ""
 
     def _details(self):
         if self.details:
