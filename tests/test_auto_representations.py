@@ -50,6 +50,14 @@ class AutoRepresentationsTest(unittest.TestCase):
         self.assertEqual(viewer._all_representations[0].selection.value, "3..4")
         self.assertEqual(viewer._all_representations[1].type.value, "spacefill")
         self.assertEqual(viewer._all_representations[1].selection.value, "1..2")
+        expected_style_id = viewers.encode_representation_style_id(
+            viewer.REPRESENTATION_PREFIX,
+            representation_type="spacefill",
+            size=3,
+            color="element",
+            token="non_molecule",
+        )
+        self.assertEqual(viewer._all_representations[1].style_id, expected_style_id)
 
     def test_structure_change_resets_stale_auto_representations(self):
         first_structure = Atoms(
