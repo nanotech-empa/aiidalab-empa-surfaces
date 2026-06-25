@@ -149,7 +149,12 @@ class AutoRepresentationWidget(ipw.VBox):
         self.observe(self._observe_structure, names="structure")
 
     def _observe_structure(self, _=None):
-        if isinstance(getattr(self.viewer, "structure", None), Atoms):
+        structure = getattr(self.viewer, "structure", None)
+        has_stored_representations = isinstance(structure, Atoms) and any(
+            array.startswith(self.viewer.REPRESENTATION_PREFIX)
+            for array in structure.arrays
+        )
+        if isinstance(structure, Atoms) and not has_stored_representations:
             reset_default_representation(self.viewer)
         self.status.value = ""
 
