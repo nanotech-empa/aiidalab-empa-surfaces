@@ -9,6 +9,7 @@ from aiida import orm
 from IPython.display import clear_output
 
 from surfaces_tools.utils import spm
+from surfaces_tools.utils.files import download_link
 
 
 def load_afm_pp_data(afm_pp_calc):
@@ -187,9 +188,7 @@ class ViewAfmLegacy(ipw.VBox):
 
         with open("tmp/" + filename, "wb") as f:
             f.write(zip_buffer.getvalue())
-        self.download_zip_link.value = (
-            f'<a href="tmp/{filename}" target="_blank">download zip</a>'
-        )
+        self.download_zip_link.value = download_link(filename)
 
 
 class ViewAfmWidget(ipw.VBox):
@@ -306,6 +305,4 @@ class ViewAfmWidget(ipw.VBox):
 
         with open("tmp/" + filename, "wb") as f:
             f.write(zip_buffer.getvalue())
-        self.download_zip_link.value = (
-            f'<a href="tmp/{filename}" target="_blank">download zip</a>'
-        )
+        self.download_zip_link.value = download_link(filename)
