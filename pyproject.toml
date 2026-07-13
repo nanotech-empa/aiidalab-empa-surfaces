@@ -1,0 +1,2 @@
+[tool.ruff]
+builtins = ["jupyter_notebook_url"]

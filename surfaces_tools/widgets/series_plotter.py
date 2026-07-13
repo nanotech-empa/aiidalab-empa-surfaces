@@ -11,6 +11,7 @@ import numpy as np
 from IPython.display import HTML, display
 
 from ..utils import igor
+from ..utils.files import download_link
 
 
 def download_link(filename):

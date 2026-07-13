@@ -755,7 +755,6 @@ class LowDimFinder:
             and self.supercell_size < self.params["max_supercell"]
             and self._low_dim_index == 0
         ):
-
             self.supercell_size = self.supercell_size + 1
             # reset all the group data
             self._groups = []
@@ -813,14 +812,17 @@ class LowDimFinder:
         elif self._dimensionality[self._low_dim_index] == 1:
             idx = find_shortest_vector(vectors)
             normal_vector1 = np.cross(
-                vectors[idx], [1, 0, 0]  # pylint: disable=invalid-sequence-index
+                vectors[idx],
+                [1, 0, 0],  # pylint: disable=invalid-sequence-index
             )
             if np.linalg.norm(normal_vector1) < 0.000001:
                 normal_vector1 = np.cross(
-                    vectors[idx], [0, 1, 0]  # pylint: disable=invalid-sequence-index
+                    vectors[idx],
+                    [0, 1, 0],  # pylint: disable=invalid-sequence-index
                 )
             normal_vector2 = np.cross(
-                vectors[idx], normal_vector1  # pylint: disable=invalid-sequence-index
+                vectors[idx],
+                normal_vector1,  # pylint: disable=invalid-sequence-index
             )
             normal_vector1 = normal_vector1 / np.linalg.norm(normal_vector1)
             normal_vector2 = normal_vector2 / np.linalg.norm(normal_vector2)
@@ -895,7 +897,6 @@ class LowDimFinder:
 
         # 3 Dimensional --> return input structure
         if self._get_dimensionality()[self._low_dim_index] == 3:
-
             self._reduced_ase_structures.append(self.structure)
             self._chemical_formula.append(self.structure.get_chemical_formula())
             self._positions.append(self.structure.get_positions().tolist())
@@ -941,7 +942,6 @@ class LowDimFinder:
             positions = np.array(positions)
 
             if self.params["orthogonal_axis_2D"]:
-
                 positions = (
                     positions
                     - (min_z - self.params["vacuum_space"] / 2)
@@ -1035,7 +1035,6 @@ class LowDimFinder:
             pbc = [False, False, True]
 
         elif self._get_dimensionality()[self._low_dim_index] == 0:
-
             for i in self._get_unit_cell_groups()[self._low_dim_index]:
                 positions.append(
                     [
@@ -1119,7 +1118,6 @@ class LowDimFinder:
         )
 
         if self.params["rotation"]:
-
             original_struc = self.structure.copy()
             rotated_original_structure, reduced_ase_structure = self._rotate_structures(
                 original_struc, reduced_ase_structure
@@ -1402,7 +1400,6 @@ class LowDimFinder:
         for idx, dim in enumerate(self._dimensionality):
             # build 3D structure with layer lattice
             if dim == 2 and not self.params["orthogonal_axis_2D"]:
-
                 positions = self.structure.get_positions()
                 positions = positions - self.structure.cell[2]
 
@@ -1471,9 +1468,7 @@ def find_shortest_vector(array):
     return idx
 
 
-def get_bonded_pairs(
-    coords, radii_array, factor=1.0, use_scipy=True
-):  # pylint: disable=too-many-locals
+def get_bonded_pairs(coords, radii_array, factor=1.0, use_scipy=True):  # pylint: disable=too-many-locals
     """
     Get the list of pairs of connected atoms in the cell.
     (i, j) in the list means atom i and atom j are connected.
