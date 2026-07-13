@@ -8,8 +8,12 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from IPython.display import HTML, display
+from matplotlib.transforms import Affine2D
 
 from ..utils import igor
+
+BOHR_TO_ANG = 0.529177
+
 
 colormaps = ["seismic", "gist_heat"]
 
@@ -25,6 +29,7 @@ def make_plot(
     ax,
     data,
     extent,
+    grid_geometry=None,
     title=None,
     title_size=None,
     center0=False,
@@ -33,26 +38,40 @@ def make_plot(
     cmap="gist_heat",
     noadd=False,
 ):
+    imshow_args = {
+        "origin": "lower",
+        "cmap": cmap,
+        "interpolation": "bicubic",
+        "vmin": vmin,
+        "vmax": vmax,
+    }
     if center0:
         data_amax = np.max(np.abs(data))
+        imshow_args["vmin"] = -data_amax
+        imshow_args["vmax"] = data_amax
+
+    if grid_geometry is not None:
+        transform = Affine2D.from_values(*grid_geometry["transform"])
         im = ax.imshow(
             data.T,
-            origin="lower",
-            cmap=cmap,
-            interpolation="bicubic",
-            extent=extent,
-            vmin=-data_amax,
-            vmax=data_amax,
+            extent=(0, data.shape[0], 0, data.shape[1]),
+            transform=transform + ax.transData,
+            **imshow_args,
+        )
+        corners = grid_geometry["corners"]
+        ax.set_xlim(grid_geometry["xlim"])
+        ax.set_ylim(grid_geometry["ylim"])
+        ax.plot(
+            corners[[0, 1, 2, 3, 0], 0],
+            corners[[0, 1, 2, 3, 0], 1],
+            color="black",
+            linewidth=0.8,
         )
     else:
         im = ax.imshow(
             data.T,
-            origin="lower",
-            cmap=cmap,
-            interpolation="bicubic",
             extent=extent,
-            vmin=vmin,
-            vmax=vmax,
+            **imshow_args,
         )
 
     if noadd:
@@ -67,7 +86,69 @@ def make_plot(
     ax.set_title(title, loc="left")
     if title_size:
         ax.title.set_fontsize(title_size)
-    ax.axis("scaled")
+    if grid_geometry is not None:
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlim(grid_geometry["xlim"])
+        ax.set_ylim(grid_geometry["ylim"])
+    else:
+        ax.axis("scaled")
+
+
+def _grid_geometry(general_info, data_shape):
+    x_arr = general_info["x_arr"] * BOHR_TO_ANG
+    y_arr = general_info["y_arr"] * BOHR_TO_ANG
+
+    extent = [np.min(x_arr), np.max(x_arr), np.min(y_arr), np.max(y_arr)]
+    figure_xy_ratio = (extent[1] - extent[0]) / (extent[3] - extent[2])
+
+    dv_vectors = general_info.get("dv_vectors")
+    if dv_vectors is None:
+        return extent, figure_xy_ratio, None
+
+    dv_vectors = np.asarray(dv_vectors, dtype=float) * BOHR_TO_ANG
+    origin = np.asarray(general_info.get("origin", [0.0, 0.0, 0.0]), dtype=float)
+    origin = origin * BOHR_TO_ANG
+
+    a_vec = dv_vectors[0, :2]
+    b_vec = dv_vectors[1, :2]
+    nx, ny = data_shape
+    corners = np.array(
+        [
+            origin[:2],
+            origin[:2] + nx * a_vec,
+            origin[:2] + nx * a_vec + ny * b_vec,
+            origin[:2] + ny * b_vec,
+        ]
+    )
+
+    is_skewed = abs(a_vec[1]) > 1.0e-10 or abs(b_vec[0]) > 1.0e-10
+    if not is_skewed:
+        return extent, figure_xy_ratio, None
+
+    x_span = corners[:, 0].max() - corners[:, 0].min()
+    y_span = corners[:, 1].max() - corners[:, 1].min()
+    pad_x = max(0.02 * x_span, 1.0e-8)
+    pad_y = max(0.02 * y_span, 1.0e-8)
+
+    geometry = {
+        "transform": (
+            a_vec[0],
+            a_vec[1],
+            b_vec[0],
+            b_vec[1],
+            origin[0],
+            origin[1],
+        ),
+        "corners": corners,
+        "xlim": (corners[:, 0].min() - pad_x, corners[:, 0].max() + pad_x),
+        "ylim": (corners[:, 1].min() - pad_y, corners[:, 1].max() + pad_y),
+    }
+
+    figure_xy_ratio = (geometry["xlim"][1] - geometry["xlim"][0]) / (
+        geometry["ylim"][1] - geometry["ylim"][0]
+    )
+
+    return extent, figure_xy_ratio, geometry
 
 
 def make_series_label(info, i_spin=None):
@@ -121,6 +202,7 @@ class SeriesPlotter:
 
         self.extent = None
         self.figure_xy_ratio = None
+        self.grid_geometry = None
         self.wc_pk = None
 
         self.zip_prepend = zip_prepend
@@ -177,12 +259,8 @@ class SeriesPlotter:
                 series_label = make_series_label(sq_info, i_spin=spin)
                 self.series[series_label] = (sq_data, sq_info, general_info)
 
-        x_arr = general_info["x_arr"] * 0.529177
-        y_arr = general_info["y_arr"] * 0.529177
-
-        self.extent = [np.min(x_arr), np.max(x_arr), np.min(y_arr), np.max(y_arr)]
-        self.figure_xy_ratio = (np.max(x_arr) - np.min(x_arr)) / (
-            np.max(y_arr) - np.min(y_arr)
+        self.extent, self.figure_xy_ratio, self.grid_geometry = _grid_geometry(
+            general_info, series_data.shape[-2:]
         )
 
     def setup_added_collections(self, wc_pk):
@@ -315,6 +393,7 @@ class SeriesPlotter:
                         vmin=vmin,
                         vmax=vmax,
                         extent=self.extent,
+                        grid_geometry=self.grid_geometry,
                         title=title,
                         cmap=cmap,
                         noadd=True,
@@ -403,6 +482,7 @@ class SeriesPlotter:
                     vmin=vmin,
                     vmax=vmax,
                     extent=self.extent,
+                    grid_geometry=self.grid_geometry,
                     title=title,
                     cmap=cmap,
                     noadd=False,
