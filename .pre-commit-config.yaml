@@ -28,6 +28,10 @@ repos:
     hooks:
       - id: mypy
         name: mypy
+        # Runs the `mypy` on PATH (installed via `pip install -e .[dev]`,
+        # see setup.cfg) rather than pre-commit's isolated mypy mirror,
+        # so it picks up the project's actual runtime dependencies for
+        # accurate type resolution.
         entry: mypy
         args: [--pretty, --config-file=pyproject.toml, surfaces_tools/]
         language: system
