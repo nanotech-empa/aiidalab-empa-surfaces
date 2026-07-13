@@ -188,9 +188,7 @@ class ViewAfmLegacy(ipw.VBox):
 
         with open("tmp/" + filename, "wb") as f:
             f.write(zip_buffer.getvalue())
-        self.download_zip_link.value = (
-            download_link(filename)
-        )
+        self.download_zip_link.value = download_link(filename)
 
 
 class ViewAfmWidget(ipw.VBox):
@@ -307,6 +305,4 @@ class ViewAfmWidget(ipw.VBox):
 
         with open("tmp/" + filename, "wb") as f:
             f.write(zip_buffer.getvalue())
-        self.download_zip_link.value = (
-            download_link(filename)
-        )
+        self.download_zip_link.value = download_link(filename)
