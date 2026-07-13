@@ -1,6 +1,5 @@
 import io
 import zipfile
-from html import escape
 from pathlib import Path
 
 import ipywidgets as ipw
@@ -11,11 +10,6 @@ from IPython.display import clear_output
 
 from surfaces_tools.utils import spm
 from surfaces_tools.utils.files import download_link
-
-
-def download_link(filename):
-    href = f"/files/apps/surfaces/tmp/{escape(filename)}"
-    return f'<a href="{href}" download="{escape(filename)}">download zip</a>'
 
 
 def load_afm_pp_data(afm_pp_calc):
