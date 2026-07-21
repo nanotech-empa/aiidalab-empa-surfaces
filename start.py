@@ -21,7 +21,8 @@ def get_start_widget(appbase, jupbase):
         <li><a href="{appbase}/submit_geometry_optimization.ipynb" target="_blank">Geometry optimization</a>
         <li><a href="{appbase}/submit_adsorption_energy.ipynb" target="_blank">Adsorption energy</a>
         <li><a href="{appbase}/submit_phonons.ipynb" target="_blank">Phonons</a>
-        <li><a href="{appbase}/submit_reactions.ipynb" target="_blank">Reactions</a>
+        <li><a href="{appbase}/submit_replica_chain.ipynb" target="_blank">Replica chain</a>
+        <li><a href="{appbase}/submit_neb.ipynb" target="_blank">Nudged elastic band</a>
         <li><a href="{appbase}/search.ipynb" target="_blank">Search</a>
     </ul></td>
 
