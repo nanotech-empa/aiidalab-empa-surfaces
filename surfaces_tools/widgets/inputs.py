@@ -425,7 +425,9 @@ class NebWidget(ipw.VBox):
         self._updating_from_state = False
         self.restart_from.observe(self._observe_state_value, "value")
         self.last_replica_pk.observe(self.update_replica_table, "value")
-        self.set_initial_from_current_button.on_click(lambda _: self.set_initial_from_current())
+        self.set_initial_from_current_button.on_click(
+            lambda _: self.set_initial_from_current()
+        )
         self.last_from_current.on_click(lambda _: self.set_last_from_current())
         self.last_show.on_click(lambda _: self.show_last())
         self.n_intermediate.observe(self.on_n_intermediate_change, "value")
@@ -442,7 +444,9 @@ class NebWidget(ipw.VBox):
                 self.restart_from,
                 info_restart,
                 ipw.HBox([self.initial_pk, self.set_initial_from_current_button]),
-                ipw.HBox([self.last_replica_pk, self.last_from_current, self.last_show]),
+                ipw.HBox(
+                    [self.last_replica_pk, self.last_from_current, self.last_show]
+                ),
                 self.n_intermediate,
                 self.rows_box,
                 self.replica_table,
@@ -619,11 +623,15 @@ class NebWidget(ipw.VBox):
         atoms_first = first.get_ase()
         atoms_last = last.get_ase()
         atoms_interp = atoms_first.copy()
-        atoms_interp.positions = (1.0 - coeff) * atoms_first.positions + coeff * atoms_last.positions
+        atoms_interp.positions = (
+            1.0 - coeff
+        ) * atoms_first.positions + coeff * atoms_last.positions
         node = orm.StructureData(ase=atoms_interp).store()
         node.label = f"NEB interpolated replica {row.index}"
         row.pk.value = node.pk
-        row.status.value = f"<span style='color:green'>Stored interpolated replica PK {node.pk}</span>"
+        row.status.value = (
+            f"<span style='color:green'>Stored interpolated replica PK {node.pk}</span>"
+        )
         self._sync_state()
         self._show_node(node)
 
@@ -640,7 +648,9 @@ class NebWidget(ipw.VBox):
             return False, msg
         prev_symbols = prev_atoms.get_chemical_symbols()
         curr_symbols = curr_atoms.get_chemical_symbols()
-        for index, (prev_symbol, curr_symbol) in enumerate(zip(prev_symbols, curr_symbols)):
+        for index, (prev_symbol, curr_symbol) in enumerate(
+            zip(prev_symbols, curr_symbols)
+        ):
             if prev_symbol != curr_symbol:
                 msg = (
                     f"Atom order changed at index {index}: "
@@ -652,7 +662,9 @@ class NebWidget(ipw.VBox):
         return True, ""
 
     def _distance(self, previous, current):
-        return float(np.linalg.norm(previous.get_ase().positions - current.get_ase().positions))
+        return float(
+            np.linalg.norm(previous.get_ase().positions - current.get_ase().positions)
+        )
 
     def _cell_warning(self, previous, current):
         prev_atoms = previous.get_ase()
@@ -687,7 +699,13 @@ class NebWidget(ipw.VBox):
         ]
         previous = None
         for index, (label, node) in enumerate(labels_nodes):
-            name = "Initial" if label == "initial" else "Last" if label == "last" else f"Intermediate {index}"
+            name = (
+                "Initial"
+                if label == "initial"
+                else "Last"
+                if label == "last"
+                else f"Intermediate {index}"
+            )
             pk = "" if node is None or node.pk is None else str(node.pk)
             distance = "-"
             status = ""
@@ -721,7 +739,9 @@ class NebWidget(ipw.VBox):
         elif self.initial_structure_node.pk is None:
             self.initial_pk.value = "Initial replica PK: unstored"
         else:
-            self.initial_pk.value = f"Initial replica PK: {self.initial_structure_node.pk}"
+            self.initial_pk.value = (
+                f"Initial replica PK: {self.initial_structure_node.pk}"
+            )
 
     def on_n_intermediate_change(self, _=None):
         nrows = max(0, int(self.n_intermediate.value or 0))
@@ -744,7 +764,11 @@ class NebWidget(ipw.VBox):
             set(
                 reduce(
                     list.__add__,
-                    ([i, nrep // i] for i in range(1, int(nrep**0.5) + 1) if nrep % i == 0),
+                    (
+                        [i, nrep // i]
+                        for i in range(1, int(nrep**0.5) + 1)
+                        if nrep % i == 0
+                    ),
                 )
             )
         )
