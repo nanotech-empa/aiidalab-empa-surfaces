@@ -23,6 +23,10 @@ LAYOUT2 = {"width": "35%"}
 
 class InputDetails(ipw.VBox):
     structure = tr.Instance(Atoms, allow_none=True)  # needed for colvars
+    structure_node = tr.Instance(orm.Data, allow_none=True)
+    initial_structure_node = tr.Instance(orm.Data, allow_none=True)
+    structure_manager = tr.Any(allow_none=True)
+    neb_state = tr.Dict(default_value={})
     selected_code = tr.Union([tr.Unicode(), tr.Instance(orm.Code)], allow_none=True)
     details = tr.Dict()
     protocol = tr.Unicode()
@@ -261,7 +265,61 @@ class ReplicaWidget(ipw.VBox):
         return []
 
 
+class NebReplicaRow(ipw.VBox):
+    def __init__(self, parent, index):
+        self.parent = parent
+        self.index = index
+        self.pk = ipw.IntText(
+            description=f"Replica {index} PK:",
+            value=0,
+            style={"description_width": "120px"},
+            layout={"width": "260px"},
+        )
+        self.from_current = ipw.Button(
+            description="From current visualized",
+            layout={"width": "190px"},
+        )
+        self.show = ipw.Button(description="Show", layout={"width": "70px"})
+        self.coefficient = ipw.FloatSlider(
+            value=0.5,
+            min=0.1,
+            max=0.9,
+            step=0.1,
+            readout_format=".1f",
+            description="Coeff:",
+            style={"description_width": "55px"},
+            layout={"width": "260px"},
+        )
+        self.interpolate = ipw.Button(
+            description="Interpolate prev-next",
+            layout={"width": "190px"},
+        )
+        self.status = ipw.HTML(layout={"width": "95%"})
+
+        self.pk.observe(self.parent.update_replica_table, "value")
+        self.from_current.on_click(lambda _: self.parent.set_row_from_current(self))
+        self.show.on_click(lambda _: self.parent.show_row(self))
+        self.interpolate.on_click(lambda _: self.parent.interpolate_row(self))
+
+        super().__init__(
+            children=[
+                ipw.HBox([self.pk, self.from_current, self.show]),
+                ipw.HBox([self.coefficient, self.interpolate]),
+                self.status,
+            ]
+        )
+
+    def get_node(self):
+        if not self.pk.value:
+            return None
+        return orm.load_node(int(self.pk.value))
+
+
 class NebWidget(ipw.VBox):
+    structure_node = tr.Instance(orm.Data, allow_none=True)
+    initial_structure_node = tr.Instance(orm.Data, allow_none=True)
+    structure_manager = tr.Any(allow_none=True)
+    neb_state = tr.Dict(default_value={})
     n_replica_trait = tr.Int()
     nproc_replica_trait = tr.Int()
     n_replica_per_group_trait = tr.Int()
@@ -274,19 +332,38 @@ class NebWidget(ipw.VBox):
             layout={"width": "90%"},
         )
         info_restart = ipw.HTML(
-            value="""If you want to restart from a previous NEB calculation, please enter the PK of the neb calculation.<br>
-            You should then leave empty the replica PKs field.<br>
-            In the field replica PKs, please enter the PKs of the replicas you want to use for the NEB calculation.<br>
-            You have to <strong>OMIT</strong> the first one that is defined by the selected structure<br>
-            <strong>At leat one PK is needed</strong>, defining the final replica of te NEB.<br>""",
+            value="""If you want to restart from a previous NEB calculation, enter the PK of the NEB calculation.<br>
+            Otherwise define the endpoint first, then optionally define intermediate replicas.<br>
+            The initial replica is frozen when the first structure is selected. Use the explicit button below to change it.<br>""",
             layout={"width": "90%"},
         )
-        self.replica_pks = ipw.Text(
-            description="Replica PKs:",
-            value="",
+        self.initial_pk = ipw.HTML("Initial replica PK: not set")
+        self.set_initial_from_current_button = ipw.Button(
+            description="Set initial from current visualized",
+            layout={"width": "240px"},
+        )
+
+        self.last_replica_pk = ipw.IntText(
+            description="Last replica PK:",
+            value=0,
             style={"description_width": "150px"},
-            layout={"width": "90%"},
+            layout={"width": "290px"},
         )
+        self.last_from_current = ipw.Button(
+            description="From current visualized",
+            layout={"width": "190px"},
+        )
+        self.last_show = ipw.Button(description="Show", layout={"width": "70px"})
+        self.n_intermediate = ipw.IntText(
+            description="# intermediate replicas:",
+            value=0,
+            min=0,
+            style={"description_width": "150px"},
+            layout={"width": "290px"},
+        )
+        self.rows_box = ipw.VBox()
+        self.replica_table = ipw.HTML(layout={"width": "95%"})
+
         self.align_frames = ipw.Checkbox(
             description="Align Frames",
             value=False,
@@ -324,15 +401,15 @@ class NebWidget(ipw.VBox):
             style={"description_width": "initial"},
             layout={"width": "150px"},
         )
-        self.n_replica = ipw.IntText(
+        self.n_replica = ipw.HTML(
             description="# of replica",
-            value="15",
+            value="2",
             style={"description_width": "initial"},
             layout={"width": "150px"},
         )
         self.n_replica_per_group = ipw.Dropdown(
             description="# rep / group",
-            options=[1, 3, 5],
+            options=[1, 2],
             value=1,
             style={"description_width": "initial"},
             layout={"width": "150px"},
@@ -344,14 +421,35 @@ class NebWidget(ipw.VBox):
             layout={"width": "150px"},
         )
 
-        self.n_replica.observe(self.on_n_replica_change, "value")
+        self.replica_rows = []
+        self._updating_from_state = False
+        self.restart_from.observe(self._observe_state_value, "value")
+        self.last_replica_pk.observe(self.update_replica_table, "value")
+        self.set_initial_from_current_button.on_click(
+            lambda _: self.set_initial_from_current()
+        )
+        self.last_from_current.on_click(lambda _: self.set_last_from_current())
+        self.last_show.on_click(lambda _: self.show_last())
+        self.n_intermediate.observe(self.on_n_intermediate_change, "value")
         self.n_replica_per_group.observe(self.on_n_replica_per_group_change, "value")
+        self.align_frames.observe(self._observe_state_value, "value")
+        self.rotate_frames.observe(self._observe_state_value, "value")
+        self.optimize_endpoints.observe(self._observe_state_value, "value")
+        self.band_type.observe(self._observe_state_value, "value")
+        self.k_spring.observe(self._observe_state_value, "value")
+        self.nsteps_it.observe(self._observe_state_value, "value")
 
         super().__init__(
             children=[
                 self.restart_from,
                 info_restart,
-                self.replica_pks,
+                ipw.HBox([self.initial_pk, self.set_initial_from_current_button]),
+                ipw.HBox(
+                    [self.last_replica_pk, self.last_from_current, self.last_show]
+                ),
+                self.n_intermediate,
+                self.rows_box,
+                self.replica_table,
                 ipw.HBox(
                     [self.optimize_endpoints, self.align_frames, self.rotate_frames]
                 ),
@@ -377,49 +475,362 @@ class NebWidget(ipw.VBox):
                 ),
             ],
         )
+        self.on_n_intermediate_change()
+
+    def _current_state(self):
+        return {
+            "restart_from": self.restart_from.value,
+            "last_pk": int(self.last_replica_pk.value or 0),
+            "n_intermediate": int(self.n_intermediate.value or 0),
+            "intermediate_pks": [int(row.pk.value or 0) for row in self.replica_rows],
+            "coefficients": [float(row.coefficient.value) for row in self.replica_rows],
+            "align_frames": bool(self.align_frames.value),
+            "rotate_frames": bool(self.rotate_frames.value),
+            "optimize_endpoints": bool(self.optimize_endpoints.value),
+            "band_type": self.band_type.value,
+            "k_spring": self.k_spring.value,
+            "nsteps_it": self.nsteps_it.value,
+        }
+
+    def _sync_state(self):
+        if not self._updating_from_state:
+            self.neb_state = self._current_state()
+
+    def _observe_state_value(self, _=None):
+        self._sync_state()
+
+    @tr.observe("neb_state")
+    def _observe_neb_state(self, _=None):
+        state = dict(self.neb_state or {})
+        if not state:
+            return
+        self._updating_from_state = True
+        try:
+            self.restart_from.value = state.get("restart_from", "")
+            self.last_replica_pk.value = int(state.get("last_pk", 0) or 0)
+            self.n_intermediate.value = int(state.get("n_intermediate", 0) or 0)
+            for row, pk in zip(self.replica_rows, state.get("intermediate_pks", [])):
+                row.pk.value = int(pk or 0)
+            for row, coeff in zip(self.replica_rows, state.get("coefficients", [])):
+                row.coefficient.value = float(coeff)
+            self.align_frames.value = bool(
+                state.get("align_frames", self.align_frames.value)
+            )
+            self.rotate_frames.value = bool(
+                state.get("rotate_frames", self.rotate_frames.value)
+            )
+            self.optimize_endpoints.value = bool(
+                state.get("optimize_endpoints", self.optimize_endpoints.value)
+            )
+            self.band_type.value = state.get("band_type", self.band_type.value)
+            self.k_spring.value = state.get("k_spring", self.k_spring.value)
+            self.nsteps_it.value = state.get("nsteps_it", self.nsteps_it.value)
+        finally:
+            self._updating_from_state = False
+        self.update_replica_table()
+
+    def _store_current_structure(self):
+        if self.structure_manager is None:
+            if self.structure_node is None:
+                raise ValueError("No current structure is available.")
+            if self.structure_node.is_stored:
+                return self.structure_node
+            return self.structure_node.store()
+
+        node = self.structure_manager.structure_node
+        if node is not None and node.is_stored:
+            return node
+        if self.structure_manager.structure is None:
+            raise ValueError("No current visualized structure is available.")
+        return orm.StructureData(ase=self.structure_manager.structure).store()
+
+    def _show_node(self, node):
+        if self.structure_manager is None:
+            return
+        self.structure_manager.input_structure = node
+
+    def set_initial_from_current(self):
+        node = self._store_current_structure()
+        self.initial_structure_node = node
+        self.update_replica_table()
+
+    def set_last_from_current(self):
+        node = self._store_current_structure()
+        self.last_replica_pk.value = node.pk
+
+    def set_row_from_current(self, row):
+        node = self._store_current_structure()
+        row.pk.value = node.pk
+
+    def show_last(self):
+        if self.last_replica_pk.value:
+            self._show_node(orm.load_node(int(self.last_replica_pk.value)))
+
+    def show_row(self, row):
+        if row.pk.value:
+            self._show_node(orm.load_node(int(row.pk.value)))
+
+    def _node_from_label(self, label):
+        if label == "initial":
+            return self.initial_structure_node
+        if label == "last":
+            return orm.load_node(int(self.last_replica_pk.value))
+        row_index = int(label.split("_")[-1])
+        return self.replica_rows[row_index].get_node()
+
+    def _ordered_nodes_with_labels(self, require_complete=False):
+        labels_nodes = [("initial", self.initial_structure_node)]
+        for i, row in enumerate(self.replica_rows):
+            node = row.get_node()
+            if require_complete and node is None:
+                raise ValueError(f"Intermediate replica {i + 1} is not defined.")
+            labels_nodes.append((f"intermediate_{i}", node))
+        last_node = None
+        if self.last_replica_pk.value:
+            last_node = orm.load_node(int(self.last_replica_pk.value))
+        if require_complete and last_node is None:
+            raise ValueError("Last replica is not defined.")
+        labels_nodes.append(("last", last_node))
+        return labels_nodes
+
+    def _reference_labels_for_row(self, row):
+        ordered = self._ordered_nodes_with_labels(require_complete=False)
+        row_label = f"intermediate_{row.index - 1}"
+        labels = [label for label, node in ordered if node is not None]
+        current_position = [label for label, _ in ordered].index(row_label)
+
+        before = None
+        for label, node in reversed(ordered[:current_position]):
+            if node is not None:
+                before = label
+                break
+        after = None
+        for label, node in ordered[current_position + 1 :]:
+            if node is not None:
+                after = label
+                break
+        return before, after, labels
+
+    def interpolate_row(self, row):
+        before, after, _ = self._reference_labels_for_row(row)
+        if before is None or after is None:
+            row.status.value = "<span style='color:red'>Need one defined replica before and after this row.</span>"
+            return
+        first = self._node_from_label(before)
+        last = self._node_from_label(after)
+        self._validate_pair(first, last, raise_on_error=True)
+        coeff = row.coefficient.value
+        atoms_first = first.get_ase()
+        atoms_last = last.get_ase()
+        atoms_interp = atoms_first.copy()
+        atoms_interp.positions = (
+            1.0 - coeff
+        ) * atoms_first.positions + coeff * atoms_last.positions
+        node = orm.StructureData(ase=atoms_interp).store()
+        node.label = f"NEB interpolated replica {row.index}"
+        row.pk.value = node.pk
+        row.status.value = (
+            f"<span style='color:green'>Stored interpolated replica PK {node.pk}</span>"
+        )
+        self._sync_state()
+        self._show_node(node)
+
+    def _symbols(self, node):
+        return node.get_ase().get_chemical_symbols()
+
+    def _validate_pair(self, previous, current, raise_on_error=False):
+        prev_atoms = previous.get_ase()
+        curr_atoms = current.get_ase()
+        if len(prev_atoms) != len(curr_atoms):
+            msg = f"Atom count changed: {len(prev_atoms)} -> {len(curr_atoms)}."
+            if raise_on_error:
+                raise ValueError(msg)
+            return False, msg
+        prev_symbols = prev_atoms.get_chemical_symbols()
+        curr_symbols = curr_atoms.get_chemical_symbols()
+        for index, (prev_symbol, curr_symbol) in enumerate(
+            zip(prev_symbols, curr_symbols)
+        ):
+            if prev_symbol != curr_symbol:
+                msg = (
+                    f"Atom order changed at index {index}: "
+                    f"{prev_symbol} -> {curr_symbol}."
+                )
+                if raise_on_error:
+                    raise ValueError(msg)
+                return False, msg
+        return True, ""
+
+    def _distance(self, previous, current):
+        return float(
+            np.linalg.norm(previous.get_ase().positions - current.get_ase().positions)
+        )
+
+    def _cell_warning(self, previous, current):
+        prev_atoms = previous.get_ase()
+        curr_atoms = current.get_ase()
+        warnings = []
+        if list(prev_atoms.pbc) != list(curr_atoms.pbc):
+            warnings.append("PBC differs")
+        if not np.allclose(prev_atoms.cell.array, curr_atoms.cell.array):
+            warnings.append("cell differs")
+        return ", ".join(warnings)
+
+    def validate_replicas(self):
+        labels_nodes = self._ordered_nodes_with_labels(require_complete=True)
+        initial = labels_nodes[0][1]
+        if initial is None:
+            raise ValueError("Select the initial structure above.")
+        if not initial.is_stored:
+            initial.store()
+        for label, node in labels_nodes[1:]:
+            self._validate_pair(initial, node, raise_on_error=True)
+        return labels_nodes
+
+    def update_replica_table(self, _=None):
+        self.n_replica.value = str(2 + len(self.replica_rows))
+        self.n_replica_trait = int(self.n_replica.value)
+        self._update_replica_per_group_options()
+
+        labels_nodes = self._ordered_nodes_with_labels(require_complete=False)
+        rows_html = [
+            "<table style='border-collapse:collapse; width:95%;'>",
+            "<tr><th align='left'>Replica</th><th align='right'>PK</th><th align='right'>Distance to previous / Å</th><th align='left'>Status</th></tr>",
+        ]
+        previous = None
+        for index, (label, node) in enumerate(labels_nodes):
+            name = (
+                "Initial"
+                if label == "initial"
+                else "Last"
+                if label == "last"
+                else f"Intermediate {index}"
+            )
+            pk = "" if node is None or node.pk is None else str(node.pk)
+            distance = "-"
+            status = ""
+            color = "black"
+            if node is None:
+                status = "Missing"
+                color = "red"
+            elif previous is not None:
+                ok, msg = self._validate_pair(previous, node)
+                if ok:
+                    distance = f"{self._distance(previous, node):.4f}"
+                    warning = self._cell_warning(previous, node)
+                    status = warning or "OK"
+                    color = "orange" if warning else "green"
+                else:
+                    status = msg
+                    color = "red"
+            else:
+                status = "Initial reference"
+                color = "green"
+            rows_html.append(
+                f"<tr><td>{name}</td><td align='right'>{pk}</td><td align='right'>{distance}</td><td style='color:{color}'>{status}</td></tr>"
+            )
+            if node is not None:
+                previous = node
+        rows_html.append("</table>")
+        self.replica_table.value = "".join(rows_html)
+        self._sync_state()
+        if self.initial_structure_node is None:
+            self.initial_pk.value = "Initial replica PK: not set"
+        elif self.initial_structure_node.pk is None:
+            self.initial_pk.value = "Initial replica PK: unstored"
+        else:
+            self.initial_pk.value = (
+                f"Initial replica PK: {self.initial_structure_node.pk}"
+            )
+
+    def on_n_intermediate_change(self, _=None):
+        nrows = max(0, int(self.n_intermediate.value or 0))
+        self.n_intermediate.value = nrows
+        current_values = [row.pk.value for row in self.replica_rows]
+        current_coefficients = [row.coefficient.value for row in self.replica_rows]
+        self.replica_rows = [NebReplicaRow(self, i + 1) for i in range(nrows)]
+        for row, value in zip(self.replica_rows, current_values):
+            row.pk.value = value
+        for row, coefficient in zip(self.replica_rows, current_coefficients):
+            row.coefficient.value = coefficient
+        for row in self.replica_rows:
+            row.coefficient.observe(self._observe_state_value, "value")
+        self.rows_box.children = self.replica_rows
+        self.update_replica_table()
+
+    def _update_replica_per_group_options(self):
+        nrep = int(self.n_replica.value)
+        factors = sorted(
+            set(
+                reduce(
+                    list.__add__,
+                    (
+                        [i, nrep // i]
+                        for i in range(1, int(nrep**0.5) + 1)
+                        if nrep % i == 0
+                    ),
+                )
+            )
+        )
+        old_value = self.n_replica_per_group.value
+        self.n_replica_per_group.options = factors
+        self.n_replica_per_group.value = old_value if old_value in factors else 1
 
     def return_dict(self):
+        nproc_rep = max(1, int(self.nproc_rep.value or 1))
         the_dict = {}
         if self.restart_from.value != "":
             the_dict["restart_from"] = orm.load_node(self.restart_from.value).uuid
+            n_replica = int(self.n_replica.value)
+            replica_uuids = []
+        else:
+            labels_nodes = self.validate_replicas()
+            n_replica = len(labels_nodes)
+            initial_node = labels_nodes[0][1]
+            the_dict["initial_uuid"] = initial_node.uuid
+            replica_uuids = [node.uuid for _, node in labels_nodes[1:]]
+
         the_dict["neb_params"] = {
             "align_frames": cp2k_bool(self.align_frames.value),
             "rotate_frames": cp2k_bool(self.rotate_frames.value),
             "band_type": self.band_type.value,
             "k_spring": self.k_spring.value,
-            "nproc_rep": int(self.nproc_rep.value),
-            "number_of_replica": int(self.n_replica.value),
+            "nproc_rep": nproc_rep,
+            "number_of_replica": n_replica,
             "nsteps_it": int(self.nsteps_it.value),
             "optimize_end_points": cp2k_bool(self.optimize_endpoints.value),
         }
-
-        the_dict["replica_uuids"] = [
-            orm.load_node(int(pk)).uuid for pk in self.replica_pks.value.split()
-        ]
-
+        if replica_uuids:
+            the_dict["replica_uuids"] = replica_uuids
         return the_dict
 
     @tr.observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
-        self.nproc_rep.value = str(self.nproc_replica_trait)
+        self.nproc_rep.value = str(max(1, int(self.nproc_replica_trait or 1)))
+
+    @tr.observe("structure_node")
+    def _observe_structure_node(self, change=None):
+        if self.initial_structure_node is None and self.structure_node is not None:
+            self.initial_structure_node = self.structure_node
+        self.update_replica_table()
+
+    @tr.observe("initial_structure_node")
+    def _observe_initial_structure_node(self, _=None):
+        self.update_replica_table()
 
     def on_n_replica_per_group_change(self, _=None):
         self.n_replica_per_group_trait = self.n_replica_per_group.value
 
-    def on_n_replica_change(self, _=None):
-        self.n_replica_trait = int(self.n_replica.value)
-        nrep = int(self.n_replica.value)
-        self.n_replica_per_group.value = 1
-        # factors of n_replica
-        self.n_replica_per_group.options = set(
-            reduce(
-                list.__add__,
-                ([i, nrep // i] for i in range(1, int(nrep**0.5) + 1) if nrep % i == 0),
-            )
-        )
-
     def traits_to_link(self):
-        return ["n_replica_trait", "nproc_replica_trait", "n_replica_per_group_trait"]
+        return [
+            "initial_structure_node",
+            "structure_node",
+            "structure_manager",
+            "neb_state",
+            "n_replica_trait",
+            "nproc_replica_trait",
+            "n_replica_per_group_trait",
+        ]
 
 
 class PhononsWidget(ipw.VBox):
