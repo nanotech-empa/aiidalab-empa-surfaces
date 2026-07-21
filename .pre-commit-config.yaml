@@ -26,6 +26,11 @@ repos:
       - id: check-github-workflows
   - repo: local
     hooks:
+      - id: check-notebook-source-format
+        name: check notebook cell source format
+        entry: python scripts/check_notebook_source_format.py
+        language: system
+        types: [jupyter]
       - id: mypy
         name: mypy
         # Runs the `mypy` on PATH (installed via `pip install -e .[dev]`,
