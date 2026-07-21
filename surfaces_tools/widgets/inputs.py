@@ -1,6 +1,5 @@
 from functools import reduce
 
-import aiidalab_widgets_base as awb
 import ipywidgets as ipw
 import numpy as np
 import traitlets as tr
@@ -41,9 +40,7 @@ class InputDetails(ipw.VBox):
     n_replica_trait = (
         tr.Int()
     )  # To be linked to resources used only if neb = True or phonons = True
-    nproc_replica_trait = (
-        tr.Int()
-    )  # To be linked from resources to input_details  used only if neb = True or phonons = True
+    nproc_replica_trait = tr.Int()  # To be linked from resources to input_details  used only if neb = True or phonons = True
     n_replica_per_group_trait = (
         tr.Int()
     )  # To be linked to resources used only if neb = True
