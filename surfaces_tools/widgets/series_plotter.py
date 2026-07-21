@@ -2,7 +2,6 @@ import copy
 import io
 import os
 import zipfile
-from html import escape
 
 import ipywidgets as ipw
 import matplotlib
@@ -12,12 +11,6 @@ from IPython.display import HTML, display
 
 from ..utils import igor
 from ..utils.files import download_link
-
-
-def download_link(filename):
-    href = f"/files/apps/surfaces/tmp/{escape(filename)}"
-    return f'<a href="{href}" download="{escape(filename)}">download zip</a>'
-
 
 colormaps = ["seismic", "gist_heat"]
 
