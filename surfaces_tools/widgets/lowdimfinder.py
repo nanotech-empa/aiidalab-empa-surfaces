@@ -1350,7 +1350,9 @@ class LowDimFinder:
             "chemical_formula": self._chemical_formula,
             "positions": self._positions,
             "chemical_symbols": self._chemical_symbols,
-            "unit_cell_ids": self._unit_cell_groups,
+            "unit_cell_ids": [
+                [idx % self.n_unit for idx in group] for group in self._unit_cell_groups
+            ],
             "cell": self._cell,
             "tags": self._tags,
         }
