@@ -9,6 +9,7 @@ from IPython.display import clear_output, display
 
 from ..utils.atom_indices import string_range_to_list
 from ..utils.cp2k_input_validity import validate_input
+from ..utils.neb_resources import at_least
 from . import analyze_structure, constraints, stack
 
 
@@ -387,7 +388,7 @@ class NebWidget(ipw.VBox):
             "rotate_frames": cp2k_bool(self.rotate_frames.value),
             "band_type": self.band_type.value,
             "k_spring": self.k_spring.value,
-            "nproc_rep": int(self.nproc_rep.value),
+            "nproc_rep": at_least(self.nproc_rep.value),
             "number_of_replica": int(self.n_replica.value),
             "nsteps_it": int(self.nsteps_it.value),
             "optimize_end_points": cp2k_bool(self.optimize_endpoints.value),
@@ -401,7 +402,7 @@ class NebWidget(ipw.VBox):
 
     @tr.observe("nproc_replica_trait")
     def _observe_nproc_replica_trait(self, _=None):
-        self.nproc_rep.value = str(self.nproc_replica_trait)
+        self.nproc_rep.value = str(at_least(self.nproc_replica_trait))
 
     def on_n_replica_per_group_change(self, _=None):
         self.n_replica_per_group_trait = self.n_replica_per_group.value
