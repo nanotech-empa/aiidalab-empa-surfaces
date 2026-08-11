@@ -385,11 +385,13 @@ class NebReplicaRow(ipw.VBox):
         self.show = ipw.Button(description="Show", layout={"width": "70px"})
         self.insert = ipw.Button(
             icon="plus",
+            button_style="success",
             tooltip="Insert an empty replica below this one",
             layout={"width": "45px"},
         )
         self.remove = ipw.Button(
             icon="times",
+            button_style="danger",
             tooltip="Remove this replica",
             layout={"width": "45px"},
         )
