@@ -21,6 +21,11 @@ STYLE = {"description_width": "120px"}
 LAYOUT = {"width": "70%"}
 LAYOUT2 = {"width": "35%"}
 
+# Shared by every NEB band setting, so they line up in one column instead of
+# being spread across two half-width boxes with the labels pulled apart.
+SETTING_STYLE = {"description_width": "150px"}
+SETTING_LAYOUT = {"width": "330px"}
+
 
 class InputDetails(ipw.VBox):
     structure = tr.Instance(Atoms, allow_none=True)  # needed for colvars
@@ -497,13 +502,17 @@ class NebWidget(ipw.VBox):
         self.restart_from = ipw.Text(
             description="Restart from PK:",
             value="",
+            # Resolving the node on every keystroke would hunt for "1", "12",
+            # "123" on the way to 1234 and flash an error for each.
+            continuous_update=False,
             style={"description_width": "150px"},
             layout={"width": "90%"},
         )
-        info_restart = ipw.HTML(
-            value="""If you want to restart from a previous NEB calculation, please enter the PK of the neb calculation.<br>
-            Otherwise define the initial and the last replica, then optionally add intermediate ones.<br>
-            Every replica is entered the same way: type its PK, or take it from the structure currently
+        # Says what a restart PK does; the band-building guidance lives inside
+        # the box below, so it disappears together with what it describes.
+        self.restart_info = ipw.HTML(layout={"width": "90%"})
+        info_replicas = ipw.HTML(
+            value="""Every replica is entered the same way: type its PK, or take it from the structure currently
             shown in the browser. Use <strong>+</strong> to insert an empty replica below a row and
             <strong>&times;</strong> to drop one; an empty row offers <strong>Interpolate</strong>, which
             builds it from the replicas either side at the given factor.<br>
@@ -527,39 +536,42 @@ class NebWidget(ipw.VBox):
         self.align_frames = ipw.Checkbox(
             description="Align Frames",
             value=False,
-            style={"description_width": "initial"},
-            layout={"width": "25%"},
+            indent=True,
+            style=SETTING_STYLE,
+            layout=SETTING_LAYOUT,
         )
         self.rotate_frames = ipw.Checkbox(
             description="Rotate Frames",
             value=False,
-            style={"description_width": "initial"},
-            layout={"width": "25%"},
+            indent=True,
+            style=SETTING_STYLE,
+            layout=SETTING_LAYOUT,
         )
         self.optimize_endpoints = ipw.Checkbox(
             description="Optimize Endpoints",
             value=False,
-            style={"description_width": "initial"},
-            layout={"width": "25%"},
+            indent=True,
+            style=SETTING_STYLE,
+            layout=SETTING_LAYOUT,
         )
         self.band_type = ipw.Dropdown(
             options=["CI-NEB"],
             description="Band Type",
             value="CI-NEB",
-            style={"description_width": "initial"},
-            layout={"width": "240px"},
+            style=SETTING_STYLE,
+            layout=SETTING_LAYOUT,
         )
         self.k_spring = ipw.Text(
             description="Spring constant",
             value="0.05",
-            style={"description_width": "initial"},
-            layout={"width": "240px"},
+            style=SETTING_STYLE,
+            layout=SETTING_LAYOUT,
         )
         self.nproc_rep = ipw.HTML(
             description="# processors / rep",
             value="324",
-            style={"description_width": "initial"},
-            layout={"width": "150px"},
+            style=SETTING_STYLE,
+            layout=SETTING_LAYOUT,
         )
         # CP2K's NUMBER_OF_REPLICA may exceed the number of &REPLICA sections
         # given: it fills the remainder by repeatedly bisecting the largest gap
@@ -580,21 +592,42 @@ class NebWidget(ipw.VBox):
         self.n_replica_per_group = ipw.Dropdown(
             description="# rep / group",
             options=[],
-            style={"description_width": "initial"},
-            layout={"width": "150px"},
+            style=SETTING_STYLE,
+            layout=SETTING_LAYOUT,
         )
         self.nsteps_it = ipw.Text(
             description="Steps before CI",
             value="5",
-            style={"description_width": "initial"},
-            layout={"width": "150px"},
+            style=SETTING_STYLE,
+            layout=SETTING_LAYOUT,
         )
 
         self.replica_rows = []
         self._updating_from_state = False
+        # How many replicas a restart brings with it, cached so the floor below
+        # does not reload the node on every redraw. None when not restarting.
+        self._restart_replica_count = None
+
+        # Everything that defines the band, so a restart can hide it in one go.
+        # The rows that build a band from scratch. A restart supplies the band
+        # instead, so this hides - but the count below it does not, because
+        # CP2K will still interpolate above whatever it inherits.
+        self.replica_box = ipw.VBox(
+            [
+                info_replicas,
+                self.initial_row,
+                self.rows_box,
+                self.last_row,
+            ]
+        )
+        # The band size belongs with the replicas that define it, not in the
+        # settings tab: it is the control that says how many more CP2K should
+        # interpolate.
+        self.count_box = ipw.HBox([self.n_replica, self.n_replica_info])
 
         self.n_replica.observe(self.on_n_replica_change, "value")
         self.n_replica_per_group.observe(self.on_n_replica_per_group_change, "value")
+        self.restart_from.observe(self.on_restart_change, "value")
         for widget in (
             self.restart_from,
             self.align_frames,
@@ -606,42 +639,42 @@ class NebWidget(ipw.VBox):
         ):
             widget.observe(self._observe_state_value, "value")
 
-        super().__init__(
+        # Two tabs: what the band is made of, and how it is run. The restart
+        # field belongs with the replicas because that is what it replaces -
+        # entering a PK takes the band from a previous calculation instead.
+        self.tabs = ipw.Tab(
             children=[
-                self.restart_from,
-                info_restart,
-                self.initial_row,
-                self.rows_box,
-                self.last_row,
-                # The band size belongs with the replicas that define it, not
-                # in the parameter block below: it is the control that says how
-                # many more CP2K should interpolate.
-                ipw.HBox([self.n_replica, self.n_replica_info]),
-                ipw.HBox(
-                    [self.optimize_endpoints, self.align_frames, self.rotate_frames]
-                ),
-                ipw.HBox(
+                ipw.VBox(
                     [
-                        ipw.VBox(
-                            [
-                                self.band_type,
-                                self.k_spring,
-                            ],
-                            layout={"width": "50%"},
-                        ),
-                        ipw.VBox(
-                            [
-                                self.nproc_rep,
-                                self.n_replica_per_group,
-                                self.nsteps_it,
-                            ],
-                            layout={"width": "50%"},
-                        ),
+                        self.restart_from,
+                        self.restart_info,
+                        self.replica_box,
+                        self.count_box,
                     ]
                 ),
-            ],
+                # One column, in the order the settings are reasoned about:
+                # what kind of band, how it is optimised, how it is split over
+                # the allocation.
+                ipw.VBox(
+                    [
+                        self.band_type,
+                        self.k_spring,
+                        self.nsteps_it,
+                        self.optimize_endpoints,
+                        self.align_frames,
+                        self.rotate_frames,
+                        self.n_replica_per_group,
+                        self.nproc_rep,
+                    ]
+                ),
+            ]
         )
+        self.tabs.set_title(0, "Replicas")
+        self.tabs.set_title(1, "Advanced settings")
+
+        super().__init__(children=[self.tabs])
         self._refresh_rows()
+        self.on_restart_change()
 
     # ------------------------------------------------------------------
     # Handler boundary
@@ -659,6 +692,69 @@ class NebWidget(ipw.VBox):
             action()
         except Exception as exc:  # noqa: BLE001 - anything reaching here is user-facing
             row.set_status(exc, "red")
+
+    # ------------------------------------------------------------------
+    # Restarting a previous NEB
+    # ------------------------------------------------------------------
+
+    def _restart_source(self):
+        """The calculation being restarted: its structure and its replica count.
+
+        A restart reuses that calculation's optimised replicas, so the band is
+        not built here at all - but the workchain still needs ``structure``,
+        which supplies the tags written into every replica file. Taking it from
+        the calculation being restarted keeps it consistent with those replicas.
+        """
+        try:
+            node = orm.load_node(self.restart_from.value)
+            return (
+                node,
+                node.inputs.structure,
+                node.inputs.neb_params["number_of_replica"],
+            )
+        except Exception as exc:  # noqa: BLE001 - NotExistent, AttributeError, KeyError
+            raise ValueError(
+                f"Cannot restart from PK {self.restart_from.value}: {exc}"
+            ) from exc
+
+    def on_restart_change(self, _=None):
+        """Hide the band builder while a restart PK is present."""
+        restarting = bool(self.restart_from.value.strip())
+        self.replica_box.layout.display = "none" if restarting else "flex"
+        if not restarting:
+            self._restart_replica_count = None
+            self.restart_info.value = ""
+            self.update_replica_info()
+            return
+        try:
+            _, structure, n_replica = self._restart_source()
+        except ValueError as exc:
+            self._restart_replica_count = None
+            self.restart_info.value = _colored(exc, "red")
+            self.update_replica_info()
+            return
+        # Becomes the floor for "# of replica": those replicas are written out
+        # as &REPLICA sections, and CP2K cannot run fewer than it is given.
+        self._restart_replica_count = n_replica
+        self.restart_info.value = _colored(
+            f"Restarting from PK {self.restart_from.value}: {n_replica} replicas, "
+            f"structure PK {structure.pk}. Its optimised replicas are reused, so "
+            "there is no band to define here - but you can ask for more below, "
+            "and CP2K will bisect the widest gaps to reach that many.",
+            "gray",
+        )
+        self.update_replica_info()
+
+    def _replica_floor(self):
+        """Fewest replicas the band can have: one per &REPLICA section written.
+
+        Those come from the restart when there is one, and from the rows
+        otherwise - the rows are still there while restarting, just hidden and
+        not submitted, so they must not set the floor.
+        """
+        if self._restart_replica_count is not None:
+            return self._restart_replica_count
+        return len(self.all_rows())
 
     # ------------------------------------------------------------------
     # Structure browser
@@ -808,9 +904,9 @@ class NebWidget(ipw.VBox):
     # ------------------------------------------------------------------
 
     def update_replica_info(self, _=None):
-        # Requesting fewer replicas than are provided is meaningless, so the
-        # rows set the floor; anything above it CP2K interpolates itself.
-        self.n_replica.min = len(self.all_rows())
+        # Requesting fewer replicas than CP2K is handed is meaningless; anything
+        # above the floor it interpolates itself.
+        self.n_replica.min = self._replica_floor()
         self.n_replica_trait = self.n_replica.value
 
         sequence = self._replica_sequence()
@@ -849,10 +945,15 @@ class NebWidget(ipw.VBox):
             if node is not None:
                 previous = node
 
-        provided = len(self.all_rows())
+        provided = self._replica_floor()
         interpolated = self.n_replica.value - provided
+        source = (
+            "inherited from the restart"
+            if self._restart_replica_count is not None
+            else "defined above"
+        )
         self.n_replica_info.value = _colored(
-            f"{provided} defined above"
+            f"{provided} {source}"
             + (
                 f", {interpolated} interpolated by CP2K, which bisects the widest "
                 "gap in the band until it has this many."
@@ -878,25 +979,27 @@ class NebWidget(ipw.VBox):
     def return_dict(self):
         the_dict = {}
         if self.restart_from.value != "":
-            the_dict["restart_from"] = orm.load_node(self.restart_from.value).uuid
-            # A restart brings its own replicas; only the structure is needed.
-            node, problem = self.initial_row.get_node()
-            if problem:
-                raise ValueError(f"Initial replica: {problem}")
-            if node is None:
-                raise ValueError("Initial replica is not defined.")
-            nodes = [node]
+            # A restart reuses that calculation's replicas and its structure, so
+            # the band builder is not read here - but its replicas still become
+            # &REPLICA sections, so they still set the floor for the count.
+            restart_node, structure, n_previous = self._restart_source()
+            the_dict["restart_from"] = restart_node.uuid
+            nodes = [structure]
+            floor = n_previous
+            floor_source = f"replicas inherited from PK {self.restart_from.value}"
         else:
             nodes = self.validate_replicas()
+            floor = len(nodes)
+            floor_source = "replicas provided"
 
-        # CP2K interpolates the replicas beyond those given, but cannot run
-        # fewer than were supplied. The widget bounds this too; this is the
-        # backstop for a count written straight into the trait.
+        # CP2K interpolates the replicas beyond those it is given, but cannot
+        # run fewer. The widget bounds this too; this is the backstop for a
+        # count written straight into the trait.
         n_replica = self.n_replica.value
-        if n_replica < len(nodes):
+        if n_replica < floor:
             raise ValueError(
-                f"# of replica is {n_replica}, below the {len(nodes)} replicas "
-                "provided. Raise it, or remove replicas."
+                f"# of replica is {n_replica}, below the {floor} {floor_source}. "
+                "Raise it."
             )
 
         the_dict["initial_uuid"] = nodes[0].uuid
