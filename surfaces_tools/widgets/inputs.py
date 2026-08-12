@@ -384,8 +384,10 @@ class NebReplicaRow(ipw.VBox):
             layout={"width": "220px"},
         )
         self.from_current = ipw.Button(
-            description="From current visualized",
-            layout={"width": "190px"},
+            description="From viewer",
+            tooltip="Take the structure currently shown in the structure "
+            "browser, storing it first if it is not stored yet",
+            layout={"width": "110px"},
         )
         self.show = ipw.Button(description="Show", layout={"width": "70px"})
         self.insert = ipw.Button(
@@ -404,6 +406,11 @@ class NebReplicaRow(ipw.VBox):
             value=0.5,
             step=0.1,
             description="Factor:",
+            tooltip=(
+                "Where this replica sits between the ones above and below: "
+                "0 is the one above, 1 the one below, 0.5 the midpoint. "
+                "Outside 0-1 it lands beyond an endpoint instead."
+            ),
             style={"description_width": "55px"},
             layout={"width": "130px"},
         )
@@ -454,7 +461,7 @@ class NebReplicaRow(ipw.VBox):
         super().__init__(
             children=[
                 ipw.HBox(
-                    [self.pk, ipw.HBox(buttons, layout={"width": "620px"}), self.info],
+                    [self.pk, ipw.HBox(buttons, layout={"width": "540px"}), self.info],
                     layout={"align_items": "center"},
                 ),
                 self.status,
@@ -473,19 +480,25 @@ class NebReplicaRow(ipw.VBox):
         self.status.value = _colored(text, color) if text else ""
         self.status.layout.display = "block" if text else "none"
 
-    def show_interpolation(self, visible, enabled):
+    def show_interpolation(self, visible, missing):
         """Offer interpolation only while this replica is still empty.
 
         Once it has a PK - interpolated, typed, or taken from the browser -
         the controls go away rather than sit there offering to overwrite it.
-        They stay visible but dead while a neighbour is missing, so the reason
-        the row cannot be built yet is on screen.
+        They stay visible but dead while a neighbour is missing, and the
+        button's tooltip then names what is missing, so a dead button is not
+        left unexplained. ``missing`` holds the names of the undefined ends.
         """
         if self.interpolation_box is None:
             return
         self.interpolation_box.layout.display = "flex" if visible else "none"
-        self.factor.disabled = not enabled
-        self.interpolate.disabled = not enabled
+        self.factor.disabled = self.interpolate.disabled = bool(missing)
+        self.interpolate.tooltip = (
+            f"Inactive: needs a defined replica above and below - "
+            f"{' and '.join(missing)} still missing."
+            if missing
+            else "Build this replica between the ones above and below"
+        )
 
     def get_node(self):
         return _load_replica_node(self.pk.value)
@@ -511,16 +524,6 @@ class NebWidget(ipw.VBox):
         # Says what a restart PK does; the band-building guidance lives inside
         # the box below, so it disappears together with what it describes.
         self.restart_info = ipw.HTML(layout={"width": "90%"})
-        info_replicas = ipw.HTML(
-            value="""Every replica is entered the same way: type its PK, or take it from the structure currently
-            shown in the browser. Use <strong>+</strong> to insert an empty replica below a row and
-            <strong>&times;</strong> to drop one; an empty row offers <strong>Interpolate</strong>, which
-            builds it from the replicas either side at the given factor.<br>
-            <strong># of replica</strong> may be larger than the number given here: CP2K fills the
-            remainder in by repeatedly bisecting the widest gap in the band. It can never be smaller.<br>
-            The replicas are fixed once entered - browsing to another structure does not change them.<br>""",
-            layout={"width": "90%"},
-        )
         # The endpoints are ordinary replica rows, built once and outliving the
         # intermediate ones. Nothing is inserted after the last replica, neither
         # endpoint can be removed, and neither can be interpolated - an endpoint
@@ -614,7 +617,16 @@ class NebWidget(ipw.VBox):
         # CP2K will still interpolate above whatever it inherits.
         self.replica_box = ipw.VBox(
             [
-                info_replicas,
+                # Sits inside the box that a restart hides, so the alternative
+                # disappears along with the thing it is an alternative to.
+                ipw.HTML(
+                    "<div style='display:flex; align-items:center; gap:8px;"
+                    " color:gray; width:90%;'>"
+                    "<hr style='flex:1; border:none; border-top:1px solid #ddd;'>"
+                    "OR build the band below"
+                    "<hr style='flex:1; border:none; border-top:1px solid #ddd;'>"
+                    "</div>"
+                ),
                 self.initial_row,
                 self.rows_box,
                 self.last_row,
@@ -939,8 +951,14 @@ class NebWidget(ipw.VBox):
                     )
             row.show_interpolation(
                 visible=node is None,
-                enabled=any(other is not None for other in nodes[:position])
-                and any(other is not None for other in nodes[position + 1 :]),
+                missing=[
+                    name
+                    for name, defined in (
+                        ("Initial", any(o is not None for o in nodes[:position])),
+                        ("Last", any(o is not None for o in nodes[position + 1 :])),
+                    )
+                    if not defined
+                ],
             )
             if node is not None:
                 previous = node
