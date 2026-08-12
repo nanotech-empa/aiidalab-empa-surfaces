@@ -3,10 +3,10 @@ import unittest
 import numpy as np
 from ase import Atoms
 
+from surfaces_tools.widgets import inputs
 from surfaces_tools.widgets.inputs import (
     compare_replica_cells,
     interpolate_replicas,
-    replica_group_divisors,
     validate_replica_pair,
 )
 
@@ -70,24 +70,38 @@ class CompareReplicaCellsTest(unittest.TestCase):
         self.assertNotIn("cell differs", difference)
 
 
-class ReplicaGroupDivisorsTest(unittest.TestCase):
-    def test_smallest_reachable_replica_count(self):
-        self.assertEqual(replica_group_divisors(2), [1, 2])
+class ReplicaPerGroupOptionsTest(unittest.TestCase):
+    """The "# rep / group" choices, exercised through the widget.
 
-    def test_prime_replica_count(self):
-        self.assertEqual(replica_group_divisors(7), [1, 7])
+    The divisor arithmetic is inline in NebWidget, so there is nothing to call
+    directly. NebWidget builds without an AiiDA profile as long as no replica
+    PK is set, which is what lets these run here.
+    """
 
-    def test_perfect_square_does_not_repeat_the_root(self):
-        self.assertEqual(replica_group_divisors(9), [1, 3, 9])
+    def widget_with(self, n_replica):
+        widget = inputs.NebWidget()
+        widget.n_replica.value = n_replica
+        return widget
 
-    def test_single_replica(self):
-        self.assertEqual(replica_group_divisors(1), [1])
+    def test_offers_every_divisor_of_the_count(self):
+        options = self.widget_with(15).n_replica_per_group.options
+        self.assertEqual(list(options), [1, 3, 5, 15])
 
-    def test_zero_is_pinned_rather_than_raising(self):
-        # Unreachable through the form, where the count is 2 + intermediates,
-        # but the trait can be written from outside the widget.
-        self.assertEqual(replica_group_divisors(0), [1])
-        self.assertEqual(replica_group_divisors(-3), [1])
+    def test_prime_count_offers_only_one_and_itself(self):
+        options = self.widget_with(7).n_replica_per_group.options
+        self.assertEqual(list(options), [1, 7])
+
+    def test_keeps_a_selection_that_still_divides(self):
+        widget = self.widget_with(15)
+        widget.n_replica_per_group.value = 5
+        widget.n_replica.value = 10
+        self.assertEqual(widget.n_replica_per_group.value, 5)
+
+    def test_resets_a_selection_that_no_longer_divides(self):
+        widget = self.widget_with(15)
+        widget.n_replica_per_group.value = 5
+        widget.n_replica.value = 8
+        self.assertEqual(widget.n_replica_per_group.value, 1)
 
 
 class InterpolateReplicasTest(unittest.TestCase):

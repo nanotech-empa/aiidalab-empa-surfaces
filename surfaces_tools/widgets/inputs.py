@@ -79,14 +79,7 @@ class InputDetails(ipw.VBox):
 
     @tr.default("n_replica_trait")
     def _default_n_proc_replica(self):
-        if self.neb:
-            # Two: the initial and the last replica, an empty NebWidget's floor.
-            # This value is pushed into the section when its traits are linked,
-            # and traitlets' link suppresses the section's correction while that
-            # first propagation is in flight - so a default below the floor
-            # would stick here and reach the resource arithmetic.
-            return 2
-        return 1
+        return 2 if self.neb else 1
 
     @tr.default("n_replica_per_group_trait")
     def _default_n_replica_per_group_trait(self):
@@ -274,26 +267,6 @@ class ReplicaWidget(ipw.VBox):
         return []
 
 
-def replica_group_divisors(n_replica):
-    """Divisors of ``n_replica``, sorted - the valid "# rep / group" choices.
-
-    A count below 1 cannot be produced by the form, which floors it at the
-    number of replicas provided. It is pinned to ``[1]`` rather than left to
-    raise, because the trait can be written from outside the widget and the
-    generator below is empty for 0.
-    """
-    if n_replica < 1:
-        return [1]
-    return sorted(
-        {
-            divisor
-            for i in range(1, int(n_replica**0.5) + 1)
-            if n_replica % i == 0
-            for divisor in (i, n_replica // i)
-        }
-    )
-
-
 def validate_replica_pair(previous, current):
     """Check that two consecutive replicas describe the same atoms in the same order.
 
@@ -303,17 +276,16 @@ def validate_replica_pair(previous, current):
     if len(previous) != len(current):
         return False, f"Atom count changed: {len(previous)} -> {len(current)}."
 
-    previous_symbols = previous.get_chemical_symbols()
-    current_symbols = current.get_chemical_symbols()
-    for index, (previous_symbol, current_symbol) in enumerate(
-        zip(previous_symbols, current_symbols)
-    ):
-        if previous_symbol != current_symbol:
-            return (
-                False,
-                f"Atom order changed at index {index}: "
-                f"{previous_symbol} -> {current_symbol}.",
-            )
+    # ase keeps atomic numbers as a numpy array, so compare those rather than
+    # building two lists of symbol strings and walking them in Python.
+    differing = np.flatnonzero(previous.numbers != current.numbers)
+    if differing.size:
+        index = int(differing[0])
+        return (
+            False,
+            f"Atom order changed at index {index}: "
+            f"{previous.symbols[index]} -> {current.symbols[index]}.",
+        )
     return True, ""
 
 
@@ -327,17 +299,10 @@ def compare_replica_cells(previous, current):
     return ", ".join(differences)
 
 
-def replica_distance(previous, current):
-    """Cartesian norm between two replicas' positions, in Angstrom."""
-    return float(np.linalg.norm(previous.positions - current.positions))
-
-
 def interpolate_replicas(first, last, coefficient):
-    """Linearly interpolate a geometry between two endpoints.
+    """Geometry ``coefficient`` of the way from ``first`` to ``last``.
 
-    ``coefficient`` 0 reproduces ``first`` and 1 reproduces ``last``. Cell and
-    symbols are taken from ``first``, which is only meaningful for a pair that
-    passed :func:`validate_replica_pair`.
+    Separate from the widget so it can be tested without an AiiDA profile.
     """
     interpolated = first.copy()
     interpolated.positions = (
@@ -348,20 +313,6 @@ def interpolate_replicas(first, last, coefficient):
 
 def _colored(text, color):
     return f"<span style='color:{color}'>{text}</span>"
-
-
-def _load_replica_node(pk):
-    """Load a replica by PK, returning ``(node, problem)``.
-
-    A mistyped PK is a normal thing for a user to do and must not blow up the
-    table rendering, so the failure is returned rather than raised.
-    """
-    if not pk:
-        return None, ""
-    try:
-        return orm.load_node(int(pk)), ""
-    except Exception as exc:  # noqa: BLE001 - NotExistent, ValueError, ...
-        return None, f"Cannot load PK {pk}: {exc}"
 
 
 class NebReplicaRow(ipw.VBox):
@@ -501,7 +452,18 @@ class NebReplicaRow(ipw.VBox):
         )
 
     def get_node(self):
-        return _load_replica_node(self.pk.value)
+        """The replica this row points at, as ``(node, problem)``.
+
+        A mistyped PK is a normal thing to do and must not blow up the table
+        rendering, so the failure comes back as text rather than an exception.
+        """
+        pk = self.pk.value
+        if not pk:
+            return None, ""
+        try:
+            return orm.load_node(int(pk)), ""
+        except Exception as exc:  # noqa: BLE001 - NotExistent, ValueError, ...
+            return None, f"Cannot load PK {pk}: {exc}"
 
 
 class NebWidget(ipw.VBox):
@@ -935,7 +897,9 @@ class NebWidget(ipw.VBox):
                     row.set_info(message, "red")
                 else:
                     warning = compare_replica_cells(previous_atoms, current_atoms)
-                    distance = replica_distance(previous_atoms, current_atoms)
+                    distance = np.linalg.norm(
+                        previous_atoms.positions - current_atoms.positions
+                    )
                     row.set_info(
                         f"&Delta; {distance:.3f} &#8491;"
                         + (f" &middot; {warning}" if warning else ""),
@@ -973,7 +937,13 @@ class NebWidget(ipw.VBox):
 
     def _update_replica_per_group_options(self):
         """Rebuild the divisor options, keeping the selection when still valid."""
-        divisors = replica_group_divisors(self.n_replica_trait)
+        # Trial division: plainer than square-root-and-pair, and faster than it
+        # for the small counts this form deals in.
+        divisors = [
+            d
+            for d in range(1, self.n_replica_trait + 1)
+            if self.n_replica_trait % d == 0
+        ] or [1]
         previous = self.n_replica_per_group.value
         self.n_replica_per_group.options = divisors
         self.n_replica_per_group.value = previous if previous in divisors else 1
