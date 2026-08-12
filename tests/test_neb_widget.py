@@ -367,6 +367,31 @@ class RestartTest(WidgetTestCase):
             widget.return_dict()
 
 
+class RowInfoTest(WidgetTestCase):
+    """update_replica_info runs from traitlets observers, so it must not raise.
+
+    An exception there escapes as a traceback in the notebook rather than
+    reaching the form, which is how a non-structure PK used to crash it.
+    """
+
+    def test_a_replica_that_cannot_be_read_is_reported_on_its_own_row(self):
+        class Broken(FakeStructure):
+            def get_ase(self):
+                raise RuntimeError("cannot parse sites")
+
+        self.structure(1, 0.0)
+        self.structure(3, 8.0)
+        self.nodes[66] = Broken(66, None)
+
+        widget = self.band(1, 66, 3)
+
+        self.assertIn("Cannot read this replica", widget.replica_rows[0].info.value)
+        self.assertIn("cannot parse sites", widget.replica_rows[0].info.value)
+        # The rest of the form still works.
+        self.assertEqual(widget.n_replica.value, 3)
+        self.assertEqual(list(widget.n_replica_per_group.options), [1, 3])
+
+
 class NebStateTest(WidgetTestCase):
     """InputDetails discards and rebuilds every section when the structure
     changes, so the replica setup has to survive round-tripping through it."""

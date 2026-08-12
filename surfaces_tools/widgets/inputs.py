@@ -838,6 +838,33 @@ class NebWidget(ipw.VBox):
     # Row info and derived quantities
     # ------------------------------------------------------------------
 
+    def _describe_row(self, row, node, problem, previous):
+        """Put what is wrong with this replica, or its distance, at the end of it."""
+        if problem:
+            row.set_info(problem, "red")
+            return
+        if node is None:
+            row.set_info("missing", "red")
+            return
+        if previous is None:
+            # Nothing above it to measure from; a bare PK is the whole story.
+            row.set_info("", "gray")
+            return
+
+        previous_atoms, current_atoms = previous.get_ase(), node.get_ase()
+        ok, message = validate_replica_pair(previous_atoms, current_atoms)
+        if not ok:
+            row.set_info(message, "red")
+            return
+
+        warning = compare_replica_cells(previous_atoms, current_atoms)
+        distance = np.linalg.norm(previous_atoms.positions - current_atoms.positions)
+        row.set_info(
+            f"&Delta; {distance:.3f} &#8491;"
+            + (f" &middot; {warning}" if warning else ""),
+            "orange" if warning else "gray",
+        )
+
     def update_replica_info(self, _=None):
         # One &REPLICA section is written per replica handed to CP2K, and it
         # cannot run fewer than that; above the floor it interpolates. A restart
@@ -854,32 +881,18 @@ class NebWidget(ipw.VBox):
         nodes = [node for node, _ in loaded]
         previous = None
         for position, (row, (node, problem)) in enumerate(zip(rows, loaded)):
-            if problem:
-                row.set_info(problem, "red")
-            elif node is None:
-                row.set_info("missing", "red")
-            elif previous is None:
-                # Nothing above it to measure from; a bare PK is the whole story.
-                row.set_info("", "gray")
-            else:
-                previous_atoms, current_atoms = previous.get_ase(), node.get_ase()
-                ok, message = validate_replica_pair(previous_atoms, current_atoms)
-                if not ok:
-                    row.set_info(message, "red")
-                else:
-                    warning = compare_replica_cells(previous_atoms, current_atoms)
-                    distance = np.linalg.norm(
-                        previous_atoms.positions - current_atoms.positions
-                    )
-                    row.set_info(
-                        f"&Delta; {distance:.3f} &#8491;"
-                        + (f" &middot; {warning}" if warning else ""),
-                        "orange" if warning else "gray",
-                    )
-            row.show_interpolation(
-                visible=node is None,
-                missing=self._missing_ends(*self._nearest_defined(nodes, position)),
-            )
+            # One boundary per row. This method runs from traitlets observers,
+            # where an exception escapes as a traceback in the notebook instead
+            # of reaching the form - so a replica that cannot be described has
+            # to say so on its own row and leave the others alone.
+            try:
+                self._describe_row(row, node, problem, previous)
+                row.show_interpolation(
+                    visible=node is None,
+                    missing=self._missing_ends(*self._nearest_defined(nodes, position)),
+                )
+            except Exception as exc:  # noqa: BLE001 - anything here is user-facing
+                row.set_info(f"Cannot read this replica: {exc}", "red")
             if node is not None:
                 previous = node
 
