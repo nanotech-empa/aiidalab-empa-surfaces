@@ -664,19 +664,30 @@ class NebWidget(ipw.VBox):
                         self.count_box,
                     ]
                 ),
-                # One column, in the order the settings are reasoned about:
-                # what kind of band, how it is optimised, how it is split over
-                # the allocation.
-                ipw.VBox(
+                # Two columns of fixed-width settings - fixed, not 50% each,
+                # because stretching the columns is what pulled the labels
+                # away from their fields and made this read as a separate
+                # panel. The two per-replica counts sit on the same line as
+                # each other, one column apart.
+                ipw.HBox(
                     [
-                        self.band_type,
-                        self.k_spring,
-                        self.nsteps_it,
-                        self.optimize_endpoints,
-                        self.align_frames,
-                        self.rotate_frames,
-                        self.n_replica_per_group,
-                        self.nproc_rep,
+                        ipw.VBox(
+                            [
+                                self.band_type,
+                                self.k_spring,
+                                self.nsteps_it,
+                                self.n_replica_per_group,
+                            ]
+                        ),
+                        ipw.VBox(
+                            [
+                                self.align_frames,
+                                self.rotate_frames,
+                                self.optimize_endpoints,
+                                self.nproc_rep,
+                            ],
+                            layout={"margin": "0 0 0 30px"},
+                        ),
                     ]
                 ),
             ]
