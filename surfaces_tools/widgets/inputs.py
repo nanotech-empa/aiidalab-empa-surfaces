@@ -353,21 +353,25 @@ class NebReplicaRow(ipw.VBox):
             tooltip="Remove this replica",
             layout={"width": "45px"},
         )
-        self.factor = ipw.FloatText(
+        # Bounded just short of the neighbours themselves: at 0 or 1 the new
+        # replica duplicates one of them, and beyond that the band folds back
+        # on itself - which CP2K runs quite happily, at full cost, for nonsense.
+        # Anywhere in between is legitimate, however close to an end.
+        self.factor = ipw.BoundedFloatText(
             value=0.5,
+            min=0.001,
+            max=0.999,
             step=0.1,
             description="Factor:",
             tooltip=(
                 "Where this replica sits between the ones above and below: "
-                "0 is the one above, 1 the one below, 0.5 the midpoint. "
-                "Outside 0-1 it lands beyond an endpoint instead."
+                "0.5 is the midpoint, lower is nearer the one above."
             ),
             style={"description_width": "55px"},
             layout={"width": "130px"},
         )
         self.interpolate = ipw.Button(
             description="Interpolate",
-            tooltip="Build this replica between the ones above and below",
             layout={"width": "110px"},
         )
         self.interpolation_box = (
@@ -439,7 +443,7 @@ class NebReplicaRow(ipw.VBox):
         self.factor.disabled = self.interpolate.disabled = bool(missing)
         self.interpolate.tooltip = (
             f"Inactive: needs a defined replica above and below - "
-            f"{' and '.join(missing)} still missing."
+            f"{missing} still missing."
             if missing
             else "Build this replica between the ones above and below"
         )
@@ -448,15 +452,22 @@ class NebReplicaRow(ipw.VBox):
         """The replica this row points at, as ``(node, problem)``.
 
         A mistyped PK is a normal thing to do and must not blow up the table
-        rendering, so the failure comes back as text rather than an exception.
+        rendering, so failures come back as text rather than as exceptions -
+        this runs from a traitlets observer, where an exception would escape as
+        a traceback in the notebook. Any PK loads, so the node is checked for
+        the geometry everything downstream reads rather than for a particular
+        class - several node types carry one.
         """
         pk = self.pk.value
         if not pk:
             return None, ""
         try:
-            return orm.load_node(int(pk)), ""
+            node = orm.load_node(int(pk))
         except Exception as exc:  # noqa: BLE001 - NotExistent, ValueError, ...
             return None, f"Cannot load PK {pk}: {exc}"
+        if not hasattr(node, "get_ase"):
+            return None, f"PK {pk} is a {type(node).__name__}, which has no geometry"
+        return node, ""
 
 
 class NebWidget(ipw.VBox):
@@ -594,7 +605,7 @@ class NebWidget(ipw.VBox):
             self.k_spring,
             self.nsteps_it,
         ):
-            widget.observe(self._observe_state_value, "value")
+            widget.observe(self._sync_state, "value")
 
         # The restart field sits with the replicas because it replaces them.
         self.tabs = ipw.Tab(
@@ -762,10 +773,6 @@ class NebWidget(ipw.VBox):
             next((n for n in nodes[position + 1 :] if n is not None), None),
         )
 
-    def _set_intermediate_rows(self, pks):
-        self.replica_rows = [NebReplicaRow(self, "", pk=pk) for pk in pks]
-        self._refresh_rows()
-
     def _refresh_rows(self):
         """Renumber the intermediate rows and show them."""
         for position, row in enumerate(self.replica_rows, start=1):
@@ -775,42 +782,34 @@ class NebWidget(ipw.VBox):
 
     def insert_row_below(self, row):
         """Add an empty replica below ``row``, for Interpolate or a PK to fill."""
-        self.replica_rows.insert(self.all_rows().index(row), NebReplicaRow(self, ""))
+        index = 0 if row is self.initial_row else self.replica_rows.index(row) + 1
+        self.replica_rows.insert(index, NebReplicaRow(self, ""))
         self._refresh_rows()
 
     @staticmethod
     def _missing_ends(before, after):
-        """Which ends of the band are still undefined, for naming in messages."""
-        return [n for n, node in (("Initial", before), ("Last", after)) if node is None]
+        """Name the band ends still undefined, or "" when both are defined."""
+        names = []
+        if before is None:
+            names.append("Initial")
+        if after is None:
+            names.append("Last")
+        return " and ".join(names)
 
     def interpolate_row(self, row):
         rows = self.all_rows()
         nodes = [other.get_node()[0] for other in rows]
         before, after = self._nearest_defined(nodes, rows.index(row))
-        # The button is dead without both neighbours; this is the backstop.
-        missing = self._missing_ends(before, after)
-        if missing:
-            raise ValueError(
-                "Interpolation needs a defined replica on either side - "
-                f"{' and '.join(missing)} still missing."
-            )
         first, last = before.get_ase(), after.get_ase()
         ok, message = validate_replica_pair(first, last)
         if not ok:
             raise ValueError(message)
 
-        factor = row.factor.value
-        node = orm.StructureData(ase=interpolate_replicas(first, last, factor)).store()
+        node = orm.StructureData(
+            ase=interpolate_replicas(first, last, row.factor.value)
+        ).store()
         node.label = "NEB interpolated replica"
         row.pk.value = node.pk
-        # No confirmation on success: the PK and the distance say it already.
-        # The field is unbounded, so only a factor outside (0, 1) needs a word.
-        if not 0.0 < factor < 1.0:
-            row.set_status(
-                f"Factor {factor:g} is outside 0-1: this replica was placed "
-                "beyond an endpoint, not between them.",
-                "orange",
-            )
 
     def remove_row(self, row):
         self.replica_rows.remove(row)
@@ -818,21 +817,21 @@ class NebWidget(ipw.VBox):
 
     def validate_replicas(self):
         """Return every replica node in order, raising if the chain is unusable."""
-        rows = self.all_rows()
         nodes = []
-        for row in rows:
+        previous_row = previous_atoms = None
+        for row in self.all_rows():
             node, problem = row.get_node()
             if problem:
                 raise ValueError(f"{row.name} replica: {problem}")
             if node is None:
                 raise ValueError(f"{row.name} replica is not defined.")
+            atoms = node.get_ase()
             nodes.append(node)
-
-        for previous_row, previous, row, node in zip(rows, nodes, rows[1:], nodes[1:]):
-            ok, message = validate_replica_pair(previous.get_ase(), node.get_ase())
-            if not ok:
-                raise ValueError(f"{row.name} vs {previous_row.name}: {message}")
-
+            if previous_atoms is not None:
+                ok, message = validate_replica_pair(previous_atoms, atoms)
+                if not ok:
+                    raise ValueError(f"{row.name} vs {previous_row.name}: {message}")
+            previous_row, previous_atoms = row, atoms
         return nodes
 
     # ------------------------------------------------------------------
@@ -903,19 +902,6 @@ class NebWidget(ipw.VBox):
 
         self._sync_state()
 
-    def _update_replica_per_group_options(self):
-        """Rebuild the divisor options, keeping the selection when still valid."""
-        # Trial division: plainer than square-root-and-pair, and faster than it
-        # for the small counts this form deals in.
-        divisors = [
-            d
-            for d in range(1, self.n_replica_trait + 1)
-            if self.n_replica_trait % d == 0
-        ] or [1]
-        previous = self.n_replica_per_group.value
-        self.n_replica_per_group.options = divisors
-        self.n_replica_per_group.value = previous if previous in divisors else 1
-
     # ------------------------------------------------------------------
     # Traits
     # ------------------------------------------------------------------
@@ -936,9 +922,11 @@ class NebWidget(ipw.VBox):
             floor = len(nodes)
             floor_source = "replicas provided"
 
-        # CP2K interpolates the replicas beyond those it is given, but cannot
-        # run fewer. The widget bounds this too; this is the backstop for a
-        # count written straight into the trait.
+        # CP2K interpolates beyond the replicas it is given, but cannot run
+        # fewer. The field's `min` normally enforces that, but it goes stale
+        # when a restart PK was entered before that calculation finished: the
+        # floor stayed at the row count, and nothing re-reads the node until
+        # here.
         n_replica = self.n_replica.value
         if n_replica < floor:
             raise ValueError(
@@ -980,7 +968,19 @@ class NebWidget(ipw.VBox):
         if self.n_replica_trait != self.n_replica.value:
             self.n_replica_trait = self.n_replica.value
             return
-        self._update_replica_per_group_options()
+
+        # Whatever divides the count is a valid "# rep / group"; keep the
+        # selection when it still does. Trial division is plainer than
+        # square-root-and-pair, and faster for counts this small. The count is
+        # at least the floor by the clamp above, so this is never empty.
+        divisors = [
+            d
+            for d in range(1, self.n_replica_trait + 1)
+            if self.n_replica_trait % d == 0
+        ]
+        previous = self.n_replica_per_group.value
+        self.n_replica_per_group.options = divisors
+        self.n_replica_per_group.value = previous if previous in divisors else 1
 
     def on_n_replica_per_group_change(self, _=None):
         if self.n_replica_per_group.value is not None:
@@ -1015,12 +1015,9 @@ class NebWidget(ipw.VBox):
         state["n_replica"] = int(self.n_replica.value)
         return state
 
-    def _sync_state(self):
+    def _sync_state(self, _=None):
         if not self._updating_from_state:
             self.neb_state = self._current_state()
-
-    def _observe_state_value(self, _=None):
-        self._sync_state()
 
     @tr.observe("neb_state")
     def _observe_neb_state(self, _=None):
@@ -1038,9 +1035,11 @@ class NebWidget(ipw.VBox):
                 widget.value = state.get(name, widget.value)
             self.initial_row.pk.value = int(state.get("initial_pk", 0) or 0)
             self.last_row.pk.value = int(state.get("last_pk", 0) or 0)
-            self._set_intermediate_rows(
-                [int(pk or 0) for pk in state.get("intermediate_pks", [])]
-            )
+            self.replica_rows = [
+                NebReplicaRow(self, "", pk=int(pk or 0))
+                for pk in state.get("intermediate_pks", [])
+            ]
+            self._refresh_rows()
             # After the rows: they set the lower bound this is clamped to.
             self.n_replica.value = int(state.get("n_replica", self.n_replica.value))
         finally:
