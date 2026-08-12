@@ -1,4 +1,4 @@
-from functools import reduce
+from functools import partial, reduce
 
 import ipywidgets as ipw
 import numpy as np
@@ -392,11 +392,7 @@ class NebReplicaRow(ipw.VBox):
             (self.remove, self.parent.remove_row),
             (self.interpolate, self.parent.interpolate_row),
         ):
-            button.on_click(
-                lambda _, action=action: self.parent.run_handler(
-                    self, lambda: action(self)
-                )
-            )
+            button.on_click(partial(self.parent.run_handler, self, action))
 
         buttons = [self.from_current, self.show]
         if can_insert:
@@ -432,13 +428,10 @@ class NebReplicaRow(ipw.VBox):
         self.status.layout.display = "block" if text else "none"
 
     def show_interpolation(self, visible, missing):
-        """Offer interpolation only while this replica is still empty.
-
-        Once it has a PK - interpolated, typed, or taken from the browser -
-        the controls go away rather than sit there offering to overwrite it.
-        They stay visible but dead while a neighbour is missing, and the
-        button's tooltip then names what is missing, so a dead button is not
-        left unexplained. ``missing`` holds the names of the undefined ends.
+        """A filled row hides the controls because interpolating would discard
+        the PK the user chose. A row that cannot be built yet keeps them greyed:
+        hiding them would leave no sign the capability exists, while a dead
+        button can say in its tooltip why it is deactivated.
         """
         if self.interpolation_box is None:
             return
@@ -477,9 +470,7 @@ class NebWidget(ipw.VBox):
         self.restart_from = ipw.Text(
             description="Restart from PK:",
             value="",
-            # Resolving the node on every keystroke would hunt for "1", "12",
-            # "123" on the way to 1234 and flash an error for each.
-            continuous_update=False,
+            continuous_update=False,  # We don't want continues updates while typing.
             style={"description_width": "150px"},
             layout={"width": "90%"},
         )
@@ -500,21 +491,18 @@ class NebWidget(ipw.VBox):
         self.align_frames = ipw.Checkbox(
             description="Align Frames",
             value=False,
-            indent=True,
             style=SETTING_STYLE,
             layout=SETTING_LAYOUT,
         )
         self.rotate_frames = ipw.Checkbox(
             description="Rotate Frames",
             value=False,
-            indent=True,
             style=SETTING_STYLE,
             layout=SETTING_LAYOUT,
         )
         self.optimize_endpoints = ipw.Checkbox(
             description="Optimize Endpoints",
             value=False,
-            indent=True,
             style=SETTING_STYLE,
             layout=SETTING_LAYOUT,
         )
@@ -537,9 +525,8 @@ class NebWidget(ipw.VBox):
             style=SETTING_STYLE,
             layout=SETTING_LAYOUT,
         )
-        # CP2K's NUMBER_OF_REPLICA may exceed the &REPLICA sections given: it
-        # bisects the widest gap until it has this many. It may never be
-        # smaller, so `min` tracks the floor and BoundedIntText enforces it.
+        # `min` does not stay at 2 - update_replica_info raises it to the
+        # number of replicas actually given, the fewest CP2K can run.
         self.n_replica = ipw.BoundedIntText(
             description="# of replica",
             value=2,
@@ -652,20 +639,16 @@ class NebWidget(ipw.VBox):
         self._refresh_rows()
         self.on_restart_change()
 
-    # ------------------------------------------------------------------
-    # Handler boundary
-    # ------------------------------------------------------------------
-
-    def run_handler(self, row, action):
-        """Run a click handler, reporting any failure on ``row``.
+    def run_handler(self, row, action, _button=None):
+        """Run ``action(row)``, reporting any failure on the row itself.
 
         ipywidgets swallows exceptions raised inside ``on_click``, so without
-        this a failed click does nothing at all with no explanation. Errors are
-        raised where they are detected and rendered here.
+        this a failed click does nothing at all with no explanation. ``_button``
+        is the widget ipywidgets passes back, which none of the handlers want.
         """
         try:
             row.set_status("", "")
-            action()
+            action(row)
         except Exception as exc:  # noqa: BLE001 - anything reaching here is user-facing
             row.set_status(exc, "red")
 
@@ -681,17 +664,25 @@ class NebWidget(ipw.VBox):
         which supplies the tags written into every replica file. Taking it from
         the calculation being restarted keeps it consistent with those replicas.
         """
+        pk = self.restart_from.value
         try:
-            node = orm.load_node(self.restart_from.value)
-            return (
-                node,
-                node.inputs.structure,
-                node.inputs.neb_params["number_of_replica"],
-            )
+            node = orm.load_node(pk)
+            structure = node.inputs.structure
+            n_replica = node.inputs.neb_params["number_of_replica"]
         except Exception as exc:  # noqa: BLE001 - NotExistent, AttributeError, KeyError
+            raise ValueError(f"PK {pk} is not a NEB calculation: {exc}") from exc
+
+        # The workchain reads opt_replica_000..N-1 off this node. One that is
+        # still running, or that failed, has the inputs read above but not
+        # these outputs, and would only blow up once submitted.
+        if not all(
+            hasattr(node.outputs, f"opt_replica_{i:03d}") for i in range(n_replica)
+        ):
             raise ValueError(
-                f"Cannot restart from PK {self.restart_from.value}: {exc}"
-            ) from exc
+                f"NEB {pk} has no optimised replicas to restart from - it may "
+                "still be running, or have failed."
+            )
+        return node, structure, n_replica
 
     def on_restart_change(self, _=None):
         """Hide the band builder while a restart PK is present."""
@@ -721,39 +712,25 @@ class NebWidget(ipw.VBox):
         )
         self.update_replica_info()
 
-    def _replica_floor(self):
-        """Fewest replicas the band can have: one per &REPLICA section written.
-
-        Those come from the restart when there is one, and from the rows
-        otherwise - the rows are still there while restarting, just hidden and
-        not submitted, so they must not set the floor.
-        """
-        if self._restart_replica_count is not None:
-            return self._restart_replica_count
-        return len(self.all_rows())
-
     # ------------------------------------------------------------------
     # Structure browser
     # ------------------------------------------------------------------
 
-    def _store_current_structure(self):
-        """Store and return the structure currently shown in the browser."""
+    def set_row_from_current(self, row):
+        """Point ``row`` at the structure the browser shows, storing it if needed.
+
+        An upload, a SMILES build or an edit has no PK until it is stored, and
+        the row has nowhere to put anything else - so the click is what commits
+        such a structure to the database.
+        """
         if self.structure_manager is None:
             raise ValueError("No structure browser is connected to this form.")
         node = self.structure_manager.structure_node
-        if node is not None and node.is_stored:
-            return node
-        if self.structure_manager.structure is None:
-            raise ValueError("No structure is currently visualized.")
-        return orm.StructureData(ase=self.structure_manager.structure).store()
-
-    def _show_node(self, node):
-        if self.structure_manager is None:
-            raise ValueError("No structure browser is connected to this form.")
-        self.structure_manager.input_structure = node
-
-    def set_row_from_current(self, row):
-        row.pk.value = self._store_current_structure().pk
+        if node is None or not node.is_stored:
+            if self.structure_manager.structure is None:
+                raise ValueError("No structure is currently visualized.")
+            node = orm.StructureData(ase=self.structure_manager.structure).store()
+        row.pk.value = node.pk
 
     def show_row(self, row):
         node, problem = row.get_node()
@@ -761,7 +738,9 @@ class NebWidget(ipw.VBox):
             raise ValueError(problem)
         if node is None:
             raise ValueError(f"{row.name} replica is not defined.")
-        self._show_node(node)
+        if self.structure_manager is None:
+            raise ValueError("No structure browser is connected to this form.")
+        self.structure_manager.input_structure = node
 
     # ------------------------------------------------------------------
     # Replica sequence
@@ -771,32 +750,17 @@ class NebWidget(ipw.VBox):
         """Every replica row in order: initial, the intermediates, last."""
         return [self.initial_row, *self.replica_rows, self.last_row]
 
-    def _replica_sequence(self):
-        """``(name, node, problem)`` for every replica, in order, initial first.
+    @staticmethod
+    def _nearest_defined(nodes, position):
+        """The nearest defined replica on each side of ``position``.
 
-        Rows are addressed by their position in :meth:`all_rows`, which is the
-        one indexing convention used throughout; ``node`` is ``None`` when a
-        replica is undefined or its PK could not be loaded.
+        Empty rows are skipped over, so a row can be interpolated between
+        neighbours that are not adjacent to it.
         """
-        sequence = []
-        for row in self.all_rows():
-            node, problem = row.get_node()
-            sequence.append((row.name, node, problem))
-        return sequence
-
-    def _neighbouring_nodes(self, row):
-        """The nearest defined replicas either side of ``row``."""
-        sequence = self._replica_sequence()
-        position = self.all_rows().index(row)
-        before = next(
-            (node for _, node, _ in reversed(sequence[:position]) if node is not None),
-            None,
+        return (
+            next((n for n in reversed(nodes[:position]) if n is not None), None),
+            next((n for n in nodes[position + 1 :] if n is not None), None),
         )
-        after = next(
-            (node for _, node, _ in sequence[position + 1 :] if node is not None),
-            None,
-        )
-        return before, after
 
     def _set_intermediate_rows(self, pks):
         self.replica_rows = [NebReplicaRow(self, "", pk=pk) for pk in pks]
@@ -820,7 +784,9 @@ class NebWidget(ipw.VBox):
         return [n for n, node in (("Initial", before), ("Last", after)) if node is None]
 
     def interpolate_row(self, row):
-        before, after = self._neighbouring_nodes(row)
+        rows = self.all_rows()
+        nodes = [other.get_node()[0] for other in rows]
+        before, after = self._nearest_defined(nodes, rows.index(row))
         # The button is dead without both neighbours; this is the backstop.
         missing = self._missing_ends(before, after)
         if missing:
@@ -852,37 +818,43 @@ class NebWidget(ipw.VBox):
 
     def validate_replicas(self):
         """Return every replica node in order, raising if the chain is unusable."""
-        sequence = self._replica_sequence()
-        for name, node, problem in sequence:
+        rows = self.all_rows()
+        nodes = []
+        for row in rows:
+            node, problem = row.get_node()
             if problem:
-                raise ValueError(f"{name} replica: {problem}")
+                raise ValueError(f"{row.name} replica: {problem}")
             if node is None:
-                raise ValueError(f"{name} replica is not defined.")
+                raise ValueError(f"{row.name} replica is not defined.")
+            nodes.append(node)
 
-        for (before, previous, _), (name, node, _) in zip(sequence, sequence[1:]):
+        for previous_row, previous, row, node in zip(rows, nodes, rows[1:], nodes[1:]):
             ok, message = validate_replica_pair(previous.get_ase(), node.get_ase())
             if not ok:
-                raise ValueError(f"{name} vs {before}: {message}")
+                raise ValueError(f"{row.name} vs {previous_row.name}: {message}")
 
-        return [node for _, node, _ in sequence]
+        return nodes
 
     # ------------------------------------------------------------------
     # Row info and derived quantities
     # ------------------------------------------------------------------
 
     def update_replica_info(self, _=None):
-        # Requesting fewer replicas than CP2K is handed is meaningless; anything
-        # above the floor it interpolates itself.
-        self.n_replica.min = self._replica_floor()
+        # One &REPLICA section is written per replica handed to CP2K, and it
+        # cannot run fewer than that; above the floor it interpolates. A restart
+        # sets the floor, otherwise the rows do - they still exist while
+        # restarting, hidden and not submitted, so they must not set it then.
+        rows = self.all_rows()
+        floor = self._restart_replica_count or len(rows)
+        self.n_replica.min = floor
         self.n_replica_trait = self.n_replica.value
 
-        sequence = self._replica_sequence()
-        # Reused rather than asked per row, which would reload every node.
-        nodes = [node for _, node, _ in sequence]
+        # Loaded once and reused below: get_node hits the database, and the
+        # neighbour scan needs every node again.
+        loaded = [row.get_node() for row in rows]
+        nodes = [node for node, _ in loaded]
         previous = None
-        for position, (row, (_, node, problem)) in enumerate(
-            zip(self.all_rows(), sequence)
-        ):
+        for position, (row, (node, problem)) in enumerate(zip(rows, loaded)):
             if problem:
                 row.set_info(problem, "red")
             elif node is None:
@@ -907,23 +879,19 @@ class NebWidget(ipw.VBox):
                     )
             row.show_interpolation(
                 visible=node is None,
-                missing=self._missing_ends(
-                    next((o for o in reversed(nodes[:position]) if o), None),
-                    next((o for o in nodes[position + 1 :] if o), None),
-                ),
+                missing=self._missing_ends(*self._nearest_defined(nodes, position)),
             )
             if node is not None:
                 previous = node
 
-        provided = self._replica_floor()
-        interpolated = self.n_replica.value - provided
+        interpolated = self.n_replica.value - floor
         source = (
             "inherited from the restart"
             if self._restart_replica_count is not None
             else "defined above"
         )
         self.n_replica_info.value = _colored(
-            f"{provided} {source}"
+            f"{floor} {source}"
             + (
                 f", {interpolated} interpolated by CP2K, which bisects the widest "
                 "gap in the band until it has this many."
