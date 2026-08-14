@@ -111,20 +111,65 @@ ITEMS = [
     (
         "Density functional theory",
         [
-            ("geometry", "Geometry optimization", "Relax a structure to a local minimum.", "submit_geometry_optimization.ipynb"),
-            ("scf", "SCF energy", "Single-point CP2K energy and optional remote overlap matrix.", "submit_scf.ipynb"),
-            ("adsorption", "Adsorption energy", "Compare adsorbed and reference systems.", "submit_adsorption_energy.ipynb"),
-            ("phonons", "Phonons", "Vibrational modes and finite-difference displacements.", "submit_phonons.ipynb"),
-            ("replica", "Replica chain", "Constrained replicas along a reaction coordinate.", "submit_replica_chain.ipynb"),
-            ("neb", "Nudged elastic band", "Images on a minimum-energy reaction path.", "submit_neb.ipynb"),
-            ("search", "Search", "Find and reopen previous calculations.", "search.ipynb"),
+            (
+                "geometry",
+                "Geometry optimization",
+                "Relax a structure to a local minimum.",
+                "submit_geometry_optimization.ipynb",
+            ),
+            (
+                "scf",
+                "SCF energy",
+                "Single-point CP2K energy and optional remote overlap matrix.",
+                "submit_scf.ipynb",
+            ),
+            (
+                "adsorption",
+                "Adsorption energy",
+                "Compare adsorbed and reference systems.",
+                "submit_adsorption_energy.ipynb",
+            ),
+            (
+                "phonons",
+                "Phonons",
+                "Vibrational modes and finite-difference displacements.",
+                "submit_phonons.ipynb",
+            ),
+            (
+                "replica",
+                "Replica chain",
+                "Constrained replicas along a reaction coordinate.",
+                "submit_replica_chain.ipynb",
+            ),
+            (
+                "neb",
+                "Nudged elastic band",
+                "Images on a minimum-energy reaction path.",
+                "submit_neb.ipynb",
+            ),
+            (
+                "search",
+                "Search",
+                "Find and reopen previous calculations.",
+                "search.ipynb",
+            ),
         ],
     ),
     (
         "Post-processing",
         [
-            ("spm", "Scanning probe microscopy", "STM, AFM, and orbital imaging workflows.", "submit_spm.ipynb"),
-            ("pdos", "Projected density of states", "Orbital-resolved electronic spectra.", "submit_pdos.ipynb"),
+            (
+                "spm",
+                "Scanning probe microscopy",
+                "STM, AFM, and orbital imaging workflows.",
+                "submit_spm.ipynb",
+            ),
+            (
+                "pdos",
+                "Projected density of states",
+                "Orbital-resolved electronic spectra.",
+                "submit_pdos.ipynb",
+            ),
         ],
     ),
 ]
@@ -274,7 +319,7 @@ def get_start_widget(appbase, jupbase):  # noqa: ARG001
         <div class="surface-launcher">
             <h1>Surfaces workflows</h1>
             <div class="surface-sections">
-                {''.join(sections)}
+                {"".join(sections)}
             </div>
         </div>
         """
