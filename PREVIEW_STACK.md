@@ -1,4 +1,4 @@
-# Surfaces 2.0.0a0 preview stack
+# Surfaces 2.0.0a1 preview stack
 
 This prerelease makes the reviewed-but-unmerged Empa feature stack available
 without changing the stable `1.1.0` installation path. Dependencies are pinned
@@ -12,11 +12,12 @@ to immutable Git commits so every test container receives the same code.
 | `nanotech-empa/cp2k-spm-tools` | `integration/surfaces-v2.0.0a0` | `8bb2a13fd73af12c7ee5ec1eb688a3b07ed89276` | latest `main`, PRs #21 and #27, plus the tested #24 adaptation to merged #30 |
 | `aiidalab/aiidalab-widgets-base` via `cpignedoli/aiidalab-widgets-base` | `integration/surfaces-v2.0.0a0` | `eb3672a7471f658371a38927d1563d78203ac028` | latest `master`, PRs #766, #768, #769, and #770; #525 is already merged upstream; validation import-order fixes |
 | `nanotech-empa/aiida-nanotech-empa` | `integration/surfaces-v2.0.0a0` | `45c4307a9db39ac5debc7a2b87f0ad869a425c17` | revised PR #196 and the feature commits from #197 through #207; declared Ruff formatting applied |
-| `nanotech-empa/aiidalab-alps-files` | `integration/surfaces-v2.0.0a0` | `fadab8cb92fe947b0fd8aa473cb5aaf909073983` | separate preview code labels and exact `cp2k-spm-tools` source ref |
-| `nanotech-empa/aiidalab-empa-setup` | `integration/surfaces-v2.0.0a0` | `581d66dab1b77f3986248fd8af4a2e099e11c6a3` | PR #8 plus the matching ALPS-config default; safe changed-file lint fixes |
+| `nanotech-empa/aiidalab-alps-files` | `integration/surfaces-v2.0.0a0` | `3ef32074be647ac72393d0ffd26022a64e600d7f` | PR #9; complete tested Daint preview code matrix and exact `cp2k-spm-tools` source ref |
+| `nanotech-empa/aiidalab-empa-setup` | `integration/surfaces-v2.0.0a0` | `b196b60a309f8f518e8bada6f8eb99575c135533` | PR #9; Python 3.12 preview gate and non-interactive complete code creation |
 
 The Surfaces branch contains PR #280, the feature commits represented by PRs
-#281 through #298, PR #300, PR #309, and the approved final head of PR #312.
+#281 through #298, PR #300, PR #309, the approved final head of PR #312, and the SCF structure-manager fix from
+PR #314.
 
 ## Composition decisions
 
@@ -35,10 +36,11 @@ The Surfaces branch contains PR #280, the feature commits represented by PRs
 
 ## ALPS isolation and rollback
 
-The preview configuration creates new STM, overlap, and unfolding labels whose
-names include `surfaces-v2.0.0a0`. It uses a separate remote source directory
+The preview configuration creates isolated STM, overlap, sparse-overlap, and
+unfolding labels whose names retain the tested `surfaces-v2.0.0a0` namespace.
+It uses a separate remote source directory
 and does not relabel or overwrite the existing `1.5.0` codes.
 
-The stable Surfaces release remains `1.1.0`. The alpha is opt-in. If a defect
-is found, install `1.1.0` again and publish a corrected `2.0.0a1`; do not move
-or rewrite the `2.0.0a0` tag.
+The stable Surfaces release remains `1.1.0`. The `2.0.0a1` alpha is opt-in. If a
+defect is found, install `1.1.0` again and publish a corrected `2.0.0a2`; do not
+move or rewrite either alpha tag.
