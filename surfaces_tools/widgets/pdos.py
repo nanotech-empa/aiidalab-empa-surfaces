@@ -964,6 +964,8 @@ class PdosOverlapViewerWidget(ipw.VBox):
         self, ax1, ylim, energy_arr, collect_data, collect_data_headers
     ):
         for line_serie in self._projections.items:
+            if line_serie._data_selection.value is None:
+                continue
             (
                 label,
                 picked_color,
