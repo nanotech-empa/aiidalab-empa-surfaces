@@ -425,9 +425,10 @@ def make_image_link(figure, text="PNG", data_format="png"):
     image_file = base64.b64encode(image_data.getvalue()).decode()
 
     filename = f"pdos.{data_format}"
+    mime_type = "image/svg+xml" if data_format == "svg" else f"image/{data_format}"
 
     html = f'<a download="{filename}" href="'
-    html += f'data:image/{data_format};name={filename};base64,{image_file}"'
+    html += f'data:{mime_type};name={filename};base64,{image_file}"'
     html += ' id=f"pdos_{data_format}_link"'
     html += f' target="_blank">{text}</a>'
 
@@ -889,7 +890,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
     def make_plot(self, _=None):
         with self._plot_output:
             fig, collected_data = self._create_the_plot()
-            links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_csv_link(collected_data)}."""
+            links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_image_link(fig, text="SVG", data_format="svg")}, {make_csv_link(collected_data)}."""
             display(ipw.HTML(links))
 
     def clear_plot(self, _=None):
@@ -963,6 +964,8 @@ class PdosOverlapViewerWidget(ipw.VBox):
         self, ax1, ylim, energy_arr, collect_data, collect_data_headers
     ):
         for line_serie in self._projections.items:
+            if line_serie._data_selection.value is None:
+                continue
             (
                 label,
                 picked_color,

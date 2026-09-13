@@ -1,7 +1,7 @@
 import unittest
 
-from ase import Atoms
 from aiidalab_widgets_base import viewers
+from ase import Atoms
 
 from surfaces_tools.widgets.auto_representations import (
     AutoRepresentationWidget,
@@ -44,9 +44,12 @@ class AutoRepresentationsTest(unittest.TestCase):
         self.assertEqual(non_molecule_atoms, [0, 1])
         self.assertEqual(len(viewer._all_representations), 2)
         self.assertEqual(
-            viewer._all_representations[0].style_id, viewer.DEFAULT_REPRESENTATION
+            viewers.parse_representation_style_id(
+                viewer._all_representations[0].style_id
+            )["token"],
+            "molecules",
         )
-        self.assertEqual(viewer._all_representations[0].type.value, "ball+stick")
+        self.assertEqual(viewer._all_representations[0].type.value, "ballstick")
         self.assertEqual(viewer._all_representations[0].selection.value, "3..4")
         self.assertEqual(viewer._all_representations[1].type.value, "spacefill")
         self.assertEqual(viewer._all_representations[1].selection.value, "1..2")
@@ -55,7 +58,7 @@ class AutoRepresentationsTest(unittest.TestCase):
             representation_type="spacefill",
             size=3,
             color="element",
-            token="non_molecule",
+            token="nonmolecule",
         )
         self.assertEqual(viewer._all_representations[1].style_id, expected_style_id)
 
@@ -89,14 +92,16 @@ class AutoRepresentationsTest(unittest.TestCase):
 
         apply_auto_representations(viewer, {"all_molecules": [[2, 3]]})
         self.assertEqual(len(viewer._all_representations), 2)
+        first_style_id = viewer._all_representations[0].style_id
 
         viewer.structure = second_structure
         auto_rep.structure = second_structure
 
         self.assertEqual(len(viewer._all_representations), 1)
-        self.assertEqual(
-            viewer._all_representations[0].style_id, viewer.DEFAULT_REPRESENTATION
-        )
+        # The current viewer reuses the first style for structures without
+        # saved representations, but resets its atom selection to all atoms.
+        self.assertEqual(viewer._all_representations[0].style_id, first_style_id)
+        self.assertEqual(viewer._all_representations[0].type.value, "ballstick")
         self.assertEqual(viewer._all_representations[0].selection.value, "1..5")
         self.assertEqual(viewer.atoms_not_represented.value, "")
         self.assertEqual(auto_rep.status.value, "")
