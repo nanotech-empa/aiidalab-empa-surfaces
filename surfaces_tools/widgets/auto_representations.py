@@ -1,8 +1,8 @@
-import traitlets as tr
 import ipywidgets as ipw
-from ase import Atoms
+import traitlets as tr
 from aiidalab_widgets_base import viewers as awb_viewers
 from aiidalab_widgets_base.utils import list_to_string_range
+from ase import Atoms
 
 from .analyze_structure import StructureAnalyzer
 
@@ -28,14 +28,9 @@ def _make_representation(
     name,
     indices,
     representation_type,
-    *,
-    style_id=None,
-    deletable=True,
-    atom_show_threshold=1,
 ):
     representation = awb_viewers.NglViewerRepresentation(
-        style_id=style_id
-        or awb_viewers.encode_representation_style_id(
+        style_id=awb_viewers.encode_representation_style_id(
             viewer.REPRESENTATION_PREFIX,
             representation_type=representation_type,
             size=3,
@@ -43,8 +38,6 @@ def _make_representation(
             token=name,
         ),
         indices=indices,
-        deletable=deletable,
-        atom_show_threshold=atom_show_threshold,
     )
     representation.type.value = representation_type
     representation.size.value = 3
@@ -63,10 +56,7 @@ def reset_default_representation(viewer):
         viewer,
         "default",
         list(range(len(structure))),
-        "ball+stick",
-        style_id=viewer.DEFAULT_REPRESENTATION,
-        deletable=False,
-        atom_show_threshold=0,
+        "ballstick",
     )
     viewer._all_representations = [default_representation]
 
@@ -94,17 +84,14 @@ def apply_auto_representations(viewer, details):
             viewer,
             "molecules",
             molecules_atoms,
-            "ball+stick",
-            style_id=viewer.DEFAULT_REPRESENTATION,
-            deletable=False,
-            atom_show_threshold=0,
+            "ballstick",
         )
     ]
     if non_molecule_atoms:
         representations.append(
             _make_representation(
                 viewer,
-                "non_molecule",
+                "nonmolecule",
                 non_molecule_atoms,
                 "spacefill",
             )
