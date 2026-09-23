@@ -54,6 +54,10 @@ Alpha 3 updates `aiida-nanotech-empa` to a two-parent integration of the
 surfaces CP2K preview and the head of PR #208. That head contains current
 `master`, PR #216 for aiida-quantumespresso 5, and the BandUPpy 1 workflow.
 
+PRs #216 and #208 remain the canonical review and merge targets. The combined
+commit pinned here is only an immutable alpha-test assembly; its integration
+branch is not a destination for the component changes.
+
 The exact commit pin remains necessary until the upstream AQE5 changes and the
 CP2K preview stack are released. New QE workflows target AQE5; compatibility
 with historical AQE4 results remains a viewer/import concern.
