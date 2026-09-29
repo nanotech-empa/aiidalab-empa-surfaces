@@ -2,9 +2,10 @@ import io
 import shutil
 import tempfile
 
-import aiidalab_widgets_base as awb
 import numpy as np
 from aiida import engine, orm
+
+from surfaces_tools.utils.atom_indices import string_range_to_list
 
 
 @engine.calcfunction
@@ -20,8 +21,8 @@ def make_geom_file(
 
     # Spins from widgets
     spin_guess = [
-        awb.utils.string_range_to_list(spin_u.value)[0],
-        awb.utils.string_range_to_list(spin_d.value)[0],
+        string_range_to_list(spin_u.value)[0],
+        string_range_to_list(spin_d.value)[0],
     ]
     if selection is None:
         atoms = structure.get_ase()

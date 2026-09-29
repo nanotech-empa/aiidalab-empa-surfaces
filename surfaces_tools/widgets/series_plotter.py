@@ -10,6 +10,7 @@ import numpy as np
 from IPython.display import HTML, display
 
 from ..utils import igor
+from ..utils.files import download_link
 
 colormaps = ["seismic", "gist_heat"]
 
@@ -110,7 +111,7 @@ def make_orb_label(index, homo_index):
     elif i_rel_homo == 1:
         hl_label = "LUMO"
     else:
-        hl_label = f"LUMO{i_rel_homo-1:+d}"
+        hl_label = f"LUMO{i_rel_homo - 1:+d}"
 
     return f"MO {str(index) + hl_label}, "
 
@@ -337,7 +338,7 @@ class SeriesPlotter:
             f.write(zip_buffer.getvalue())
 
         with self.link_out:
-            display(HTML(f'<a href="tmp/{filename}" target="_blank">download zip</a>'))
+            display(HTML(download_link(filename)))
 
     def data_to_zip(self, zip_file):
         index_list = self.select_indexes_function()
