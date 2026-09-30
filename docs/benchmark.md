@@ -31,8 +31,20 @@ The CP2K protocol is unchanged: periodic PBE+D3, OT CG, no input WFN.
 The timing metric is the sum of the elapsed times for OT iterations 3 (CG) and
 4 (LS), not total wall time. A calculation that fails or lacks either iteration
 has no usable timing. Failed cases remain visible; an entirely failed grid
-returns an error and a readable report. The viewer uses the smallest successful
-node count as its speedup reference. A report multiplier is only an estimate.
+returns an error and a readable report.
+
+The results plot shows a vertical minimum-to-maximum timing bar for each node
+count, using all configurations with usable timings. The table identifies the
+best and worst configurations as MPI tasks per node × OpenMP threads per MPI
+task, lists all ties, and shows usable versus tested counts. Groups with no usable
+timings remain in the table with blank extrema and no plotted bar. With only one
+usable timing (or all equal timings), the minimum and maximum coincide.
+
+Expand **Speedup, estimates and job IDs** for the original minimum-based speedup
+and multiplier report, plus scheduler job IDs for the best and worst cases.
+The smallest node count with a usable timing is the speedup reference.
+A report multiplier is only an estimate. These views use the saved timings;
+existing benchmarks need no rerun.
 
 Submission produces monitor and results links. Results can also be opened in
 view_benchmark.ipynb using a UUID or PK, or through the Surfaces structure search.
