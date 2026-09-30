@@ -2,7 +2,9 @@
 
 Open **CSCS CP2K benchmark** in the Surfaces launcher, select a structure and CP2K code,
 then edit the node, MPI-task and OpenMP-thread lists. Each MPI-task count per node
-must be divisible by **GPUs per node**; invalid lists are rejected in both the app
+must be divisible by **GPUs per node** when it is positive. Set **GPUs per node = 0**
+for CPU-only operation: it permits the same MPI-task counts as 1 GPU without
+implying that GPUs are required. Negative GPU counts and invalid task lists are rejected in both the app
 and workflow. The GPU field is a scheduling rule, not a GPU-allocation command;
 the selected computer/code supplies GPU allocation and binding.
 
@@ -18,6 +20,12 @@ that setting for the selected computer. Each calculation allocates the selected
 number of CPUs per MPI task and sets OMP_NUM_THREADS after the code's prepend
 text, so the requested thread count takes precedence. Executable wrappers must
 also respect that value. All selected cases are submitted together.
+
+For cp2k@localhost with the direct scheduler, the node list must be 1.
+A small CPU-only smoke-test grid is GPUs = 0, nodes = 1, MPI tasks = 1 2,
+threads = 2. This launches two calculations using up to six CPU threads in total.
+The GPU field does not enable or disable GPU acceleration inside CP2K itself;
+use a CPU executable/environment for a CPU-only test.
 
 The CP2K protocol is unchanged: periodic PBE+D3, OT CG, no input WFN.
 The timing metric is the sum of the elapsed times for OT iterations 3 (CG) and
