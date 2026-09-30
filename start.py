@@ -23,6 +23,7 @@ def get_start_widget(appbase, jupbase):
         <li><a href="{appbase}/submit_phonons.ipynb" target="_blank">Phonons</a>
         <li><a href="{appbase}/submit_replica_chain.ipynb" target="_blank">Replica chain</a>
         <li><a href="{appbase}/submit_neb.ipynb" target="_blank">Nudged elastic band</a>
+        <li><a href="{appbase}/submit_benchmark.ipynb" target="_blank">CSCS CP2K benchmark</a>
         <li><a href="{appbase}/search.ipynb" target="_blank">Search</a>
     </ul></td>
 
