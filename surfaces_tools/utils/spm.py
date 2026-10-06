@@ -82,9 +82,7 @@ def create_stm_parameterdata(
     z_min = "n-2.0_C" if "C" in struct_symbols else "p-4.0"
     z_max = f"p{extrap_plane:.1f}"
 
-    energy_range_str = "{:.2f} {:.2f} {:.3f}".format(
-        elim_float_slider0, elim_float_slider1, de_floattext
-    )
+    energy_range_str = f"{elim_float_slider0:.2f} {elim_float_slider1:.2f} {de_floattext:.3f}"
 
     paramdata = {
         "--cp2k_input_file": parent_dir + "aiida.inp",

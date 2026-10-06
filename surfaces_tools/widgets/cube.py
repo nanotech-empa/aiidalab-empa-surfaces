@@ -7,7 +7,6 @@ from pathlib import PurePosixPath
 import aiidalab_widgets_base as awb
 import ase.io.cube
 import ipywidgets as ipw
-import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import nglview
@@ -16,6 +15,7 @@ import toml
 import traitlets as tl
 from aiida import orm, plugins
 from cubehandler import Cube
+from matplotlib import cm
 from PIL import ImageColor
 from scipy.ndimage import map_coordinates
 

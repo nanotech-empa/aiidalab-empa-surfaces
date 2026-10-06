@@ -3,7 +3,7 @@ from surfaces_tools.widgets.lowdimfinder import LowDimFinder
 
 def test_group_data_exposes_unit_cell_ids():
     finder = LowDimFinder.__new__(LowDimFinder)
-    finder.get_reduced_aiida_structures = lambda: []
+    finder.get_reduced_aiida_structures = list
     finder._dimensionality = [2]
     finder._chemical_formula = ["C"]
     finder._positions = [[[0.0, 0.0, 0.0]]]
