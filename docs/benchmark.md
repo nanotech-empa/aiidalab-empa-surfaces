@@ -51,6 +51,14 @@ The smallest node count with a usable timing is the speedup reference.
 A report multiplier is only an estimate. These views use the saved timings;
 existing benchmarks need no rerun.
 
+Below the speedup table, **Find CP2K CalcJob** accepts a scheduler job ID and
+shows the matching CalcJob PK, process link, computer, state, remote workdir
+and a copyable verdi calcjob gotocomputer command. The search is restricted
+to CP2K CalcJobs called by the selected benchmark; failed jobs are included.
+All matches are shown if a scheduler ID was reused within the benchmark.
+The lookup is also available when timings are absent or all cases failed.
+It reads saved provenance on demand and does not open an SSH connection.
+
 Submission produces monitor and results links. Results can also be opened in
 view_benchmark.ipynb using a UUID or PK, or through the Surfaces structure search.
 Existing benchmark result dictionaries remain readable.
