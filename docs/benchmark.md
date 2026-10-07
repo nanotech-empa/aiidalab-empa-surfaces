@@ -40,6 +40,11 @@ task, lists all ties, and shows usable versus tested counts. Groups with no usab
 timings remain in the table with blank extrema and no plotted bar. With only one
 usable timing (or all equal timings), the minimum and maximum coincide.
 
+The **Speedup from best timings** plot is displayed directly below the timing
+ranges. It shows the benchmark curve, ideal speedup and 50% of ideal speedup.
+Speedup is the best timing at the smallest successful node count divided by
+the best timing at each node count; ideal speedup is the ratio of node counts.
+
 Expand **Speedup, estimates and job IDs** for the original minimum-based speedup
 and multiplier report, plus scheduler job IDs for the best and worst cases.
 The smallest node count with a usable timing is the speedup reference.
