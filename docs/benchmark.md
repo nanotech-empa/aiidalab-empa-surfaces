@@ -52,6 +52,13 @@ corresponding text. Edits affect only the displayed labels, not the timings,
 speedup or saved benchmark data. Loading or refreshing a benchmark restores
 the default labels.
 
+The speedup plot also provides **Aspect ratio (width / height)** in that panel.
+This controls the plotting area's shape, excluding its title and labels. Its
+default is calculated so the ideal-speedup line appears at 45 degrees, including
+when the speedup reference uses more than one node. Larger ratios give a wider
+plot; smaller ratios give a taller plot. Changing the ratio preserves the data
+and axis limits. Loading or refreshing restores the automatic default.
+
 Expand **Speedup, estimates and job IDs** for the original minimum-based speedup
 and multiplier report, plus scheduler job IDs for the best and worst cases.
 The smallest node count with a usable timing is the speedup reference.
