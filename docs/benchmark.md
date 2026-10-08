@@ -45,6 +45,13 @@ ranges. It shows the benchmark curve, ideal speedup and 50% of ideal speedup.
 Speedup is the best timing at the smallest successful node count divided by
 the best timing at each node count; ideal speedup is the ratio of node counts.
 
+Above each plot, expand **Edit plot title and axis labels** to change its title,
+X-axis label or Y-axis label. The fields start with the existing plot text.
+Press Enter or leave a field to redraw that plot; blank fields hide the
+corresponding text. Edits affect only the displayed labels, not the timings,
+speedup or saved benchmark data. Loading or refreshing a benchmark restores
+the default labels.
+
 Expand **Speedup, estimates and job IDs** for the original minimum-based speedup
 and multiplier report, plus scheduler job IDs for the best and worst cases.
 The smallest node count with a usable timing is the speedup reference.
