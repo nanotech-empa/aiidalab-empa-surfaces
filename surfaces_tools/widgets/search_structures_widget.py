@@ -23,6 +23,7 @@ VIEWERS = {
     "charge-lowres": "handle_cubes.ipynb",
     "ChargeDiff-lowres": "handle_cubes.ipynb",
     "ReplicaWorkChain": "view_replica.ipynb",
+    "CP2K_benchmark": "view_benchmark.ipynb",
     "Gaussian_CASSCF_series": "view_gaussian_casscf_series.ipynb",  # Added entry
 }
 
