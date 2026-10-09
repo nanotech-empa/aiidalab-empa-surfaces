@@ -44,12 +44,27 @@ class AutoRepresentationsTest(unittest.TestCase):
         self.assertEqual(non_molecule_atoms, [0, 1])
         self.assertEqual(len(viewer._all_representations), 2)
         self.assertEqual(
-            viewer._all_representations[0].style_id, viewer.DEFAULT_REPRESENTATION
+            viewer._all_representations[0].style_id,
+            viewers.encode_representation_style_id(
+                viewer.REPRESENTATION_PREFIX,
+                representation_type="ballstick",
+                size=3,
+                color="element",
+                token="molecules",
+            ),
         )
-        self.assertEqual(viewer._all_representations[0].type.value, "ball+stick")
+        self.assertEqual(viewer._all_representations[0].type.value, "ballstick")
         self.assertEqual(viewer._all_representations[0].selection.value, "3..4")
         self.assertEqual(viewer._all_representations[1].type.value, "spacefill")
         self.assertEqual(viewer._all_representations[1].selection.value, "1..2")
+        expected_style_id = viewers.encode_representation_style_id(
+            viewer.REPRESENTATION_PREFIX,
+            representation_type="spacefill",
+            size=3,
+            color="element",
+            token="nonmolecule",
+        )
+        self.assertEqual(viewer._all_representations[1].style_id, expected_style_id)
 
     def test_structure_change_resets_stale_auto_representations(self):
         first_structure = Atoms(
@@ -86,9 +101,39 @@ class AutoRepresentationsTest(unittest.TestCase):
         auto_rep.structure = second_structure
 
         self.assertEqual(len(viewer._all_representations), 1)
-        self.assertEqual(
-            viewer._all_representations[0].style_id, viewer.DEFAULT_REPRESENTATION
+        metadata = viewers.parse_representation_style_id(
+            viewer._all_representations[0].style_id
         )
+        self.assertEqual(metadata["representation_type"], "ballstick")
+        self.assertEqual(metadata["color"], "element")
         self.assertEqual(viewer._all_representations[0].selection.value, "1..5")
         self.assertEqual(viewer.atoms_not_represented.value, "")
         self.assertEqual(auto_rep.status.value, "")
+
+    def test_encoded_auto_representations_survive_extended_xyz_round_trip(self):
+        from io import StringIO
+        from ase.io import read, write
+
+        viewer = viewers.StructureDataViewer()
+        viewer.structure = Atoms(
+            "Au2CH",
+            positions=[[0, 0, 0], [1, 0, 0], [0, 0, 2], [0, 1, 2]],
+            cell=[5, 5, 8],
+            pbc=True,
+        )
+        apply_auto_representations(viewer, {"all_molecules": [[2, 3]]})
+        stream = StringIO()
+        write(stream, viewer.structure, format="extxyz")
+        stream.seek(0)
+        loaded = read(stream, format="extxyz")
+        restored = viewers.StructureDataViewer()
+        restored.structure = loaded
+        AutoRepresentationWidget(restored).structure = loaded
+        self.assertEqual(len(restored._all_representations), 2)
+        self.assertEqual(
+            [r.type.value for r in restored._all_representations],
+            ["ballstick", "spacefill"],
+        )
+        self.assertEqual(
+            [r.selection.value for r in restored._all_representations], ["3..4", "1..2"]
+        )
