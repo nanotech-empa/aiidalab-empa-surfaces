@@ -1,7 +1,7 @@
 import unittest
 
-from ase import Atoms
 from aiidalab_widgets_base import viewers
+from ase import Atoms
 
 from surfaces_tools.widgets.auto_representations import (
     AutoRepresentationWidget,

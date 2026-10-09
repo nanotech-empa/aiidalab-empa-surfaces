@@ -174,7 +174,9 @@ def read_and_process_pdos_file(pdos_path, energy_reference=None):
     return out_data, kind
 
 
-def process_pdos_files(pdos_workchain, newversion=True, manual_energy_reference_ev=None):
+def process_pdos_files(
+    pdos_workchain, newversion=True, manual_energy_reference_ev=None
+):
     dos = {}
 
     if newversion:
@@ -820,7 +822,9 @@ class PdosOverlapViewerWidget(ipw.VBox):
                 f"({homo_rel_ev:+.3f} eV vs E_ref)"
             )
         if frontier_parts:
-            html += "<br>Reliable occupied frontiers: " + "; ".join(frontier_parts) + "."
+            html += (
+                "<br>Reliable occupied frontiers: " + "; ".join(frontier_parts) + "."
+            )
 
         if reference.get("uses_legacy_lumo"):
             html += (

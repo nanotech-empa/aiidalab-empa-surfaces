@@ -22,7 +22,7 @@ def string_range_to_list(value, shift=-1):
             return [], False
 
         if ".." in item:
-            start, end = [int(part) for part in item.split("..")]
+            start, end = (int(part) for part in item.split(".."))
             if start > end:
                 return [], False
             indices.extend(index + shift for index in range(start, end + 1))
