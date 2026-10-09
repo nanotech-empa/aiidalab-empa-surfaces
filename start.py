@@ -1,10 +1,18 @@
 import ipywidgets as ipw
 
-
 _ICON_STROKE = "currentColor"
 
 
 ICONS = {
+    "cdxml": """
+        <svg viewBox="0 0 64 64" aria-hidden="true"
+                         fill="none" stroke="currentColor" stroke-width="3"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M25 10L8 20v20l17 10 17-10V20z" />
+                        <path d="M13 23v14M25 44l12-7M25 16l12 7" />
+                        <path d="M36 49l3-10 17-17 6 6-17 17zM51 27l6 6" />
+                    </svg>
+    """,
     "geometry": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
             <path d="M9 49c10-23 18-23 26-8s13 11 20-17" />
@@ -109,22 +117,78 @@ ICONS = {
 
 ITEMS = [
     (
+        "Structure tools",
+        [
+            (
+                "cdxml",
+                "CDXML editor",
+                "Import, clean up, and edit ChemDraw structures.",
+                "cdxml_editor.ipynb",
+            )
+        ],
+    ),
+    (
         "Density functional theory",
         [
-            ("geometry", "Geometry optimization", "Relax a structure to a local minimum.", "submit_geometry_optimization.ipynb"),
-            ("scf", "SCF energy", "Single-point CP2K energy and optional remote overlap matrix.", "submit_scf.ipynb"),
-            ("adsorption", "Adsorption energy", "Compare adsorbed and reference systems.", "submit_adsorption_energy.ipynb"),
-            ("phonons", "Phonons", "Vibrational modes and finite-difference displacements.", "submit_phonons.ipynb"),
-            ("replica", "Replica chain", "Constrained replicas along a reaction coordinate.", "submit_replica_chain.ipynb"),
-            ("neb", "Nudged elastic band", "Images on a minimum-energy reaction path.", "submit_neb.ipynb"),
-            ("search", "Search", "Find and reopen previous calculations.", "search.ipynb"),
+            (
+                "geometry",
+                "Geometry optimization",
+                "Relax a structure to a local minimum.",
+                "submit_geometry_optimization.ipynb",
+            ),
+            (
+                "scf",
+                "SCF energy",
+                "Single-point CP2K energy and optional remote overlap matrix.",
+                "submit_scf.ipynb",
+            ),
+            (
+                "adsorption",
+                "Adsorption energy",
+                "Compare adsorbed and reference systems.",
+                "submit_adsorption_energy.ipynb",
+            ),
+            (
+                "phonons",
+                "Phonons",
+                "Vibrational modes and finite-difference displacements.",
+                "submit_phonons.ipynb",
+            ),
+            (
+                "replica",
+                "Replica chain",
+                "Constrained replicas along a reaction coordinate.",
+                "submit_replica_chain.ipynb",
+            ),
+            (
+                "neb",
+                "Nudged elastic band",
+                "Images on a minimum-energy reaction path.",
+                "submit_neb.ipynb",
+            ),
+            (
+                "search",
+                "Search",
+                "Find and reopen previous calculations.",
+                "search.ipynb",
+            ),
         ],
     ),
     (
         "Post-processing",
         [
-            ("spm", "Scanning probe microscopy", "STM, AFM, and orbital imaging workflows.", "submit_spm.ipynb"),
-            ("pdos", "Projected density of states", "Orbital-resolved electronic spectra.", "submit_pdos.ipynb"),
+            (
+                "spm",
+                "Scanning probe microscopy",
+                "STM, AFM, and orbital imaging workflows.",
+                "submit_spm.ipynb",
+            ),
+            (
+                "pdos",
+                "Projected density of states",
+                "Orbital-resolved electronic spectra.",
+                "submit_pdos.ipynb",
+            ),
         ],
     ),
 ]
