@@ -274,7 +274,6 @@ class StructureAnalyzer(tr.HasTraits):
                 np.array([0, 0, 1]),
             )
             dir_short = [f"{x:.2f}" for x in direction]
-        #
 
         total_charge = np.sum(atoms.get_atomic_numbers())
         bottom_h = []

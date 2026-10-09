@@ -128,7 +128,7 @@ class InputDetails(ipw.VBox):
                 return False, str(exc), final_dictionary
             if to_add:
                 for key in to_add.keys():
-                    if key in final_dictionary.keys():
+                    if key in final_dictionary:
                         final_dictionary[key].update(to_add[key])
                     else:
                         final_dictionary[key] = to_add[key]
@@ -680,7 +680,7 @@ class NebWidget(ipw.VBox):
             node = orm.load_node(pk)
             structure = node.inputs.structure
             n_replica = node.inputs.neb_params["number_of_replica"]
-        except Exception as exc:  # noqa: BLE001 - NotExistent, AttributeError, KeyError
+        except Exception as exc:
             raise ValueError(f"PK {pk} is not a NEB calculation: {exc}") from exc
 
         # The workchain reads opt_replica_000..N-1 off this node. One that is

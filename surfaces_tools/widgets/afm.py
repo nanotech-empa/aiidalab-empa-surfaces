@@ -165,13 +165,7 @@ class ViewAfmLegacy(ipw.VBox):
 
                 # Add raw data to the zip
                 header = (
-                    "tipz={:.2f}, xlim=({:.2f}, {:.2f}), ylim=({:.2f}, {:.2f})".format(
-                        tipz,
-                        self.extent[0],
-                        self.extent[1],
-                        self.extent[2],
-                        self.extent[3],
-                    )
+                    f"tipz={tipz:.2f}, xlim=({self.extent[0]:.2f}, {self.extent[1]:.2f}), ylim=({self.extent[2]:.2f}, {self.extent[3]:.2f})"
                 )
                 txtdata = io.BytesIO()
                 np.savetxt(
@@ -284,13 +278,7 @@ class ViewAfmWidget(ipw.VBox):
 
                 # Add raw data to the zip
                 header = (
-                    "tipz={:.2f}, xlim=({:.2f}, {:.2f}), ylim=({:.2f}, {:.2f})".format(
-                        tipz,
-                        self.extent[0],
-                        self.extent[1],
-                        self.extent[2],
-                        self.extent[3],
-                    )
+                    f"tipz={tipz:.2f}, xlim=({self.extent[0]:.2f}, {self.extent[1]:.2f}), ylim=({self.extent[2]:.2f}, {self.extent[3]:.2f})"
                 )
                 txtdata = io.BytesIO()
                 np.savetxt(
