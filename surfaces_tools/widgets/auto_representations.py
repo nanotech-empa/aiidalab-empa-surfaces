@@ -1,8 +1,8 @@
-import ipywidgets as ipw
 import traitlets as tr
+import ipywidgets as ipw
+from ase import Atoms
 from aiidalab_widgets_base import viewers as awb_viewers
 from aiidalab_widgets_base.utils import list_to_string_range
-from ase import Atoms
 
 from .analyze_structure import StructureAnalyzer
 
@@ -28,14 +28,17 @@ def _make_representation(
     name,
     indices,
     representation_type,
+    *,
+    style_id=None,
 ):
     representation = awb_viewers.NglViewerRepresentation(
-        style_id=awb_viewers.encode_representation_style_id(
+        style_id=style_id
+        or awb_viewers.encode_representation_style_id(
             viewer.REPRESENTATION_PREFIX,
             representation_type=representation_type,
             size=3,
             color="element",
-            token=name,
+            token=name.replace("_", ""),
         ),
         indices=indices,
     )
@@ -91,7 +94,7 @@ def apply_auto_representations(viewer, details):
         representations.append(
             _make_representation(
                 viewer,
-                "nonmolecule",
+                "non_molecule",
                 non_molecule_atoms,
                 "spacefill",
             )
