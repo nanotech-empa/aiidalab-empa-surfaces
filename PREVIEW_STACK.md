@@ -73,3 +73,19 @@ and does not relabel or overwrite the existing `1.5.0` codes.
 The stable Surfaces release remains `1.1.0`. The `2.0.0a2` alpha is opt-in. If a
 defect is found, install `1.1.0` again and publish a corrected `2.0.0a3`; do not
 move or rewrite an existing alpha tag.
+
+## CDXML component refresh
+
+The canonical series continues through nanotech-empa/aiidalab-empa-surfaces#298,
+#326 (Python >=3.12/AiiDA >=2.8 metadata and boundary CI), and #327 (CDXML editor).
+Their merge targets remain the canonical component branches. This branch is a
+derived test assembly; it is not a replacement implementation PR.
+
+The shared EMPA widgets are pinned to `fa1c9429f886d20bfe1a37d3ef75ba6d21042ee2`
+from nanotech-empa/aiidalab-widgets-empa#10, including the importer and renderer
+merged in #9. Published widget 0.2.2 does not contain the new preview. The latest
+AutoRep API adaptation is maintained in canonical Surface #297 and propagated
+through #298 rather than left only in the alpha. Its extended-XYZ styles retain
+the molecule/rest selections after a save-and-read round trip.
+
+This refresh does not move the existing 2.0.0a2 tag or publish a new alpha.
