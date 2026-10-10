@@ -96,13 +96,17 @@ The canonical series continues through nanotech-empa/aiidalab-empa-surfaces#298,
 Their merge targets remain the canonical component branches. This branch is a
 derived test assembly; it is not a replacement implementation PR.
 
-The shared EMPA widgets are pinned to `8dcd4feb571eb42ba2277ae8e01ddfcb1ab3e4a0`
+The shared EMPA widgets are pinned to `3c3c1d9a0dbace14967af65f62caccb6b9095a90`
 from nanotech-empa/aiidalab-widgets-empa#11, stacked on the runtime metadata in
 nanotech-empa/aiidalab-widgets-empa#10 and the importer/renderer merged in
 nanotech-empa/aiidalab-widgets-empa#9. The optional finite-molecule torsion tool
 retains graph-derived hydrogens, rotates connected cyclic sp2 blocks and methyl
 hydrogens, and reports unresolved steric contacts. It produces a starting
 conformer, not an energy minimum; periodic models retain the planar importer.
+The default Steric separation mode uses 75% of summed van der Waals radii.
+Minimal 3D torsion uses editable nonbonded C-C/C-H/H-H floors of
+1.70/1.30/0.80 angstrom, with an optional percentage margin. This reduces
+twisting but does not ensure steric relaxation; viewer cutoffs remain guarded.
 Published widget 0.2.2 does not contain the new preview. The latest
 AutoRep API adaptation is maintained in canonical Surface #297 and propagated
 through #298 rather than left only in the alpha. Its extended-XYZ styles retain
