@@ -11,6 +11,7 @@ to immutable Git commits so every test container receives the same code.
 | `aiidateam/aiida-cp2k` via `cpignedoli/aiida-cp2k` | `integration/surfaces-v2.0.0a0` | `bc927019f7b63f7882e2f2f3b165d51312ce0bb3` | PRs #230, #231, and #232 |
 | `nanotech-empa/cp2k-spm-tools` | `integration/surfaces-v2.0.0a0` | `8bb2a13fd73af12c7ee5ec1eb688a3b07ed89276` | latest `main`, PRs #21 and #27, plus the tested #24 adaptation to merged #30 |
 | `aiidalab/aiidalab-widgets-base` via `cpignedoli/aiidalab-widgets-base` | `feature/preserve-eln-structure-origin` | `f2773b82017d503c40751f9c082f941eef83ee33` | upstream `master` at `4d0076f78ed9316e499aa7ae2fb704f087ef5cb9` plus PR #820, including the provenance test typing fix |
+| `nanotech-empa/aiidalab-widgets-empa` | `fix/cdxml-graph-validation` | `23666f1de72aee468d2b3f519c5dab126d0a63d9` | merged CDXML #9, runtime/CI #10, sterics #11 and graph/periodic validation #12; canonical Surface consumers #326/#327 |
 | `nanotech-empa/aiida-nanotech-empa` | `integration/surfaces-v2.0.0a0` | `45c4307a9db39ac5debc7a2b87f0ad869a425c17` | revised PR #196 and the feature commits from #197 through #207; declared Ruff formatting applied |
 | `nanotech-empa/aiidalab-alps-files` | `integration/surfaces-v2.0.0a0` | `3ef32074be647ac72393d0ffd26022a64e600d7f` | PR #9; complete tested Daint preview code matrix and exact `cp2k-spm-tools` source ref |
 | `nanotech-empa/aiidalab-empa-setup` | `integration/surfaces-v2.0.0a0` | `b196b60a309f8f518e8bada6f8eb99575c135533` | PR #9; Python 3.12 preview gate and non-interactive complete code creation |
@@ -81,13 +82,15 @@ The canonical series continues through nanotech-empa/aiidalab-empa-surfaces#298,
 Their merge targets remain the canonical component branches. This branch is a
 derived test assembly; it is not a replacement implementation PR.
 
-The shared EMPA widgets are pinned to `3c3c1d9a0dbace14967af65f62caccb6b9095a90`
-from nanotech-empa/aiidalab-widgets-empa#11, stacked on the runtime metadata in
+The shared EMPA widgets are pinned to `23666f1de72aee468d2b3f519c5dab126d0a63d9`
+from nanotech-empa/aiidalab-widgets-empa#12, stacked on the steric tools in
+nanotech-empa/aiidalab-widgets-empa#11 and the runtime metadata in
 nanotech-empa/aiidalab-widgets-empa#10 and the importer/renderer merged in
 nanotech-empa/aiidalab-widgets-empa#9. The optional finite-molecule torsion tool
 retains graph-derived hydrogens, rotates connected cyclic sp2 blocks and methyl
 hydrogens, and reports unresolved steric contacts. It produces a starting
-conformer, not an energy minimum; periodic models retain the planar importer.
+conformer, not an energy minimum; periodic models use validated graph-based
+repeat membership and H ownership, independent of bracket placement.
 The default Steric separation mode uses 75% of summed van der Waals radii.
 Minimal 3D torsion uses editable nonbonded C-C/C-H/H-H floors of
 1.70/1.30/0.80 angstrom, with an optional percentage margin. This reduces
@@ -98,3 +101,17 @@ through #298 rather than left only in the alpha. Its extended-XYZ styles retain
 the molecule/rest selections after a save-and-read round trip.
 
 This refresh does not move the existing 2.0.0a2 tag or publish a new alpha.
+
+The graph-validation refresh preserves elements, charges, isotopes, radical
+electrons and labelled H, with RDKit explicitly required by the importer.
+Single N/O-metal lines use a reported coordination interpretation; encoded
+stereochemistry is retained in the source rather than reconstructed in 3D.
+Ambiguous periodic drawings expose a numbered/clickable equivalent-atom pair
+selector, and cleanup keeps identified correspondences. Source contradictions
+are reported instead of removing H. Original and reviewed CDXML documents and
+generation records accompany newly stored models through explicit AiiDA
+provenance links. The storage hook is enabled by canonical Surface #327.
+
+This remains an unreleased preview component refresh on the agreed
+Python >=3.12/AiiDA >=2.8 compatibility window. No other dependency pin, release
+version or immutable tag changes.
