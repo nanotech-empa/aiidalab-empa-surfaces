@@ -318,7 +318,6 @@ class StructureAnalyzer(tr.HasTraits):
             )
 
         if is_a_bulk:
-
             sys_type = "Bulk"
             cases = ["b"]
             summary += "Bulk contains: \n"
@@ -326,7 +325,6 @@ class StructureAnalyzer(tr.HasTraits):
             bulkatoms = slabatoms
 
         if is_a_molecule:
-
             sys_type = "Molecule"
             summary += "Molecule: \n"
             # all_molecules = molecules(list(range(len(atoms))), atoms)

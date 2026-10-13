@@ -1,15 +1,13 @@
----
 name: Release
 on:
-    push:
-        tags:
-            - v*
+  push:
+    tags:
+      - v*
 jobs:
-    publish:
-        runs-on: ubuntu-latest
-
-        steps:
-            - uses: softprops/action-gh-release@v0.1.14
-              name: Create release.
-              with:
-                  generate_release_notes: true
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: softprops/action-gh-release@v0.1.14
+        name: Create release.
+        with:
+          generate_release_notes: true
