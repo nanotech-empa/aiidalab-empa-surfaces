@@ -7,6 +7,8 @@ from types import SimpleNamespace
 
 import ase
 import ipywidgets as ipw
+import matplotlib.pyplot as plt
+import numpy as np
 import pytest
 from aiida import orm, plugins
 
@@ -27,10 +29,13 @@ def scf_notebook(aiida_profile, aiida_localhost):
             ("code_input_widget", "cp2k"),
             ("bader_code", "nanotech_empa.bader"),
             ("sparse_overlap_code", "nanotech_empa.sparse_overlap"),
+            ("unfolding_code", "nanotech_empa.cp2k_unfolding"),
         )
     }
     namespace = {
         "ipw": ipw,
+        "np": np,
+        "plt": plt,
         "inputs": inputs,
         "orm": orm,
         "Cp2kScfWorkChain": plugins.WorkflowFactory("nanotech_empa.cp2k.scf"),
@@ -149,3 +154,87 @@ def test_missing_postprocessing_code(scf_notebook, mode):
         ui["retrieve_sparse_overlap"].value = True
         ui["sparse_overlap_code"].value = ""
     assert ui["prepare_scf"]() is None
+
+
+@pytest.mark.parametrize("path", ["", "G-X-G"])
+@pytest.mark.parametrize("sparse", [False, True])
+def test_unfolding_builder(scf_notebook, path, sparse):
+    ui = scf_notebook
+    ui["compute_unfolding"].value = True
+    ui["unfolding_a1"].value = "2 0 0"
+    ui["unfolding_path"].value = path
+    ui["retrieve_sparse_overlap"].value = sparse
+    builder = ui["prepare_scf"]()
+    assert (
+        ui["Cp2kScfWorkChain"].spec().inputs.validate(builder._inputs(prune=True))
+        is None
+    )
+    assert builder.run_diag_scf.value
+    assert builder.overlap_matrix.value == (
+        "remote_and_sparse_retrieved" if sparse else "remote_only"
+    )
+    assert builder.unfolding_primitive_vectors.value == "2 0 0"
+    assert builder.unfolding_lattice_type.value == "auto"
+    assert ("unfolding_path" in builder) == bool(path)
+    if path:
+        assert builder.unfolding_path.value == path
+    assert builder.dft_params["added_mos"] > 0
+    for obsolete in (
+        "compute_unfolding",
+        "compute_bader_charges",
+        "write_overlap_matrix",
+        "retrieve_sparse_overlap",
+        "unfolding_options",
+        "unfolding_primitive_basis_atoms",
+        "unfolding_basis_cluster_tol",
+    ):
+        assert obsolete not in builder
+
+
+def test_unfolding_bader_mutual_exclusion(scf_notebook):
+    ui = scf_notebook
+    ui["compute_unfolding"].value = True
+    ui["compute_bader_charges"].value = True
+    assert not ui["compute_unfolding"].value
+    builder = ui["prepare_scf"]()
+    assert "unfolding_code" not in builder
+    assert not builder.run_diag_scf.value
+
+
+@pytest.mark.parametrize("missing", ["code", "vector"])
+def test_unfolding_missing_input(scf_notebook, missing):
+    ui = scf_notebook
+    ui["compute_unfolding"].value = True
+    ui["unfolding_a1"].value = "2 0 0"
+    if missing == "code":
+        ui["unfolding_code"].value = ""
+    else:
+        ui["unfolding_a1"].value = ""
+    assert ui["prepare_scf"]() is None
+
+
+def test_preview_oblique_path_matches_tool_and_bragg_plane(scf_notebook):
+    ui = scf_notebook
+    primitive = np.array([[1, 0, 0], [-0.4, 1.3, 0]])
+    points, path = ui["_standard_kpath"](2, "auto", primitive)
+    assert path != ["G", "X", "S", "Y", "G"]
+    assert ui["_parse_path_labels"]("G-H1-A1-G", path) == ["G", "H1", "A1", "G"]
+    assert ui["_parse_path_labels"]("", path) == path
+    reciprocal = 2 * np.pi * np.linalg.inv(primitive[:, :2].T).T
+    for label, fractional in points.items():
+        point = reciprocal @ fractional
+        for i in range(-3, 4):
+            for j in range(-3, 4):
+                g = reciprocal @ [i, j]
+                assert point @ g <= g @ g / 2 + 1e-10, label
+
+
+def test_preview_closed_path_keeps_final_gamma(scf_notebook):
+    ui = scf_notebook
+    primitive = np.array([[1, 0, 0]])
+    points, _ = ui["_standard_kpath"](1, "auto", primitive)
+    indices, path_points = ui["_project_kpoints_to_path"](
+        np.array([[0.0], [0.5]]), points, ["G", "X", "G"], primitive
+    )
+    assert indices.tolist() == [0, 1, 0]
+    assert len(path_points) == 3
