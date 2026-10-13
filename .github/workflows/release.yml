@@ -11,4 +11,3 @@ jobs:
         name: Create release.
         with:
           generate_release_notes: true
-          prerelease: true

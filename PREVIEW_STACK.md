@@ -1,131 +1,97 @@
-# Surfaces 2.0.0a3 preview stack
+# Proposed Surfaces 2.0.0a3 preview metadata
 
-This prerelease makes the reviewed-but-unmerged Empa feature stack available
-without changing the stable `1.1.0` installation path. Dependencies are pinned
-to immutable Git commits so every test container receives the same code.
+This is the refreshed, unreleased test assembly on `integration/surfaces-v2.0.0a0`.
+Its implementation comes from the canonical component PRs below. Published alpha
+snapshots remain immutable; no new tag or production deployment is made here.
+This metadata-only preparation proposes version 2.0.0a3 on the tested parent
+assembly. It requires review in nanotech-empa/aiidalab-empa-surfaces#321; this
+branch does not publish a new tag or change the installed application.
 
-## Components
+Python >=3.12 and AiiDA >=2.8,<3 are the approved migration targets. This refresh
+is tested on Python 3.12.11/AiiDA 2.9.2 with independent SQLite state, without
+changing the live application or profile.
 
-| Repository | Source branch | Commit used here | Content |
-| --- | --- | --- | --- |
-| `aiidateam/aiida-cp2k` via `cpignedoli/aiida-cp2k` | `integration/surfaces-v2.0.0a0` | `bc927019f7b63f7882e2f2f3b165d51312ce0bb3` | PRs #230, #231, and #232 |
-| `nanotech-empa/cp2k-spm-tools` | `integration/surfaces-v2.0.0a0` | `8bb2a13fd73af12c7ee5ec1eb688a3b07ed89276` | latest `main`, PRs #21 and #27, plus the tested #24 adaptation to merged #30 |
-| `aiidalab/aiidalab-widgets-base` via `cpignedoli/aiidalab-widgets-base` | `feature/preserve-eln-structure-origin` | `f2773b82017d503c40751f9c082f941eef83ee33` | upstream `master` at `4d0076f78ed9316e499aa7ae2fb704f087ef5cb9` plus PR #820, including the provenance test typing fix |
-| `nanotech-empa/aiidalab-widgets-empa` | `fix/cdxml-graph-validation` | `8a85258bbb449ff99c1d0ee302fd4b6ae887c254` | merged CDXML #9, runtime/CI #10, sterics #11 and graph/periodic validation #12; canonical Surface consumers #326/#327 |
-| `nanotech-empa/aiida-nanotech-empa` | `integration/surfaces-v2.0.0a0-aqe5-current` | `1a1ce00bfa62913b2665a357374aa2be759eec8e` | current `master`, the CP2K preview stack, PR #216 for AQE5, and PR #208 for BandUPpy 1 |
-| `nanotech-empa/aiidalab-alps-files` | `integration/surfaces-v2.0.0a0` | `3ef32074be647ac72393d0ffd26022a64e600d7f` | PR #9; complete tested Daint preview code matrix and exact `cp2k-spm-tools` source ref |
-| `nanotech-empa/aiidalab-empa-setup` | `integration/surfaces-v2.0.0a0` | `b196b60a309f8f518e8bada6f8eb99575c135533` | PR #9; Python 3.12 preview gate and non-interactive complete code creation |
+## Exact source pins
 
-The Surfaces branch contains PR #280, the feature commits represented by PRs
-#281 through #298, PR #300, PR #309, the approved final head of PR #312, and the SCF structure-manager fix from
-PR #314. Alpha 2 additionally includes PR #317 (PDOS SVG export and incomplete
-selection handling) and PR #318 (the optional shared openBIS structure importer).
-The importer is skipped when `aiidalab-eln` is absent or an older installation
-does not provide `OpenbisStructureImporterWidget`.
+| Component | Commit | Ownership and status |
+| --- | --- | --- |
+| Backend existing AQE5 assembly | `db55fee7af2f019c3e8df8fc754befd9b552e41d` | Current master plus canonical nanotech-empa/aiida-nanotech-empa#200 through #207, #208 and #228 |
+| CP2K plugin preview | `bc927019f7b63f7882e2f2f3b165d51312ce0bb3` | Existing immutable preview pin retained; aiidateam/aiida-cp2k#231 still needs upstream review |
+| CP2K SPM tools | `cd97fc02f49c172b21811e5da5389368d6ce5415` | Canonical nanotech-empa/cp2k-spm-tools#34, including the maintained unfolding geometry/path stack |
+| Widgets base | `f2773b82017d503c40751f9c082f941eef83ee33` | Canonical aiidalab/aiidalab-widgets-base#820, origin-preserving structure handling |
+| EMPA widgets | `8a85258bbb449ff99c1d0ee302fd4b6ae887c254` | Canonical nanotech-empa/aiidalab-widgets-empa#12, following runtime, sterics and graph validation components |
+| Cubehandler | `f16f9c8685ea6379c2c89e93811c6ead71dd0f49` | Exact canonical modern-runtime revision from Surfaces #326/#327 |
+| ALPS configuration (unchanged) | `3ef32074be647ac72393d0ffd26022a64e600d7f` | Existing nanotech-empa/aiidalab-alps-files#9 preview; remote SPM source alignment remains before deployment |
+| EMPA setup (unchanged) | `b196b60a309f8f518e8bada6f8eb99575c135533` | Existing nanotech-empa/aiidalab-empa-setup#9 preview; no remote codes are changed here |
 
-## Alpha 2 dependency update
+The local SPM-tools dependency above supplies the same preview geometry and path
+helpers tested by the form. The ALPS/setup snapshots still describe their earlier
+remote SPM preview. Their deployed executable/source alignment must be checked
+before using this refresh for new scientific submissions on ALPS.
 
-Python >=3.12, AiiDA >=2.8,<3, and the widgets-base ipywidgets 8.1 stack are
-required. The CP2K, SPM, nanotech-empa, ALPS, and setup pins remain those tested
-for alpha 1; this update does not change their scientific workflow code.
+The optional openBIS importer is supplied by aiidalab/aiidalab-eln#93 at
+`01e977a67035dd39741b73e3458a919ddfe884fd`. Missing or older ELN installations
+omit the importer without stopping notebook startup. The export companion is
+nanotech-empa/aiidalab-openbis#123. No real openBIS network operation is claimed
+by the importer-gate tests.
 
-Widgets-base is pinned to the exact updated head of
-[PR #820](https://github.com/aiidalab/aiidalab-widgets-base/pull/820), not to a
-moving `master` or PR branch. Upstream `master` alone does not preserve the ELN
-origin through structure edits. PR #820 transfers that metadata between AiiDA
-structure extras and ASE `info`, without changing QE workflows.
+## Canonical Surface heads included
 
-Using this widgets-base revision exposed two failures in
-`python -m pytest -q tests/test_auto_representations.py --tb=short`: AutoRep still
-referenced the removed `DEFAULT_REPRESENTATION` attribute. Alpha 2 adapts AutoRep
-to the current representation constructor, `ballstick` type, and encoded style
-IDs, preserving the existing atom selections.
+| Component | Exact head |
+| --- | --- |
+| [Surfaces #281](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/281) | `91a9f31d66656ca8a784588d6fbaeab60c1b950e` |
+| [Surfaces #282](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/282) | `c75d9b4919ea0b378b45c4f911ccebdade828e29` |
+| [Surfaces #283](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/283) | `9e2a2b28833535ffb0133e27bab8edf36d614d0e` |
+| [Surfaces #284](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/284) | `f3672076b0ec69943a7703415b05d83e4cb59449` |
+| [Surfaces #285](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/285) | `435b0885fc361da8c5cf36126cc0902b2f4935d8` |
+| [Surfaces #286](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/286) | `e4248fb194913bd6c40accbda9c954a6d3f33fd0` |
+| [Surfaces #287](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/287) | `b7fa8ddb52ded3e42b01661179da05b45cbe300e` |
+| [Surfaces #288](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/288) | `78d22ee520d501b9e76fe6e0fff10d0e501db818` |
+| [Surfaces #289](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/289) | `b3a34cd9cc4095a2308d0bb5f4224373fc96856c` |
+| [Surfaces #290](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/290) | `72a2be12673869b73e76085053b61aa129d6e182` |
+| [Surfaces #292](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/292) | `1ede431475699070af77e1897404c1f2bb0e26b4` |
+| [Surfaces #293](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/293) | `91167f655a312b68660900c22643729089a01b73` |
+| [Surfaces #294](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/294) | `02219623e4ff868bfb9f522d1ee2b1affef63f5e` |
+| [Surfaces #295](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/295) | `61024058d00c2d272192c7cbea01e740a0b15be1` |
+| [Surfaces #296](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/296) | `5194818d9480c6854a500ae65a51c046d74960d2` |
+| [Surfaces #297](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/297) | `98d459eb7b2d587b3cccdbedaedf442c95b15eda` |
+| [Surfaces #298](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/298) | `c7363048a622feb837dbfb3d10430565c63f9554` |
+| [Surfaces #326](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/326) | `26f747283b933204ee588a59b0be620cccbf592c` |
+| [Surfaces #327](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/327) | `903bc891d0c10bad02baa370ee5fadab3d1399af` |
+| [Surfaces #317](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/317) | `bdb369f952768b516b6d6e45a346a864cea1041f` |
+| [Surfaces #318](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/318) | `e2aa21e6ee307f21a86aeb0882be53d14d3ff381` |
+| [Surfaces #300](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/300) | `9a4663c0f88835ab971017327d409af46a7aa442` |
+| [Surfaces #309](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/309) | `502b8235bdf3db94f62f2e78b56018c7b1adbcc7` |
+| [Surfaces #322](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/322) | `1c468b61ff66b536709fe9cc8939cd156e2b7ce7` |
+| [Surfaces #255](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/255) | `bf84cccb9490b1f1e095f76e3b0de037900af470` |
+| [Surfaces #268](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/268) | `1dc8a5c75af9d2329673d9c98745bddc282d7ca5` |
 
-The openBIS importer remains optional. For a reproducible openBIS test setup,
-install the shared importer from
-[aiidalab-eln PR #93](https://github.com/aiidalab/aiidalab-eln/pull/93):
+Surfaces #291 is closed as superseded: current master already provides the
+validated NEB resource synchronization, and #292 now targets #290 directly.
+The general-PDOS and GW-reuse work remains deferred and unchanged.
 
-```bash
-python -m pip install "aiidalab-eln @ git+https://github.com/aiidalab/aiidalab-eln.git@01e977a67035dd39741b73e3458a919ddfe884fd"
-```
+## Interaction and validation
 
-## Alpha 3 AQE5 update
+For CP2K unfolding, supply 1-based primitive basis atom indices or leave the
+field empty and press **Check primitive cell**. Detection can take time and runs
+only after that explicit press with an empty input. Edits and submission never
+trigger detection. Review the populated indices before submission; changes to
+the primitive vectors invalidate automatically detected selections. Submitted
+builders always carry explicit atom indices, so no silent basis detection is
+requested from the backend. Empty band paths select the validated lattice
+default; explicit paths remain available. The viewer uses retrieved path data.
 
-Alpha 3 updates `aiida-nanotech-empa` to a two-parent integration of the
-surfaces CP2K preview and the head of PR #208. That head contains current
-`master`, PR #216 for aiida-quantumespresso 5, and the BandUPpy 1 workflow.
+Canonical final component validation: 143 tests pass. Backend combined assembly:
+108 tests pass. Current required repository hooks pass. Complete combined GUI
+validation: 155 tests pass with the exact local backend and SPM source pins.
+No new live scientific submission or browser session is claimed.
 
-PRs #216 and #208 remain the canonical review and merge targets. The combined
-commit pinned here is only an immutable alpha-test assembly; its integration
-branch is not a destination for the component changes.
+aiidateam/aiida-cp2k#234 proposes Python >=3.12/AiiDA >=2.8 and removes misleading
+CI versions. Its native Docker jobs pass 59 tests each on Python 3.12.15 with
+AiiDA 2.8.0 and 2.9.2; documentation and pre-commit.ci pass. This support-policy
+proposal still requires upstream maintainer agreement.
 
-The exact commit pin remains necessary until the upstream AQE5 changes and the
-CP2K preview stack are released. New QE workflows target AQE5; compatibility
-with historical AQE4 results remains a viewer/import concern.
-
-## Composition decisions
-
-- The revised PR #196 was applied on current `aiida-nanotech-empa` `master`.
-  Only the actual #197-#207 feature commits were then replayed. This preserves
-  the AiiDA 2.8 restart/pause work already merged in PR #209 instead of
-  reintroducing the stack's older copy.
-- The accepted upstream implementation of widgets-base PR #525 is used. The
-  older local completion branch is not merged over it.
-- Surfaces commits that modified the deleted `submit_reactions.ipynb`, or its
-  obsolete inline NEB resource helper, were omitted because current `master`
-  provides the newer split notebooks and shared helper from PRs #308-#311.
-- PR #312 is the authoritative NEB replica editor. The independent
-  `ForcePeriodicWidget` and AutoRep additions were reapplied after taking its
-  final files.
-
-## ALPS isolation and rollback
-
-The preview configuration creates isolated STM, overlap, sparse-overlap, and
-unfolding labels whose names retain the tested `surfaces-v2.0.0a0` namespace.
-It uses a separate remote source directory
-and does not relabel or overwrite the existing `1.5.0` codes.
-
-The stable Surfaces release remains `1.1.0`. The `2.0.0a3` alpha is opt-in. If a
-defect is found, install `1.1.0` again and publish a corrected `2.0.0a4`; do not
-move or rewrite an existing alpha tag.
-
-## CDXML component refresh
-
-The canonical series continues through nanotech-empa/aiidalab-empa-surfaces#298,
-#326 (Python >=3.12/AiiDA >=2.8 metadata and boundary CI), and #327 (CDXML editor).
-Their merge targets remain the canonical component branches. This branch is a
-derived test assembly; it is not a replacement implementation PR.
-
-The shared EMPA widgets are pinned to `8a85258bbb449ff99c1d0ee302fd4b6ae887c254`
-from nanotech-empa/aiidalab-widgets-empa#12, stacked on the steric tools in
-nanotech-empa/aiidalab-widgets-empa#11 and the runtime metadata in
-nanotech-empa/aiidalab-widgets-empa#10 and the importer/renderer merged in
-nanotech-empa/aiidalab-widgets-empa#9. The optional finite-molecule torsion tool
-retains graph-derived hydrogens, rotates connected cyclic sp2 blocks and methyl
-hydrogens, and reports unresolved steric contacts. It produces a starting
-conformer, not an energy minimum; periodic models use validated graph-based
-repeat membership and H ownership, independent of bracket placement.
-The default Steric separation mode uses 75% of summed van der Waals radii.
-Minimal 3D torsion uses editable nonbonded C-C/C-H/H-H floors of
-1.70/1.30/0.80 angstrom, with an optional percentage margin. This reduces
-twisting but does not ensure steric relaxation; viewer cutoffs remain guarded.
-Published widget 0.2.2 does not contain the new preview. The latest
-AutoRep API adaptation is maintained in canonical Surface #297 and propagated
-through #298 rather than left only in the alpha. Its extended-XYZ styles retain
-the molecule/rest selections after a save-and-read round trip.
-
-This refresh does not move the existing 2.0.0a2 tag or publish a new alpha.
-
-The graph-validation refresh preserves elements, charges, isotopes, radical
-electrons and labelled H, with RDKit explicitly required by the importer.
-Single N/O-metal lines use a reported coordination interpretation; encoded
-stereochemistry is retained in the source rather than reconstructed in 3D.
-Ambiguous periodic drawings expose a numbered/clickable equivalent-atom pair
-selector, and cleanup keeps identified correspondences. Source contradictions
-are reported instead of removing H. Original and reviewed CDXML documents and
-generation records accompany newly stored models through explicit AiiDA
-provenance links. The storage hook is enabled by canonical Surface #327.
-
-This remains an unreleased preview component refresh on the agreed
-Python >=3.12/AiiDA >=2.8 compatibility window. No other dependency pin, release
-version or immutable tag changes.
+Remaining CI review: the backend #202 example rerun still fails in four SPM
+orbital/STM post-processing examples while the CP2K SCF stages complete.
+Backend #208 has the same four failing examples; #204 coverage and #206 patch
+coverage remain red. These results are not a fully green release validation.
