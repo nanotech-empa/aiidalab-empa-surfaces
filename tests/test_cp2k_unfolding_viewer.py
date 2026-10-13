@@ -13,9 +13,10 @@ from aiida.common.links import LinkType
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
 
+@pytest.mark.parametrize("projections", [False, True])
 @pytest.mark.parametrize("spins", [1, 2])
 def test_standalone_unfolding_viewer(
-    aiida_profile, aiida_localhost, monkeypatch, spins
+    aiida_profile, aiida_localhost, monkeypatch, spins, projections
 ):
     dataset = {
         "dim": 1,
@@ -42,6 +43,21 @@ def test_standalone_unfolding_viewer(
     calculation = orm.CalcJobNode(computer=aiida_localhost).store()
     retrieved = orm.FolderData()
     retrieved.base.repository.put_object_from_filelike(stream, "unfolding_bands.npz")
+    if projections:
+        projection_stream = io.BytesIO()
+        np.savez(
+            projection_stream,
+            spin=[0, 0],
+            atom_index=[0, 1],
+            channel_index=[0, 1],
+            mo_index=[0, 1],
+            projection=[0.5, 0.8],
+            channels=["s", "pz"],
+        )
+        projection_stream.seek(0)
+        retrieved.base.repository.put_object_from_filelike(
+            projection_stream, "unfolding_projections.npz"
+        )
     retrieved.base.links.add_incoming(
         calculation, link_type=LinkType.CREATE, link_label="retrieved"
     )
@@ -67,13 +83,26 @@ def test_standalone_unfolding_viewer(
         axes = figures[-1].axes
         assert len(axes) == spins
         for spin, axis in enumerate(axes):
-            assert axis.get_title() == f"spin {spin}"
+            assert axis.get_title().endswith(f"spin {spin}")
             points = axis.collections[0].get_offsets()
             np.testing.assert_allclose(
                 points[:, 1], np.asarray(dataset[f"evals_ev_spin_{spin}"]) - 0.5
             )
             np.testing.assert_allclose(
                 axis.collections[1].get_offsets()[:, 0], np.pi / 2
+            )
+        if projections:
+            np.testing.assert_allclose(
+                namespace["projection_weights_by_mo"](
+                    0, atom_indices=[0], channels=["s"]
+                ),
+                [0.5, 0.0],
+            )
+            np.testing.assert_allclose(
+                namespace["projection_weights_by_mo"](
+                    0, atom_indices=[1], channels=["p"]
+                ),
+                [0.0, 0.8],
             )
         assert "workcalc" not in namespace
         assert namespace["calculation_info"]["uuid"] == workchain.uuid
