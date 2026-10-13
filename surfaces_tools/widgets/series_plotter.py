@@ -11,6 +11,7 @@ from IPython.display import HTML, display
 from matplotlib.transforms import Affine2D
 
 from ..utils import igor
+from ..utils.files import download_link
 
 BOHR_TO_ANG = 0.529177
 
@@ -416,7 +417,7 @@ class SeriesPlotter:
             f.write(zip_buffer.getvalue())
 
         with self.link_out:
-            display(HTML(f'<a href="tmp/{filename}" target="_blank">download zip</a>'))
+            display(HTML(download_link(filename)))
 
     def data_to_zip(self, zip_file):
         index_list = self.select_indexes_function()
