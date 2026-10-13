@@ -1,10 +1,18 @@
 import ipywidgets as ipw
 
-
 _ICON_STROKE = "currentColor"
 
 
 ICONS = {
+    "cdxml": """
+        <svg viewBox="0 0 64 64" aria-hidden="true"
+                         fill="none" stroke="currentColor" stroke-width="3"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M25 10L8 20v20l17 10 17-10V20z" />
+                        <path d="M13 23v14M25 44l12-7M25 16l12 7" />
+                        <path d="M36 49l3-10 17-17 6 6-17 17zM51 27l6 6" />
+                    </svg>
+    """,
     "geometry": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
             <path d="M9 49c10-23 18-23 26-8s13 11 20-17" />
@@ -109,6 +117,17 @@ ICONS = {
 
 ITEMS = [
     (
+        "Structure tools",
+        [
+            (
+                "cdxml",
+                "CDXML editor",
+                "Import, clean up, and edit ChemDraw structures.",
+                "cdxml_editor.ipynb",
+            )
+        ],
+    ),
+    (
         "Density functional theory",
         [
             (
@@ -146,6 +165,12 @@ ITEMS = [
                 "Nudged elastic band",
                 "Images on a minimum-energy reaction path.",
                 "submit_neb.ipynb",
+            ),
+            (
+                "geometry",
+                "CSCS CP2K benchmark",
+                "Compare CP2K resource configurations.",
+                "submit_benchmark.ipynb",
             ),
             (
                 "search",
@@ -319,7 +344,7 @@ def get_start_widget(appbase, jupbase):  # noqa: ARG001
         <div class="surface-launcher">
             <h1>Surfaces workflows</h1>
             <div class="surface-sections">
-                {"".join(sections)}
+                {''.join(sections)}
             </div>
         </div>
         """

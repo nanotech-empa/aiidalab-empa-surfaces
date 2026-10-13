@@ -5,6 +5,8 @@
 The Empa Surfaces AiiDAlab app enables the user to prepare and run automatic AiiDA workflows for calculations relevant in on-surface chemistry.
 Features include:
 
+* a standalone **CDXML editor** for ChemDraw molecules and periodic ribbons, with structure selection, planar cleanup, AiiDA storage and extended XYZ download;
+
 * generating various metal slab geometries;
 * geometry optimizations of adsorbed systems, bulk systems and isolated molecules;
 * chains of constrained geometry optimizations;
@@ -25,6 +27,15 @@ Features include:
 * Projected Density of States (PDOS) analysis - calculates the DOS projection on the adsorbed molecule together with gas-phase orbital content.
 * Atomic force microscopy (AFM) simulations - calls the [ProbeParticle](https://github.com/ProkopHapala/ProbeParticleModel) code.
 * High-resolution STM - simulates the STM/STS signatures performed with the CO tip.
+
+## Running the tests
+
+Install the development dependencies and run the suite with pytest:
+
+```
+pip install -e .[dev]
+pytest
+```
 
 ## For maintainers
 
