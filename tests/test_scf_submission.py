@@ -272,6 +272,7 @@ def test_selected_dft_settings_reach_builder(scf_notebook):
         is None
     )
 
+
 def test_invalid_basis_override_blocks_submission(scf_notebook):
     scf_notebook["dft_settings_widget"].basis_set_overrides.value = "[1]"
     assert scf_notebook["prepare_scf"]() is None
