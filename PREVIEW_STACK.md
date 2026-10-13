@@ -8,9 +8,9 @@ assembly. It requires review in nanotech-empa/aiidalab-empa-surfaces#321; this
 branch does not publish a new tag or change the installed application.
 
 Python >=3.12, AiiDA >=2.8,<3 and AiiDAlab >=26.9.0 are the approved migration
-targets. Tests use Python 3.12.11/AiiDA 2.9.2 and a temporary AiiDAlab 26.9.0
-package with independent SQLite state. The shared host currently has AiiDAlab 26.9.0; this was rechecked on
-2026-10-13. This task did not upgrade it or change its profile.
+targets. The fresh cell-reader retest uses Python 3.12.11/AiiDA 2.9.2 and the
+installed AiiDAlab 26.9.0 with independent SQLite state. The host version was
+rechecked on 2026-10-13; this task did not upgrade it or change its profile.
 
 ## Exact source pins
 
@@ -27,12 +27,18 @@ package with independent SQLite state. The shared host currently has AiiDAlab 26
 | EMPA setup existing assembly | `dbc365c914845accffbca9751e69d99e6a3e0746` | Canonical nanotech-empa/aiidalab-empa-setup#10 on nanotech-empa/aiidalab-empa-setup#8; modern platform metadata and tested non-interactive registration |
 
 The local and new remote SPM configurations both use nanotech-empa/cp2k-spm-tools#34. The new ALPS
-wrappers have unique labels/paths ending in `surfaces-v2-7ca25c9`; four modules
-passed the earlier Daint uenv smoke at source `cd97fc0`. The new `7ca25c9`
-source passes local wrapper/module checks; a fresh Daint check remains pending
-because SSH timed out after authentication renewal. Installed remote codes were not changed. That uenv still uses
-Python 3.11.9; source deployment and an ALPS app run remain separate release
-checks, and the experimental configuration PR stays draft.
+wrappers have unique labels/paths ending in `surfaces-v2-7ca25c9`. All four CLI
+modules load from that exact source in Daint's configured uenv, and Bohr plus
+60-/120-degree ABC cell checks pass. The test used an independent temporary
+source directory and left installed codes untouched. That uenv uses Python
+3.11.9/NumPy 2.1.2/SciPy 1.14.1/ASE 3.23.0/mpi4py 4.0.1; source deployment and
+an ALPS app run remain separate release checks, so the configuration PR stays draft.
+
+The updated combined tools assembly passes 132 tests; this GUI assembly passes
+155. A fresh real localhost four-carbon graphene form/submit/result smoke also
+passes with the exact tools pin and canonical backend package metadata supplied
+only to the disposable test environment. It runs synchronously without a browser
+or daemon and is a software-wiring check, not a converged-physics benchmark.
 
 Pint >=0.24.4,<0.25 reproduces the validated modern dependency chain. With
 NumPy 2.0.0/Python 3.12.11, Pint 0.23 fails on removed `numpy.cumproduct`;
