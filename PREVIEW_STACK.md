@@ -110,9 +110,14 @@ with AiiDA 2.8.0 and 2.9.2. Refreshed #231 uses the upstream input-tools fix
 and Pint 0.24.4 in CI; both NumPy 2.5.4 Docker jobs pass all 66 tests.
 Documentation and pre-commit.ci pass for both. Maintainer reviews remain pending.
 
-Backend #204/#206 coverage checks now pass with real builder/error-path tests.
-The #202/#208 full runs exposed UCX selecting unsupported InfiniBand verbs on
-GitHub VMs; their canonical CI sets UCX_TLS=tcp,self,sm. The current #208
-full run passes all 37 native examples and every unit, coverage and hook check.
-The #202 full run and later stack runs are pending; #202 project coverage is
-not final until its example upload finishes. #203 is already fully green.
+Backend #202 through #208 now pass every native, unit, patch/project coverage
+and pre-commit.ci check at their recorded current heads. The native #202/#208
+failures were UCX selecting unsupported InfiniBand verbs on GitHub VMs; the
+canonical examples job sets UCX_TLS=tcp,self,sm. Full corrected example runs
+pass all 37 cases, without changing production HPC settings, scientific inputs
+or coverage thresholds. #204/#206 now cover their actual builder/error contracts.
+
+Release review remains: upstream support-policy/parser review in aiidateam/
+aiida-cp2k#234/#231; the tools #24/#32/#33/#34 scientific review; canonical app
+and backend approvals; and review/deployment validation of setup #10 and ALPS
+#11. This test assembly does not authorize a merge, tag or production rollout.
