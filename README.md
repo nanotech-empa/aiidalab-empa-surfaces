@@ -26,6 +26,15 @@ Features include:
 * Atomic force microscopy (AFM) simulations - calls the [ProbeParticle](https://github.com/ProkopHapala/ProbeParticleModel) code.
 * High-resolution STM - simulates the STM/STS signatures performed with the CO tip.
 
+## Running the tests
+
+Install the development dependencies and run the suite with pytest:
+
+```
+pip install -e .[dev]
+pytest
+```
+
 ## For maintainers
 
 To create a new release, clone the repository, install development dependencies with `pip install '.[dev]'`, and then execute `bumpver update --dry --major (--minor/--patch)`.
