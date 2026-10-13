@@ -117,6 +117,7 @@ ITEMS = [
             ("phonons", "Phonons", "Vibrational modes and finite-difference displacements.", "submit_phonons.ipynb"),
             ("replica", "Replica chain", "Constrained replicas along a reaction coordinate.", "submit_replica_chain.ipynb"),
             ("neb", "Nudged elastic band", "Images on a minimum-energy reaction path.", "submit_neb.ipynb"),
+            ("geometry", "CSCS CP2K benchmark", "Compare CP2K resource configurations.", "submit_benchmark.ipynb"),
             ("search", "Search", "Find and reopen previous calculations.", "search.ipynb"),
         ],
     ),
