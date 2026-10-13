@@ -161,9 +161,7 @@ def structure_available_wfn(
             + wfn_name
         )
 
-        wfn_exists = remote_file_exists(
-            code.computer, wfn_search_path
-        )
+        wfn_exists = remote_file_exists(code.computer, wfn_search_path)
     except common.NotExistentAttributeError:
         pass
 
