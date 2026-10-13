@@ -15,5 +15,5 @@ jobs:
             - uses: actions/setup-python@v5
               with:
                   python-version: '3.12'
-            - run: pip install -e . pytest "${{ matrix.aiida-core }}"
+            - run: pip install -e .[unfolding-preview] pytest "${{ matrix.aiida-core }}"
             - run: python -m pytest -q
