@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 from aiida import orm, plugins
 
-from surfaces_tools.widgets import inputs
+from surfaces_tools.widgets import dft_settings, inputs
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
@@ -37,6 +37,7 @@ def scf_notebook(aiida_profile, aiida_localhost):
         "np": np,
         "plt": plt,
         "inputs": inputs,
+        "dft_settings": dft_settings,
         "orm": orm,
         "Cp2kScfWorkChain": plugins.WorkflowFactory("nanotech_empa.cp2k.scf"),
         "structure_selector": SimpleNamespace(
@@ -112,7 +113,17 @@ def test_scf_builder(scf_notebook, mode, self_consistent, smearing):
             assert parameters["smear_t"] == 150
             assert parameters["force_multiplicity"] is True
     else:
-        assert parameters == {"periodic": "XYZ"}
+        assert parameters["periodic"] == "XYZ"
+        assert not any(
+            key in parameters
+            for key in (
+                "sc_diag",
+                "elpa_switch",
+                "added_mos",
+                "smear_t",
+                "force_multiplicity",
+            )
+        )
     if mode == "bader":
         assert builder.bader_cutoff.value == 1200
 
@@ -238,3 +249,29 @@ def test_preview_closed_path_keeps_final_gamma(scf_notebook):
     )
     assert indices.tolist() == [0, 1, 0]
     assert len(path_points) == 3
+
+
+def test_selected_dft_settings_reach_builder(scf_notebook):
+    ui = scf_notebook
+    settings = ui["dft_settings_widget"]
+    settings.xc_functional.value = "PBE0"
+    settings.hfx_fraction.value = 0.3
+    settings.basis_set_file_names.value = "BASIS_CUSTOM, BASIS_ADMM_UZH"
+    settings.potential_file_name.value = "POTENTIAL_CUSTOM"
+    settings.basis_set_overrides.value = '{"H": "custom-basis"}'
+    builder = ui["prepare_scf"]()
+    parameters = builder.dft_params.get_dict()
+    assert parameters["xc_functional"] == "PBE0"
+    assert parameters["hfx_fraction"] == 0.3
+    assert parameters["basis_set_file_names"] == ["BASIS_CUSTOM", "BASIS_ADMM_UZH"]
+    assert parameters["potential_file_name"] == "POTENTIAL_CUSTOM"
+    assert parameters["basis_set_overrides"] == {"H": "custom-basis"}
+    assert (
+        ui["Cp2kScfWorkChain"].spec().inputs.validate(builder._inputs(prune=True))
+        is None
+    )
+
+
+def test_invalid_basis_override_blocks_submission(scf_notebook):
+    scf_notebook["dft_settings_widget"].basis_set_overrides.value = "[1]"
+    assert scf_notebook["prepare_scf"]() is None
