@@ -25,8 +25,9 @@ NOTEBOOKS = (
 
 
 @pytest.mark.parametrize("notebook", NOTEBOOKS)
-@pytest.mark.parametrize("available", [False, True])
-def test_optional_importer_gate(monkeypatch, notebook, available):
+@pytest.mark.parametrize("availability", ["absent", "older", "available"])
+def test_optional_importer_gate(monkeypatch, notebook, availability):
+    available = availability == "available"
     importer = object()
     created = []
 
@@ -41,9 +42,9 @@ def test_optional_importer_gate(monkeypatch, notebook, available):
     def optional_import(name, *args, **kwargs):
         if name != "aiidalab_eln":
             return real_import(name, *args, **kwargs)
-        if not available:
+        if availability == "absent":
             raise ImportError("optional package not installed")
-        return module
+        return module if available else SimpleNamespace()
 
     monkeypatch.setattr(builtins, "__import__", optional_import)
     path = Path(__file__).resolve().parents[1] / notebook
@@ -63,8 +64,7 @@ def test_optional_importer_gate(monkeypatch, notebook, available):
             for n in tree.body
             if isinstance(n, ast.Try)
             and any(
-                isinstance(child, ast.Import)
-                and any(alias.name == "aiidalab_eln" for alias in child.names)
+                isinstance(child, ast.ImportFrom) and child.module == "aiidalab_eln"
                 for child in n.body
             )
         )
