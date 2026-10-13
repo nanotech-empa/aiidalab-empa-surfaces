@@ -30,8 +30,6 @@ def _make_representation(
     representation_type,
     *,
     style_id=None,
-    deletable=True,
-    atom_show_threshold=1,
 ):
     representation = awb_viewers.NglViewerRepresentation(
         style_id=style_id
@@ -40,11 +38,9 @@ def _make_representation(
             representation_type=representation_type,
             size=3,
             color="element",
-            token=name,
+            token=name.replace("_", ""),
         ),
         indices=indices,
-        deletable=deletable,
-        atom_show_threshold=atom_show_threshold,
     )
     representation.type.value = representation_type
     representation.size.value = 3
@@ -63,10 +59,7 @@ def reset_default_representation(viewer):
         viewer,
         "default",
         list(range(len(structure))),
-        "ball+stick",
-        style_id=viewer.DEFAULT_REPRESENTATION,
-        deletable=False,
-        atom_show_threshold=0,
+        "ballstick",
     )
     viewer._all_representations = [default_representation]
 
@@ -94,10 +87,7 @@ def apply_auto_representations(viewer, details):
             viewer,
             "molecules",
             molecules_atoms,
-            "ball+stick",
-            style_id=viewer.DEFAULT_REPRESENTATION,
-            deletable=False,
-            atom_show_threshold=0,
+            "ballstick",
         )
     ]
     if non_molecule_atoms:
