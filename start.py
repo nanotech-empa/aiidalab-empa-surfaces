@@ -167,6 +167,12 @@ ITEMS = [
                 "submit_neb.ipynb",
             ),
             (
+                "geometry",
+                "CSCS CP2K benchmark",
+                "Compare CP2K resource configurations.",
+                "submit_benchmark.ipynb",
+            ),
+            (
                 "search",
                 "Search",
                 "Find and reopen previous calculations.",
