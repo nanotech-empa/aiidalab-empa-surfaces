@@ -173,6 +173,7 @@ def test_unfolding_builder(scf_notebook, path, sparse):
     ui = scf_notebook
     ui["compute_unfolding"].value = True
     ui["unfolding_a1"].value = "2 0 0"
+    ui["unfolding_primitive_basis_atoms"].value = "1 2"
     ui["unfolding_path"].value = path
     ui["retrieve_sparse_overlap"].value = sparse
     builder = ui["prepare_scf"]()
@@ -186,6 +187,7 @@ def test_unfolding_builder(scf_notebook, path, sparse):
     )
     assert builder.unfolding_primitive_vectors.value == "2 0 0"
     assert builder.unfolding_lattice_type.value == "auto"
+    assert builder.unfolding_primitive_basis_atoms.value == "1 2"
     assert ("unfolding_path" in builder) == bool(path)
     if path:
         assert builder.unfolding_path.value == path
@@ -196,7 +198,6 @@ def test_unfolding_builder(scf_notebook, path, sparse):
         "write_overlap_matrix",
         "retrieve_sparse_overlap",
         "unfolding_options",
-        "unfolding_primitive_basis_atoms",
         "unfolding_basis_cluster_tol",
     ):
         assert obsolete not in builder
@@ -271,7 +272,96 @@ def test_selected_dft_settings_reach_builder(scf_notebook):
         is None
     )
 
-
 def test_invalid_basis_override_blocks_submission(scf_notebook):
     scf_notebook["dft_settings_widget"].basis_set_overrides.value = "[1]"
     assert scf_notebook["prepare_scf"]() is None
+
+
+def test_empty_basis_submission_and_edits_never_detect(scf_notebook, monkeypatch):
+    from cp2k_spm_tools.cp2k_unfolding import geometry
+
+    def unexpected_detection(*args, **kwargs):
+        raise AssertionError("Detection requires a button press")
+
+    monkeypatch.setattr(
+        geometry, "cluster_basis_fractional_coords_adaptive", unexpected_detection
+    )
+    ui = scf_notebook
+    ui["compute_unfolding"].value = True
+    ui["unfolding_a1"].value = "2 0 0"
+    ui["unfolding_basis_cluster_tol"].value = 0.03
+    ui["unfolding_path"].value = "G-X-G"
+    assert ui["prepare_scf"]() is None
+    assert ui["unfolding_primitive_basis_atoms"].value == ""
+
+
+def test_explicit_basis_skips_detection_even_on_button(scf_notebook, monkeypatch):
+    from cp2k_spm_tools.cp2k_unfolding import geometry
+
+    def unexpected_detection(*args, **kwargs):
+        raise AssertionError("Explicit atoms must bypass detection")
+
+    monkeypatch.setattr(
+        geometry, "cluster_basis_fractional_coords_adaptive", unexpected_detection
+    )
+    ui = scf_notebook
+    ui["compute_unfolding"].value = True
+    ui["unfolding_a1"].value = "2 0 0"
+    ui["unfolding_primitive_basis_atoms"].value = "1..2"
+    monkeypatch.setitem(ui, "_update_unfolding_preview", lambda: None)
+    ui["unfolding_check_button"].click()
+    assert ui["unfolding_primitive_basis_atoms"].value == "1..2"
+    assert ui["prepare_scf"]().unfolding_primitive_basis_atoms.value == "1 2"
+
+
+def test_detection_runs_once_by_button_and_invalidates_on_geometry_change(
+    scf_notebook, monkeypatch
+):
+    from cp2k_spm_tools.cp2k_unfolding import geometry
+
+    ui = scf_notebook
+    ui["structure_selector"].structure_node = orm.StructureData(
+        ase=ase.Atoms(
+            "H4",
+            positions=[[0, 0, 0], [0.7, 0, 0], [2, 0, 0], [2.7, 0, 0]],
+            cell=[4, 8, 8],
+            pbc=True,
+        )
+    )
+    ui["compute_unfolding"].value = True
+    ui["unfolding_a1"].value = "2 0 0"
+    calls = []
+    original = geometry.cluster_basis_fractional_coords_adaptive
+
+    def detect(*args, **kwargs):
+        calls.append(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(geometry, "cluster_basis_fractional_coords_adaptive", detect)
+    monkeypatch.setitem(ui, "_update_unfolding_preview", lambda: None)
+    assert ui["prepare_scf"]() is None
+    assert calls == []
+    ui["unfolding_check_button"].click()
+    assert len(calls) == 1
+    assert ui["unfolding_primitive_basis_atoms"].value == "1 2"
+    builder = ui["prepare_scf"]()
+    assert (
+        ui["Cp2kScfWorkChain"].spec().inputs.validate(builder._inputs(prune=True))
+        is None
+    )
+    assert builder.unfolding_primitive_basis_atoms.value == "1 2"
+    ui["unfolding_check_button"].click()
+    assert len(calls) == 1
+    ui["unfolding_a1"].value = "1.9 0 0"
+    assert ui["unfolding_primitive_basis_atoms"].value == ""
+    assert ui["prepare_scf"]() is None
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("atoms", ["0", "3", "1 1"])
+def test_invalid_basis_blocks_submission(scf_notebook, atoms):
+    ui = scf_notebook
+    ui["compute_unfolding"].value = True
+    ui["unfolding_a1"].value = "2 0 0"
+    ui["unfolding_primitive_basis_atoms"].value = atoms
+    assert ui["prepare_scf"]() is None
