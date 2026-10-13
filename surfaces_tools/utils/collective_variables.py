@@ -2,18 +2,35 @@ import ipywidgets as ipw
 import numpy as np
 from IPython.display import clear_output, display
 
+from surfaces_tools.utils.atom_indices import string_range_to_list
+
 style = {"description_width": "120px"}
 layout = {"width": "70%"}
 
 
+def _parse_atom_indices(value):
+    indices, is_valid = string_range_to_list(value, shift=0)
+    if not is_valid:
+        raise ValueError(f"Invalid atom index range: {value!r}")
+    return indices
+
+
+def _format_atom_indices(indices):
+    return " ".join(str(i) for i in indices)
+
+
 class WrongCvInputError(Exception):
     def __init__(self, cv, message=None):
-        raise_message = (
-            f"""Wrong input for the "{cv}" collective variable.""" + f" {message}"
-            if message
-            else ""
-        )
-        super().__init__(raise_message)
+        self.cv = cv
+        self.message = message
+        super().__init__(cv, message)
+
+    def __str__(self):
+        if self.message:
+            return (
+                f'Wrong input for the "{self.cv}" collective variable. {self.message}'
+            )
+        return f'Wrong input for the "{self.cv}" collective variable.'
 
 
 class DistanceCV:
@@ -51,7 +68,7 @@ class DistanceCV:
 
     def read_and_validate_inputs(self):
         try:
-            a_list = [int(x) for x in self.text_colvar_atoms.value.split()]
+            a_list = _parse_atom_indices(self.text_colvar_atoms.value)
         except Exception as exc:
             raise WrongCvInputError(cv="distance") from exc
         if len(a_list) != 2:
@@ -78,7 +95,7 @@ class DistanceCV:
         return [i_a - 1 for i_a in self.a_list]
 
     def cp2k_subsys_inp(self):
-        cp2k_subsys = {"DISTANCE": {"ATOMS": self.text_colvar_atoms.value}}
+        cp2k_subsys = {"DISTANCE": {"ATOMS": _format_atom_indices(self.a_list)}}
         return cp2k_subsys
 
 
@@ -146,7 +163,7 @@ class AnglePlanePlaneCV:
 
     def read_and_validate_inputs(self):
         try:
-            self.p1_def = np.array([int(x) for x in self.text_plane1_def.value.split()])
+            self.p1_def = np.array(_parse_atom_indices(self.text_plane1_def.value))
         except Exception as exc:
             raise WrongCvInputError(
                 cv="plane-plane angle",
@@ -161,9 +178,7 @@ class AnglePlanePlaneCV:
 
         if self.p2_def_type == "ATOMS":
             try:
-                self.p2_def = np.array(
-                    [int(x) for x in self.text_plane2_def.value.split()]
-                )
+                self.p2_def = np.array(_parse_atom_indices(self.text_plane2_def.value))
             except Exception as exc:
                 raise WrongCvInputError(
                     cv="plane-plane angle",
@@ -364,8 +379,9 @@ class BondRotationCV:
 
             if typ == "GEO_CENTER":
                 try:
-                    dl = np.array(
-                        [int(x) - 1 for x in self.bond_point_textbs[i_p].value.split()]
+                    dl = (
+                        np.array(_parse_atom_indices(self.bond_point_textbs[i_p].value))
+                        - 1
                     )
                 except Exception as exc:
                     raise WrongCvInputError(cv=self.bond_point_texts[i_p]) from exc
@@ -382,7 +398,10 @@ class BondRotationCV:
                         cv=self.bond_point_texts[i_p], msg="It needs 3 x, y, z."
                     )
             self.data_list.append(dl)
-            self.data_txt_list.append(self.bond_point_textbs[i_p].value)
+            if typ == "GEO_CENTER":
+                self.data_txt_list.append(_format_atom_indices(dl + 1))
+            else:
+                self.data_txt_list.append(self.bond_point_textbs[i_p].value)
 
         self.input_received = True
 

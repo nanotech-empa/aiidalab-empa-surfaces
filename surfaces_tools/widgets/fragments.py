@@ -4,6 +4,8 @@ import ipywidgets as ipw
 import traitlets
 from IPython.display import clear_output, display
 
+from surfaces_tools.utils.atom_indices import string_range_to_list
+
 from .analyze_structure import StructureAnalyzer
 
 STYLE = {"description_width": "100px"}
@@ -75,7 +77,7 @@ class Fragment(ipw.VBox):
 
     def estimate_computational_resources(self, whole_structure, selected_code):
         self.structure_analyzer.structure = whole_structure[
-            awb.utils.string_range_to_list(self.indices.value)[0]
+            string_range_to_list(self.indices.value)[0]
         ]
         self.resources_estimator.details = self.structure_analyzer.details
         self.resources_estimator.selected_code = selected_code
