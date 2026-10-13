@@ -16,7 +16,7 @@ this refresh does not upgrade it or change its profile.
 
 | Component | Commit | Ownership and status |
 | --- | --- | --- |
-| Backend existing AQE5 assembly | `b6b4126d9740f327b378651ab8a57f3f44d1d745` | Current master plus canonical nanotech-empa/aiida-nanotech-empa#200 through #207, #208 and #228 |
+| Backend existing AQE5 assembly | `b6b4126d9740f327b378651ab8a57f3f44d1d745` | Current master plus canonical nanotech-empa/aiida-nanotech-empa#200 through nanotech-empa/aiida-nanotech-empa#207, nanotech-empa/aiida-nanotech-empa#208 and nanotech-empa/aiida-nanotech-empa#228 |
 | CP2K plugin preview | `bc927019f7b63f7882e2f2f3b165d51312ce0bb3` | Existing immutable preview pin retained; aiidateam/aiida-cp2k#231 still needs upstream review |
 | CP2K input tools | `027cc072012e373265ba8368973a4a7158e33a19` | Upstream cp2k/cp2k-input-tools#106 merge; PyPI 0.9.1 still has older Pint metadata |
 | CP2K SPM tools | `cd97fc02f49c172b21811e5da5389368d6ce5415` | Canonical nanotech-empa/cp2k-spm-tools#34, including the maintained unfolding geometry/path stack |
@@ -24,9 +24,9 @@ this refresh does not upgrade it or change its profile.
 | EMPA widgets | `8a85258bbb449ff99c1d0ee302fd4b6ae887c254` | Canonical nanotech-empa/aiidalab-widgets-empa#12, following runtime, sterics and graph validation components |
 | Cubehandler | `f16f9c8685ea6379c2c89e93811c6ead71dd0f49` | Exact canonical modern-runtime revision from Surfaces #326/#327 |
 | ALPS existing assembly | `39711c167a0d5d6109db8120b895412a8af181dd` | Current main/Ritom definitions plus canonical nanotech-empa/aiidalab-alps-files#11; new and old preview code paths remain separate |
-| EMPA setup existing assembly | `dbc365c914845accffbca9751e69d99e6a3e0746` | Canonical nanotech-empa/aiidalab-empa-setup#10 on #8; modern platform metadata and tested non-interactive registration |
+| EMPA setup existing assembly | `dbc365c914845accffbca9751e69d99e6a3e0746` | Canonical nanotech-empa/aiidalab-empa-setup#10 on nanotech-empa/aiidalab-empa-setup#8; modern platform metadata and tested non-interactive registration |
 
-The local and new remote SPM configurations both use tools #34. The new ALPS
+The local and new remote SPM configurations both use nanotech-empa/cp2k-spm-tools#34. The new ALPS
 wrappers have unique labels/paths ending in `surfaces-v2-cd97fc0`; four modules
 load successfully in Daint's configured uenv from an independent temporary
 source checkout. Installed remote codes were not changed. That uenv still uses
@@ -38,7 +38,7 @@ NumPy 2.0.0/Python 3.12.11, Pint 0.23 fails on removed `numpy.cumproduct`;
 0.24 through 0.24.3 fail with current flexparser dependencies; 0.24.4 loads
 and parses CP2K input successfully. The <0.25 upper bound is inherited from
 the official input-tools source and aiida-pseudo metadata. Replace the exact
-upstream source override with the first release containing #106.
+upstream source override with the first release containing cp2k/cp2k-input-tools#106.
 
 The optional openBIS importer is supplied by aiidalab/aiidalab-eln#93 at
 `01e977a67035dd39741b73e3458a919ddfe884fd`. Missing or older ELN installations
@@ -107,13 +107,23 @@ a browser/daemon/ALPS submission.
 
 aiidateam/aiida-cp2k#234 proposes Python >=3.12/AiiDA >=2.8 and removes misleading
 CI versions. Its current native Docker jobs pass 59 tests each on Python 3.12.15
-with AiiDA 2.8.0 and 2.9.2. Refreshed #231 uses the upstream input-tools fix
+with AiiDA 2.8.0 and 2.9.2. Refreshed aiidateam/aiida-cp2k#231 uses the upstream input-tools fix
 and Pint 0.24.4 in CI; both NumPy 2.5.4 Docker jobs pass all 66 tests.
 Documentation and pre-commit.ci pass for both. Maintainer reviews remain pending.
 
-Backend #204/#206 coverage checks now pass with real builder/error-path tests.
-The #202/#208 full runs exposed UCX selecting unsupported InfiniBand verbs on
-GitHub VMs; their canonical CI sets UCX_TLS=tcp,self,sm. The current #208
-full run passes all 37 native examples and every unit, coverage and hook check.
-The #202 full run and later stack runs are pending; #202 project coverage is
-not final until its example upload finishes. #203 is already fully green.
+Backend nanotech-empa/aiida-nanotech-empa#202 through
+nanotech-empa/aiida-nanotech-empa#208 now pass every native, unit, patch/project
+coverage and pre-commit.ci check at their recorded current heads. The full runs
+exposed UCX selecting unsupported InfiniBand verbs on GitHub VMs; the canonical
+examples job sets UCX_TLS=tcp,self,sm. Corrected runs pass all 37 cases, without
+changing production HPC settings, scientific inputs or coverage thresholds.
+The builder/error contracts in nanotech-empa/aiida-nanotech-empa#204 and
+nanotech-empa/aiida-nanotech-empa#206 now have focused coverage.
+
+Release review remains: upstream support-policy/parser review in
+aiidateam/aiida-cp2k#234 and aiidateam/aiida-cp2k#231; scientific review of
+nanotech-empa/cp2k-spm-tools#24, nanotech-empa/cp2k-spm-tools#32,
+nanotech-empa/cp2k-spm-tools#33 and nanotech-empa/cp2k-spm-tools#34;
+canonical app/backend approvals; and review/deployment validation of
+nanotech-empa/aiidalab-empa-setup#10 and nanotech-empa/aiidalab-alps-files#11.
+This test assembly does not authorize a merge, tag or production rollout.
