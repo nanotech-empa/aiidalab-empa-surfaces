@@ -344,7 +344,7 @@ def get_start_widget(appbase, jupbase):  # noqa: ARG001
         <div class="surface-launcher">
             <h1>Surfaces workflows</h1>
             <div class="surface-sections">
-                {''.join(sections)}
+                {"".join(sections)}
             </div>
         </div>
         """
