@@ -87,9 +87,7 @@ class Fragment(ipw.VBox):
             return
 
         out_of_range = [
-            index + 1
-            for index in indices
-            if index < 0 or index >= len(whole_structure)
+            index + 1 for index in indices if index < 0 or index >= len(whole_structure)
         ]
         if out_of_range:
             self.resources_message.message = (
