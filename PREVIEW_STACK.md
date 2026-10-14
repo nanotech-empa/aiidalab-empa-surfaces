@@ -23,7 +23,7 @@ rechecked on 2026-10-13; this task did not upgrade it or change its profile.
 | Widgets base | `f2773b82017d503c40751f9c082f941eef83ee33` | Canonical aiidalab/aiidalab-widgets-base#820, origin-preserving structure handling |
 | EMPA widgets | `8a85258bbb449ff99c1d0ee302fd4b6ae887c254` | Canonical nanotech-empa/aiidalab-widgets-empa#12, following runtime, sterics and graph validation components |
 | Cubehandler | `f16f9c8685ea6379c2c89e93811c6ead71dd0f49` | Exact canonical modern-runtime revision from Surfaces #326/#327 |
-| ALPS existing assembly | `da216394b9c5dd84b0b57ef14ff3b1ff929fbbdb` | Current main/Ritom definitions plus canonical nanotech-empa/aiidalab-alps-files#11; new and old preview code paths remain separate |
+| ALPS existing assembly | `3307c9e21053f82d2b3b09a0df74cdec26eebfa8` | Current main/Ritom definitions plus canonical nanotech-empa/aiidalab-alps-files#11; new and old preview code paths remain separate |
 | EMPA setup existing assembly | `dbc365c914845accffbca9751e69d99e6a3e0746` | Canonical nanotech-empa/aiidalab-empa-setup#10 on nanotech-empa/aiidalab-empa-setup#8; modern platform metadata and tested non-interactive registration |
 
 The local test source and proposed remote SPM configurations both use
@@ -165,3 +165,10 @@ The proposed ALPS code definitions now use the same SPM guard commit and new
 `surfaces-v2-09139b5` labels. Earlier remote CLI/cell-reader tests used #34; the
 new threshold guard has local/CI regressions, and the geometry/path implementation
 is unchanged. A real ALPS app submission remains a deployment acceptance check.
+
+The two built application wheels also resolve together with pip's normal
+metadata/build handling: 236 distributions with Python 3.12, AiiDA 2.9.2,
+AiiDAlab 26.9.0, NumPy 2.5.2 and Pint 0.24.4. Shared Git dependencies resolve
+to the exact common commits above. This was a non-installing dry run; it does
+not replace browser or production deployment acceptance. Four proposed ALPS
+wrappers additionally pass local CLI-help checks at the current SPM source.
