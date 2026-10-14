@@ -36,11 +36,13 @@ Python 3.11.9/NumPy 2.1.2/SciPy 1.14.1/ASE 3.23.0/mpi4py 4.0.1, separately
 from the app's Python >=3.12 runtime. Source review can proceed; code deployment
 and a real ALPS app run remain separate production acceptance checks.
 
-The updated combined tools assembly passes 132 tests; this GUI assembly passes
-159. A fresh real localhost four-carbon graphene form/submit/result smoke also
-passes with the exact tools pin and canonical backend package metadata supplied
-only to the disposable test environment. It runs synchronously without a browser
-or daemon and is a software-wiring check, not a converged-physics benchmark.
+Earlier numerical validation used the complete combined SPM assembly from
+#21/#24/#32/#33/#34 and passed 132 tests. The fresh real localhost four-carbon
+graphene form/submit/result smoke used the #34 unfolding source and canonical
+backend metadata in the disposable profile. It ran synchronously without a
+browser or daemon and checked software wiring, not converged physical accuracy.
+The current full SPM pin additionally contains the approved negative-threshold
+guard and passes 136 tests; the refreshed GUI assembly passes 159.
 
 The AO overlap-threshold input is bounded below by zero in the owning
 nanotech-empa/aiidalab-empa-surfaces#283 component and all maintained children.
