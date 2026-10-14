@@ -26,13 +26,15 @@ rechecked on 2026-10-13; this task did not upgrade it or change its profile.
 | ALPS existing assembly | `da216394b9c5dd84b0b57ef14ff3b1ff929fbbdb` | Current main/Ritom definitions plus canonical nanotech-empa/aiidalab-alps-files#11; new and old preview code paths remain separate |
 | EMPA setup existing assembly | `dbc365c914845accffbca9751e69d99e6a3e0746` | Canonical nanotech-empa/aiidalab-empa-setup#10 on nanotech-empa/aiidalab-empa-setup#8; modern platform metadata and tested non-interactive registration |
 
-The local and proposed remote SPM configurations both use nanotech-empa/cp2k-spm-tools#36. The new ALPS
-wrappers have unique labels/paths ending in `surfaces-v2-09139b5`. All four CLI
-modules load from that exact source in Daint's configured uenv, and Bohr plus
-60-/120-degree ABC cell checks pass. The test used an independent temporary
-source directory and left installed codes untouched. That uenv uses Python
-3.11.9/NumPy 2.1.2/SciPy 1.14.1/ASE 3.23.0/mpi4py 4.0.1; source deployment and
-an ALPS app run remain separate release checks, so the configuration PR stays draft.
+The local test source and proposed remote SPM configurations both use
+nanotech-empa/cp2k-spm-tools#36. The proposed ALPS wrappers have unique labels
+and paths ending in `surfaces-v2-09139b5`. Earlier Daint checks at #34 passed
+all four CLI `--help` calls plus CP2K cell-unit/angle fixtures. That tested
+geometry/path implementation is unchanged at #36; the new threshold rejection
+is covered by the local and CI regression suite. The verified uenv provides
+Python 3.11.9/NumPy 2.1.2/SciPy 1.14.1/ASE 3.23.0/mpi4py 4.0.1, separately
+from the app's Python >=3.12 runtime. Source review can proceed; code deployment
+and a real ALPS app run remain separate production acceptance checks.
 
 The updated combined tools assembly passes 132 tests; this GUI assembly passes
 159. A fresh real localhost four-carbon graphene form/submit/result smoke also
