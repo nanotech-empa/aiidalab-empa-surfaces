@@ -112,6 +112,26 @@ def test_scf_builder(scf_notebook, mode, self_consistent, smearing):
         assert builder.bader_cutoff.value == 1200
 
 
+@pytest.mark.parametrize(
+    ("requested", "expected"),
+    [(-0.01, 0.0), (0.0, 0.0), (0.03, 0.03), (1.0e6, 1.0e6)],
+)
+def test_overlap_threshold_widget_submission(scf_notebook, requested, expected):
+    ui = scf_notebook
+    ui["write_overlap_matrix"].value = True
+    ui["retrieve_sparse_overlap"].value = True
+    # Apply the widget state update used by the notebook frontend.
+    ui["overlap_threshold"].set_state({"value": requested})
+
+    builder = ui["prepare_scf"]()
+    assert ui["overlap_threshold"].value == expected
+    assert builder.overlap_threshold.value == expected
+    assert (
+        ui["Cp2kScfWorkChain"].spec().inputs.validate(builder._inputs(prune=True))
+        is None
+    )
+
+
 def test_hidden_overlap_settings_are_ignored(scf_notebook):
     ui = scf_notebook
     ui["write_overlap_matrix"].value = True
