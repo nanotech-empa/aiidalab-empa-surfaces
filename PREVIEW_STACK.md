@@ -35,10 +35,18 @@ source directory and left installed codes untouched. That uenv uses Python
 an ALPS app run remain separate release checks, so the configuration PR stays draft.
 
 The updated combined tools assembly passes 132 tests; this GUI assembly passes
-155. A fresh real localhost four-carbon graphene form/submit/result smoke also
+159. A fresh real localhost four-carbon graphene form/submit/result smoke also
 passes with the exact tools pin and canonical backend package metadata supplied
 only to the disposable test environment. It runs synchronously without a browser
 or daemon and is a software-wiring check, not a converged-physics benchmark.
+
+The AO overlap-threshold input is bounded below by zero in the owning
+nanotech-empa/aiidalab-empa-surfaces#283 component and all maintained children.
+Negative frontend widget-state updates are clamped to zero; zero and positive
+values remain valid, without a finite positive upper limit. Four regression
+cases exercise the actual widget and submitted SCF builder. This complements
+negative-input rejection in nanotech-empa/cp2k-spm-tools#36. The complete GUI
+assembly was revalidated on 2026-10-14 using independent AiiDA state.
 
 Pint >=0.24.4,<0.25 reproduces the validated modern dependency chain. With
 NumPy 2.0.0/Python 3.12.11, Pint 0.23 fails on removed `numpy.cumproduct`;
@@ -59,25 +67,25 @@ by the importer-gate tests.
 | --- | --- |
 | [Surfaces #281](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/281) | `91a9f31d66656ca8a784588d6fbaeab60c1b950e` |
 | [Surfaces #282](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/282) | `c75d9b4919ea0b378b45c4f911ccebdade828e29` |
-| [Surfaces #283](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/283) | `9e2a2b28833535ffb0133e27bab8edf36d614d0e` |
-| [Surfaces #284](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/284) | `1396209b9e0737eeac31268e2169074bf15f20ee` |
-| [Surfaces #285](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/285) | `21611364d6d5bfae7070fb58473477e2df5162fb` |
-| [Surfaces #286](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/286) | `a254ade9bb78321b45e20c0a7cdc6c4a533ca4a8` |
-| [Surfaces #287](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/287) | `99b90742badfebc5cb3fbfce1569666a24498561` |
-| [Surfaces #288](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/288) | `2d84456198d20dbd6838dc52cf621eff3ec5a55f` |
-| [Surfaces #289](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/289) | `3c9f44f76ae0287aa962446b0b6e61750457bc4e` |
-| [Surfaces #290](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/290) | `176184defcc20f0bac0403f79c81d843c453b91d` |
-| [Surfaces #292](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/292) | `cee4ec8ccf320feda2493809c18521bfc1740d8d` |
-| [Surfaces #293](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/293) | `b817f83070d0830cf613ead535b5f317b5576ef8` |
-| [Surfaces #294](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/294) | `bafed5d29fd2f1465584fe23152fa9cfb9e614f3` |
-| [Surfaces #295](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/295) | `02ccc62139c35ae591d840ab19f3af465d893b13` |
-| [Surfaces #296](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/296) | `ffed2757212dec7a2ed8d88bb4840d2bce399074` |
-| [Surfaces #297](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/297) | `b7777746230a18ac7527e70b178fb6daa2ad4c7f` |
-| [Surfaces #298](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/298) | `61e19d8e5e15199020233b48820ae8da14686b14` |
-| [Surfaces #326](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/326) | `8a8691e8f81b1e62213b93e55c61e8fc63dc7164` |
-| [Surfaces #327](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/327) | `90a0a5b11ae24d43a07bef68b4c17a2a85b54a7f` |
-| [Surfaces #317](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/317) | `d466a11b4376bfd75295fbbcc52ffc9b8aa80cad` |
-| [Surfaces #318](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/318) | `cd629a18a6cbaceca1e75eb57530f25489adc06b` |
+| [Surfaces #283](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/283) | `0a58280c470fecb056525e8d9484db33e4822950` |
+| [Surfaces #284](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/284) | `0c4f52deda0d9d049f01836604e3ceed7834d2aa` |
+| [Surfaces #285](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/285) | `f46e96efbe9bbc29b3139f651d37874ef83735ca` |
+| [Surfaces #286](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/286) | `c063a9e0d37bfa156ae9053376c1e1d938b2be03` |
+| [Surfaces #287](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/287) | `be230eb16c8b0587c703984c3818756ea32fa526` |
+| [Surfaces #288](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/288) | `b4e4ce078d31fb7aa3ba15e2526d398bd52fafd1` |
+| [Surfaces #289](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/289) | `efc9da84c38f589181f26619c231037b1592fec3` |
+| [Surfaces #290](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/290) | `03909ee3b296265fb69825ba95b9c5c914be24d7` |
+| [Surfaces #292](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/292) | `9ed4acb935d88e179008c47bd72c9aedc814f46a` |
+| [Surfaces #293](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/293) | `0d2f673b11678bba29ab2f62e59d7e9a99b8b4a7` |
+| [Surfaces #294](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/294) | `7c56f842c4bec9a8bfbe4204a57a5bd34a92e24f` |
+| [Surfaces #295](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/295) | `fc42fb70071582f4ed4361d0e24d6145341687fd` |
+| [Surfaces #296](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/296) | `147d2f4635482ea2040043ff2db6862447aee0df` |
+| [Surfaces #297](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/297) | `4820a566c26c943da64036b1ba9c18d09229894f` |
+| [Surfaces #298](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/298) | `4732c7bd7adf9c6c12ad8977f8bdc062bbf7ea00` |
+| [Surfaces #326](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/326) | `3bebbffe811ad02a210be3f4de68b394b023b1bc` |
+| [Surfaces #327](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/327) | `49bb29442962fbd6c73506b8fe39520f89688252` |
+| [Surfaces #317](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/317) | `237dcc7f5674f029838a118e82705c2d360bb431` |
+| [Surfaces #318](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/318) | `172f9ad30982170a7de12d8d971615358f35fb6d` |
 | [Surfaces #300](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/300) | `9a4663c0f88835ab971017327d409af46a7aa442` |
 | [Surfaces #309](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/309) | `502b8235bdf3db94f62f2e78b56018c7b1adbcc7` |
 | [Surfaces #322](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/322) | `1c468b61ff66b536709fe9cc8939cd156e2b7ce7` |
@@ -99,9 +107,9 @@ builders always carry explicit atom indices, so no silent basis detection is
 requested from the backend. Empty band paths select the validated lattice
 default; explicit paths remain available. The viewer uses retrieved path data.
 
-Canonical final component validation: 143 tests pass. Backend combined assembly:
+Earlier canonical final component validation: 143 tests passed. Backend combined assembly:
 121 tests pass. Current required repository hooks pass. Complete combined GUI
-validation: 155 tests pass with the exact local backend and SPM source pins.
+validation: 159 tests pass with the exact local backend and SPM source pins.
 A real localhost smoke test ran the notebook-generated builder through its
 submission widget, executing synchronously with `run_get_node` in the isolated
 profile. The existing `cp2k@localhost`, sparse-overlap and unfolding executable
