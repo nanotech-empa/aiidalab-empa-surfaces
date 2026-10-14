@@ -19,14 +19,14 @@ rechecked on 2026-10-13; this task did not upgrade it or change its profile.
 | Backend existing AQE5 assembly | `b6b4126d9740f327b378651ab8a57f3f44d1d745` | Current master plus canonical nanotech-empa/aiida-nanotech-empa#200 through nanotech-empa/aiida-nanotech-empa#207, nanotech-empa/aiida-nanotech-empa#208 and nanotech-empa/aiida-nanotech-empa#228 |
 | CP2K plugin preview | `bc927019f7b63f7882e2f2f3b165d51312ce0bb3` | Existing immutable preview pin retained; aiidateam/aiida-cp2k#231 still needs upstream review |
 | CP2K input tools | `027cc072012e373265ba8368973a4a7158e33a19` | Upstream cp2k/cp2k-input-tools#106 merge; PyPI 0.9.1 still has older Pint metadata |
-| CP2K SPM tools | `09139b5c674275fd240e3c4541f275575e784891` | Canonical nanotech-empa/cp2k-spm-tools#34, including the maintained geometry/path stack and CP2K cell-unit/angle parsing |
+| CP2K SPM tools | `09139b5c674275fd240e3c4541f275575e784891` | Canonical nanotech-empa/cp2k-spm-tools#36, retaining the merged geometry/path/unit stack and adding negative-threshold rejection |
 | Widgets base | `f2773b82017d503c40751f9c082f941eef83ee33` | Canonical aiidalab/aiidalab-widgets-base#820, origin-preserving structure handling |
 | EMPA widgets | `8a85258bbb449ff99c1d0ee302fd4b6ae887c254` | Canonical nanotech-empa/aiidalab-widgets-empa#12, following runtime, sterics and graph validation components |
 | Cubehandler | `f16f9c8685ea6379c2c89e93811c6ead71dd0f49` | Exact canonical modern-runtime revision from Surfaces #326/#327 |
 | ALPS existing assembly | `da216394b9c5dd84b0b57ef14ff3b1ff929fbbdb` | Current main/Ritom definitions plus canonical nanotech-empa/aiidalab-alps-files#11; new and old preview code paths remain separate |
 | EMPA setup existing assembly | `dbc365c914845accffbca9751e69d99e6a3e0746` | Canonical nanotech-empa/aiidalab-empa-setup#10 on nanotech-empa/aiidalab-empa-setup#8; modern platform metadata and tested non-interactive registration |
 
-The local and new remote SPM configurations both use nanotech-empa/cp2k-spm-tools#34. The new ALPS
+The local and proposed remote SPM configurations both use nanotech-empa/cp2k-spm-tools#36. The new ALPS
 wrappers have unique labels/paths ending in `surfaces-v2-09139b5`. All four CLI
 modules load from that exact source in Daint's configured uenv, and Bohr plus
 60-/120-degree ABC cell checks pass. The test used an independent temporary
