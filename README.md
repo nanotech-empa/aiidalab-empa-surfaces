@@ -5,6 +5,8 @@
 The Empa Surfaces AiiDAlab app enables the user to prepare and run automatic AiiDA workflows for calculations relevant in on-surface chemistry.
 Features include:
 
+* a standalone **CDXML editor** for ChemDraw molecules and periodic ribbons, with structure selection, planar cleanup, AiiDA storage and extended XYZ download;
+
 * generating various metal slab geometries;
 * geometry optimizations of adsorbed systems, bulk systems and isolated molecules;
 * chains of constrained geometry optimizations;
