@@ -66,4 +66,32 @@ We acknowledge support from:
 <img src="https://github.com/nanotech-empa/aiida-nanotech-empa/blob/master/images/swissuniversities.png" width="300px" height="35px"/>
 
 
+Historical scanning-probe app (a separate software archive):
+
 [![DOI](https://zenodo.org/badge/136625855.svg)](https://zenodo.org/badge/latestdoi/136625855)
+
+## Software attribution and scientific acknowledgements
+
+Please credit [aiidalab-empa-surfaces](https://github.com/nanotech-empa/aiidalab-empa-surfaces) and its
+[contributors](https://github.com/nanotech-empa/aiidalab-empa-surfaces/graphs/contributors),
+and identify the release or immutable commit used. Existing author,
+contributor and funding acknowledgements remain authoritative.
+
+See [CITATION.cff](CITATION.cff) for the software citation. A project DOI
+covers archived releases; identify the exact version or commit separately.
+Use a release DOI only for the release it identifies.
+
+Preserve the copyright and permission notices in [LICENSE.txt](LICENSE.txt)
+when copying or distributing copies or substantial portions of MIT-licensed
+code. Separately licensed components retain their own notices. A name or
+repository link does not replace the applicable licence notices.
+
+For research using this app, acknowledge the [AiiDA team](https://github.com/nanotech-empa/.github/blob/main/CITATION_GUIDANCE.md#aiida)
+and [AiiDAlab team](https://github.com/nanotech-empa/.github/blob/main/CITATION_GUIDANCE.md#aiidalab), and cite the three AiiDA papers
+and both AiiDAlab platform papers listed in that guide.
+
+Also credit aiida-nanotech-empa, cp2k-spm-tools, the simulation codes and the particular STM/STS, AFM or other methods used. The historical scanning-probe app retains its separate software credit.
+
+The [shared credit guide](https://github.com/nanotech-empa/.github/blob/main/CITATION_GUIDANCE.md) keeps software attribution, licence
+compliance and scientific citation requests separate. Scientific citation
+requests are not additional MIT licence conditions.
