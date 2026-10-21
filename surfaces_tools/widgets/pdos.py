@@ -48,12 +48,14 @@ def estimate_energy_reference_from_output_parameters(output_parameters):
     The HOMO is reliable in legacy calculations because it is the last value
     parsed from the occupied-eigenvalue block. The LUMO is reliable only for
     calculations parsed with aiida-cp2k versions that store the unoccupied
-    eigenvalue explicitly; otherwise we fall back to HOMO + parsed gap and warn
-    because old OT gap parsing could be wrong.
+    eigenvalue explicitly. A stored gap permits a warned legacy reconstruction;
+    without either quantity the LUMO and gap remain unavailable. Both cases use
+    the highest HOMO as the common automatic reference.
     """
 
     spin_frontiers = []
     uses_legacy_lumo = False
+    missing_lumo_spins = []
     for spin in _spin_indices_from_output_parameters(output_parameters):
         eigenvalues = output_parameters[f"eigen_spin{spin}_au"]
         if len(eigenvalues) == 0:
@@ -64,9 +66,12 @@ def estimate_energy_reference_from_output_parameters(output_parameters):
 
         spin_lumo = output_parameters.get(f"eigenvalue_lumo_spin{spin}_au")
         if spin_lumo is None:
-            spin_gap = max(output_parameters.get(f"bandgap_spin{spin}_au", 0.0), 0.0)
-            spin_lumo = spin_homo + spin_gap
-            uses_legacy_lumo = True
+            spin_gap = output_parameters.get(f"bandgap_spin{spin}_au")
+            if spin_gap is None:
+                missing_lumo_spins.append(spin)
+            else:
+                spin_lumo = spin_homo + max(spin_gap, 0.0)
+                uses_legacy_lumo = True
 
         spin_frontiers.append({"spin": spin, "homo": spin_homo, "lumo": spin_lumo})
 
@@ -75,10 +80,12 @@ def estimate_energy_reference_from_output_parameters(output_parameters):
 
     homo = max(frontier["homo"] for frontier in spin_frontiers)
     lumo_candidates = [
-        frontier["lumo"] for frontier in spin_frontiers if frontier["lumo"] > homo
+        frontier["lumo"]
+        for frontier in spin_frontiers
+        if frontier["lumo"] is not None and frontier["lumo"] > homo
     ]
-    lumo = min(lumo_candidates) if lumo_candidates else homo
-    hartree = homo if uses_legacy_lumo else 0.5 * (homo + lumo)
+    lumo = None if missing_lumo_spins else min(lumo_candidates, default=homo)
+    hartree = homo if uses_legacy_lumo or lumo is None else 0.5 * (homo + lumo)
     reference = {
         "hartree": hartree,
         "homo_hartree": homo,
@@ -86,10 +93,19 @@ def estimate_energy_reference_from_output_parameters(output_parameters):
         "source": "CP2K OT output_parameters",
         "spin_frontiers": spin_frontiers,
         "uses_legacy_lumo": uses_legacy_lumo,
+        "missing_lumo_spins": missing_lumo_spins,
     }
-    if uses_legacy_lumo:
+    if missing_lumo_spins:
         reference["warning"] = (
-            "Legacy output parameters do not contain explicit unoccupied "
+            "LUMO information is unavailable for spin channel(s) "
+            f"{', '.join(map(str, missing_lumo_spins))}: neither an unoccupied "
+            "eigenvalue nor a gap was stored. The global LUMO and gap are "
+            "unavailable; this does not establish a zero gap. The automatic E_ref "
+            "is set to the highest HOMO. Use a manual E_ref if needed."
+        )
+    elif uses_legacy_lumo:
+        reference["warning"] = (
+            "Output parameters do not contain explicit unoccupied "
             "eigenvalues. HOMO values are reliable, but LUMO/frontier reference "
             "values are reconstructed from parsed gaps and may be wrong for old "
             "OT calculations. The automatic E_ref is therefore set to the highest "
@@ -261,23 +277,31 @@ def process_pdos_files(
     homo_rel_ev = (
         energy_reference["homo_hartree"] - energy_reference["hartree"]
     ) * HART_2_EV
+    lumo = energy_reference["lumo_hartree"]
     lumo_rel_ev = (
-        energy_reference["lumo_hartree"] - energy_reference["hartree"]
-    ) * HART_2_EV
+        None if lumo is None else (lumo - energy_reference["hartree"]) * HART_2_EV
+    )
     dos["_energy_reference"] = {
         "hartree": energy_reference["hartree"],
         "ev": energy_reference["hartree"] * HART_2_EV,
         "homo_ev": energy_reference["homo_hartree"] * HART_2_EV,
-        "lumo_ev": energy_reference["lumo_hartree"] * HART_2_EV,
+        "lumo_ev": None if lumo is None else lumo * HART_2_EV,
         "homo_rel_ev": homo_rel_ev,
         "lumo_rel_ev": lumo_rel_ev,
-        "global_gap_ev": lumo_rel_ev - homo_rel_ev,
+        "global_gap_ev": None if lumo_rel_ev is None else lumo_rel_ev - homo_rel_ev,
         "source_pk": energy_reference.get("source_pk"),
         "spin_frontiers": energy_reference.get("spin_frontiers", []),
         "uses_legacy_lumo": energy_reference.get("uses_legacy_lumo", False),
+        "missing_lumo_spins": energy_reference.get("missing_lumo_spins", []),
         "warning": energy_reference.get("warning"),
         "manual_ev": energy_reference.get("manual_ev"),
-        "description": "midpoint between the highest HOMO and lowest LUMO from the full-system OT calculation",
+        "description": (
+            "manual energy reference"
+            if manual_energy_reference_ev is not None
+            else "highest HOMO from the full-system OT calculation"
+            if energy_reference.get("warning")
+            else "midpoint between the highest HOMO and first LUMO above it from the full-system OT calculation"
+        ),
     }
     return dos
 
@@ -798,7 +822,9 @@ class PdosOverlapViewerWidget(ipw.VBox):
             f"{source} E_ref = {reference['ev']:.3f} eV "
             f"using the full-system OT step PK {source_pk}."
         )
-        if manual is None and reference.get("uses_legacy_lumo"):
+        if manual is None and (
+            reference.get("uses_legacy_lumo") or reference.get("missing_lumo_spins")
+        ):
             html += (
                 " Explicit unoccupied levels are missing, so automatic E_ref is "
                 "set to the highest parsed HOMO."
@@ -825,7 +851,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
                 "<br>Reliable occupied frontiers: " + "; ".join(frontier_parts) + "."
             )
 
-        if reference.get("uses_legacy_lumo"):
+        if reference.get("warning"):
             html += (
                 "<br><span style='color:#b45309'><b>Warning:</b> "
                 f"{reference.get('warning', '')}</span>"
