@@ -76,20 +76,20 @@ by the importer-gate tests.
 | [Surfaces #285](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/285) | `34027ac9397a5c537272cb4273a4d8dec8e2c4d7` |
 | [Surfaces #286](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/286) | `ae97f3034ad68aa59bb7f4093ede3a40504783b7` |
 | [Surfaces #287](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/287) | `111eff56040fa273705ea2432935d50b96b48b82` |
-| [Surfaces #288](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/288) | `6e3dc84a84f557537f0c10e6300e48a2a7b3d202` |
-| [Surfaces #289](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/289) | `fea4f247466da963cf05fddd60999df32bc3ef9f` |
-| [Surfaces #290](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/290) | `4768c5db567ee6a5d6be57453df0517362cdf779` |
-| [Surfaces #292](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/292) | `e00d7226cd9c2f68b53ea3d534b63fcdfdd391fe` |
-| [Surfaces #293](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/293) | `2cbb6e18b85b1c06e56d66833967bf7163e85c04` |
-| [Surfaces #294](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/294) | `a49c1737791a3f0b4667687d0ac49a5ce9580f6d` |
-| [Surfaces #295](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/295) | `67d9a4d4ac2780dc421448d3c80e7c85ff1fd1b8` |
-| [Surfaces #296](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/296) | `69ed3edc4ff4cb0a8e11700f316d0db6c5158e52` |
-| [Surfaces #297](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/297) | `5aaf2983541ec7e3fe68804d1cd6d237e54a87d0` |
-| [Surfaces #298](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/298) | `883d2273b62e3a7de77f6d77d0ba9ac8e6fb6aa5` |
-| [Surfaces #326](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/326) | `570860f1943d418f813e0f70a388d89172b4a4f5` |
-| [Surfaces #327](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/327) | `8d9103cbf85bf088346a8f75e4952fc65da0df1a` |
-| [Surfaces #317](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/317) | `b352b171bdf313cff9ac6bd5d1a3625d070eb2e6` |
-| [Surfaces #318](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/318) | `fb507952008e8c0d7f79283adf692aefb3032cb8` |
+| [Surfaces #288](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/288) | `b614168c2df8a26cb133c8c0da4d4ae8e051bbf0` |
+| [Surfaces #289](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/289) | `92ed7030f134adc9e8b4499505545f9f5bc1516b` |
+| [Surfaces #290](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/290) | `6b7d60c897f0888f4ffdb82cfbd2d7c89ffcc960` |
+| [Surfaces #292](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/292) | `9a302dbbbe08054de122f4e8f34ca71f0eee4771` |
+| [Surfaces #293](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/293) | `23ec042c9486eec7d548cb06b4bc0cecf737cee1` |
+| [Surfaces #294](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/294) | `0d9c1291f8688480cfd5848307089b03a0dca8be` |
+| [Surfaces #295](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/295) | `f8370fafdf678b245c1d845028222b87193bc423` |
+| [Surfaces #296](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/296) | `f9618871e065f7c57e0191ff684486aab4bf06cb` |
+| [Surfaces #297](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/297) | `b1a9d1ac4a4371809f3928e8d69afb2a7a0be624` |
+| [Surfaces #298](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/298) | `9547fe64d8e57c16a4eeb9e90804d47447a696ba` |
+| [Surfaces #326](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/326) | `8b670304aee275d50032220e637fe68213f083fa` |
+| [Surfaces #327](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/327) | `18c17d5a9cd5a5791fb114a63d18d22779e0accc` |
+| [Surfaces #317](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/317) | `43b49e25ffcf2e8faaa622d47c65f3796681bfec` |
+| [Surfaces #318](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/318) | `8ebc380a67a5438b918c1b6bf5337aa2086ed37f` |
 | [Surfaces #300](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/300) | `9a4663c0f88835ab971017327d409af46a7aa442` |
 | [Surfaces #309](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/309) | `502b8235bdf3db94f62f2e78b56018c7b1adbcc7` |
 | [Surfaces #322](https://github.com/nanotech-empa/aiidalab-empa-surfaces/pull/322) | `1c468b61ff66b536709fe9cc8939cd156e2b7ce7` |
@@ -172,3 +172,28 @@ AiiDAlab 26.9.0, NumPy 2.5.2 and Pint 0.24.4. Shared Git dependencies resolve
 to the exact common commits above. This was a non-installing dry run; it does
 not replace browser or production deployment acceptance. Four proposed ALPS
 wrappers additionally pass local CLI-help checks at the current SPM source.
+
+## Missing-LUMO viewer adaptation, 2026-10-21
+
+Canonical Surfaces #288 keeps unknown LUMOs and gaps unavailable instead of
+substituting a zero gap. The common automatic reference falls back to the
+highest HOMO with an explicit warning; the manual override and legacy
+parsed-gap fallback remain available. Fully determined frontiers retain the
+existing common-reference convention and PDOS weights are unchanged.
+
+Canonical Surfaces #289 prefers the corrected parser's final gap values from
+aiidateam/aiida-cp2k#230. Older stored calculations use only the final printed
+orbital group, without borrowing missing spin gaps from earlier geometry
+steps. Genuine zero gaps remain numeric. A legacy stored gap that cannot be
+checked against stdout is explicitly marked as unverified.
+
+These viewer changes are propagated through every canonical descendant and
+then into the existing preview assembly. No dependency pins or runtime policy
+changed. Local validation uses Python 3.12.11/AiiDA 2.9.2 and the exact backend
+and SPM source pins above: 127 tests pass at #289, 169 at the final canonical
+component #318 and 181 in the combined assembly. These include 22 new viewer
+regressions, with actual geometry-notebook cell execution, PDOS weights and
+energy alignment, incomplete UKS output and the distinction between zero and
+unavailable gaps. Required checks for affected files pass; the existing CI
+policy skips optional mypy. This does not claim browser or production
+acceptance, and does not change the installed app or published alpha tags.
