@@ -11,6 +11,7 @@ from IPython.display import HTML, display
 
 from ..utils import igor
 from ..utils.files import download_link
+from ._lifecycle import close_owned_widgets
 
 colormaps = ["seismic", "gist_heat"]
 
@@ -133,7 +134,7 @@ class SeriesPlotter:
         self.selections_vbox = ipw.VBox([])
 
         self.add_row_btn = ipw.Button(description="Add series row", disabled=True)
-        self.add_row_btn.on_click(lambda b: self.add_selection_row())
+        self.add_row_btn.on_click(self.add_selection_row)
 
         self.selector_widget = ipw.VBox([self.add_row_btn, self.selections_vbox])
 
@@ -195,7 +196,7 @@ class SeriesPlotter:
 
         self.wc_pk = wc_pk
 
-    def add_selection_row(self):
+    def add_selection_row(self, _=None):
         drop_full_series = ipw.Dropdown(
             description="series",
             options=sorted(self.series.keys(), reverse=True),
@@ -221,7 +222,7 @@ class SeriesPlotter:
             layout=ipw.Layout(width="auto"),
         )
         rm_btn = ipw.Button(description="x", layout=ipw.Layout(width="30px"))
-        rm_btn.on_click(lambda b: self.remove_line_row(b))
+        rm_btn.on_click(self.remove_line_row)
 
         elements = [drop_full_series, drop_cmap, sym_check, norm_check, rm_btn]
         element_widths = ["280px", "210px", "120px", "120px", "35px"]
@@ -239,10 +240,13 @@ class SeriesPlotter:
     def remove_line_row(self, b):
         rm_btn_list = [elem[4] for elem in self.elem_list]
         rm_index = rm_btn_list.index(b)
+        row = self.selections_vbox.children[rm_index]
+        b.on_click(self.remove_line_row, remove=True)
         del self.elem_list[rm_index]
         self.selections_vbox.children = remove_from_tuple(
             self.selections_vbox.children, rm_index
         )
+        close_owned_widgets(row)
 
     def plot_series(self, b):
         fig_y_in_px = 0.8 * self.fig_y * matplotlib.rcParams["figure.dpi"]
@@ -437,4 +441,27 @@ class SeriesPlotter:
                 self.zip_progress.value += 1.0 / float(total_pics - 1)
 
     def full_clear(self, b):
+        plots = self.plot_output.children
         self.plot_output.children = ()
+        close_owned_widgets(*plots)
+
+    def close(self):
+        """Release this plotter's private widgets, callbacks and series data."""
+        for elements in list(self.elem_list):
+            self.remove_line_row(elements[4])
+        self.full_clear(None)
+        self.add_row_btn.on_click(self.add_selection_row, remove=True)
+        self.plot_btn.on_click(self.plot_series, remove=True)
+        self.clear_btn.on_click(self.full_clear, remove=True)
+        self.zip_btn.on_click(self.create_zip_link, remove=True)
+        close_owned_widgets(
+            self.selector_widget,
+            self.plot_btn,
+            self.clear_btn,
+            self.plot_output,
+            self.zip_btn,
+            self.zip_progress,
+            self.link_out,
+        )
+        self.series.clear()
+        self.select_indexes_function = None
