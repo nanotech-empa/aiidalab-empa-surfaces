@@ -33,12 +33,16 @@ def test_make_svg_image_link_contains_vector_figure():
     "image_format,mime,signature",
     [("png", "image/png", b"\x89PNG"), ("pdf", "application/pdf", b"%PDF")],
 )
-def test_existing_image_formats_keep_their_payload_and_mime(image_format, mime, signature):
+def test_existing_image_formats_keep_their_payload_and_mime(
+    image_format, mime, signature
+):
     fig, ax = plt.subplots()
     ax.plot([0, 1], [1, 0])
     try:
         link = make_image_link(fig, text=image_format.upper(), data_format=image_format)
-        match = re.search(rf'data:{mime};name=pdos\.{image_format};base64,([^\"]+)', link)
+        match = re.search(
+            rf"data:{mime};name=pdos\.{image_format};base64,([^\"]+)", link
+        )
         assert match
         assert base64.b64decode(match.group(1)).startswith(signature)
         assert f'id="pdos_{image_format}_link"' in link
