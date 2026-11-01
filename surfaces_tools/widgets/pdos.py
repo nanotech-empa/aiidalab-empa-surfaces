@@ -16,31 +16,198 @@ from ..utils import spm
 from . import stack
 
 
-def read_and_process_pdos_file(pdos_path):
+def read_pdos_file(pdos_path):
     try:
-        header = open(pdos_path).readline()
+        with open(pdos_path) as handle:
+            header = handle.readline()
+            data = np.loadtxt(handle)
     except TypeError:
         header = pdos_path.readline()
+        data = np.loadtxt(pdos_path)
+
     try:  # noqa: TC101
         kind = re.search(r"atomic kind.(\S+)", header).group(1)
     except Exception:
         kind = None
-    data = np.loadtxt(pdos_path)
 
-    # Determine fermi by counting the number of electrons and
-    # taking the middle of HOMO and LUMO.
-    n_el = int(np.round(np.sum(data[:, 2])))
-    if data[0, 2] > 1.5:
-        n_el = int(np.round(n_el / 2))
-    fermi = 0.5 * (data[n_el - 1, 1] + data[n_el, 1])
+    return data, kind
 
+
+def _spin_indices_from_output_parameters(output_parameters):
+    spin_indices = []
+    for key in output_parameters:
+        match = re.fullmatch(r"eigen_spin(\d+)_au", key)
+        if match:
+            spin_indices.append(int(match.group(1)))
+    return sorted(spin_indices)
+
+
+def estimate_energy_reference_from_output_parameters(output_parameters):
+    """Return the PDOS reference from full-system OT output parameters.
+
+    The HOMO is reliable in legacy calculations because it is the last value
+    parsed from the occupied-eigenvalue block. The LUMO is reliable only for
+    calculations parsed with aiida-cp2k versions that store the unoccupied
+    eigenvalue explicitly. A stored gap permits a warned legacy reconstruction;
+    without either quantity the LUMO and gap remain unavailable. Both cases use
+    the highest HOMO as the common automatic reference. Overlapping spin
+    frontiers also use the highest HOMO, retaining the lowest LUMO and a warning.
+    """
+
+    spin_frontiers = []
+    uses_legacy_lumo = False
+    missing_lumo_spins = []
+    for spin in _spin_indices_from_output_parameters(output_parameters):
+        eigenvalues = output_parameters[f"eigen_spin{spin}_au"]
+        if len(eigenvalues) == 0:
+            continue
+        spin_homo = output_parameters.get(f"eigenvalue_homo_spin{spin}_au")
+        if spin_homo is None:
+            spin_homo = eigenvalues[-1]
+
+        spin_lumo = output_parameters.get(f"eigenvalue_lumo_spin{spin}_au")
+        if spin_lumo is None:
+            spin_gap = output_parameters.get(f"bandgap_spin{spin}_au")
+            if spin_gap is None:
+                missing_lumo_spins.append(spin)
+            else:
+                spin_lumo = spin_homo + max(spin_gap, 0.0)
+                uses_legacy_lumo = True
+
+        spin_frontiers.append({"spin": spin, "homo": spin_homo, "lumo": spin_lumo})
+
+    if not spin_frontiers:
+        raise ValueError("No spin-resolved eigenvalue information found")
+
+    homo = max(frontier["homo"] for frontier in spin_frontiers)
+    lumo_candidates = [
+        frontier["lumo"] for frontier in spin_frontiers if frontier["lumo"] is not None
+    ]
+    lumo = None if missing_lumo_spins else min(lumo_candidates, default=homo)
+    overlapping_frontiers = lumo is not None and lumo < homo
+    hartree = (
+        homo
+        if uses_legacy_lumo or lumo is None or overlapping_frontiers
+        else 0.5 * (homo + lumo)
+    )
+    reference = {
+        "hartree": hartree,
+        "homo_hartree": homo,
+        "lumo_hartree": lumo,
+        "source": "CP2K OT output_parameters",
+        "spin_frontiers": spin_frontiers,
+        "uses_legacy_lumo": uses_legacy_lumo,
+        "missing_lumo_spins": missing_lumo_spins,
+        "overlapping_frontiers": overlapping_frontiers,
+    }
+    if missing_lumo_spins:
+        reference["warning"] = (
+            "LUMO information is unavailable for spin channel(s) "
+            f"{', '.join(map(str, missing_lumo_spins))}: neither an unoccupied "
+            "eigenvalue nor a gap was stored. The global LUMO and gap are "
+            "unavailable; this does not establish a zero gap. The automatic E_ref "
+            "is set to the highest HOMO. Use a manual E_ref if needed."
+        )
+    elif uses_legacy_lumo:
+        reference["warning"] = (
+            "Output parameters do not contain explicit unoccupied "
+            "eigenvalues. HOMO values are reliable, but LUMO/frontier reference "
+            "values are reconstructed from parsed gaps and may be wrong for old "
+            "OT calculations. The automatic E_ref is therefore set to the highest "
+            "HOMO. Use a manual E_ref if needed."
+        )
+    if overlapping_frontiers:
+        overlap_warning = (
+            "Spin frontiers overlap: the lowest stored LUMO lies below the "
+            "highest HOMO. These levels do not establish a positive global "
+            "frontier gap. The signed frontier separation is retained; automatic "
+            "E_ref is set to the highest HOMO."
+        )
+        reference["warning"] = " ".join(
+            part for part in (reference.get("warning"), overlap_warning) if part
+        )
+    return reference
+
+
+def _get_output_parameters(process):
+    try:
+        output_parameters = dict(process.outputs.output_parameters)
+    except (AttributeError, KeyError, common.NotExistentAttributeError):
+        return None
+    if not _spin_indices_from_output_parameters(output_parameters):
+        return None
+    return output_parameters
+
+
+def _sort_processes(processes):
+    return sorted(processes, key=lambda process: (process.ctime, process.pk))
+
+
+def get_pdos_energy_reference(pdos_workchain):
+    """Find the full-system OT CP2K reference used to align PDOS energies.
+
+    New PDOS workchains submit the full-system ``Cp2kDiagWorkChain`` first, then
+    optionally a molecule-only ``Cp2kDiagWorkChain`` for overlap analysis. The
+    reference must come from the OT step of the full-system branch, not from the
+    molecule branch and not from the diagonalization PDOS files.
+    """
+
+    diag_workchains = [
+        process
+        for process in pdos_workchain.called_descendants
+        if process.process_label == "Cp2kDiagWorkChain"
+    ]
+    if diag_workchains:
+        slab_diag_workchain = _sort_processes(diag_workchains)[0]
+        base_workchains = [
+            process
+            for process in slab_diag_workchain.called_descendants
+            if process.process_label == "Cp2kBaseWorkChain"
+        ]
+        for process in _sort_processes(base_workchains):
+            output_parameters = _get_output_parameters(process)
+            if output_parameters is None:
+                continue
+            reference = estimate_energy_reference_from_output_parameters(
+                output_parameters
+            )
+            reference["source_pk"] = process.pk
+            return reference
+
+    # Legacy fallback: older PDOS workflows had a direct slab_scf child.
+    for process in _sort_processes(pdos_workchain.called_descendants):
+        if process.label != "slab_scf":
+            continue
+        output_parameters = _get_output_parameters(process)
+        if output_parameters is None:
+            continue
+        reference = estimate_energy_reference_from_output_parameters(output_parameters)
+        reference["source_pk"] = process.pk
+        return reference
+
+    raise ValueError("No full-system OT output_parameters with spin eigenvalues found")
+
+
+def process_pdos_data(data, energy_reference):
     out_data = np.zeros((data.shape[0], 2))
-    out_data[:, 0] = (data[:, 1] - fermi) * HART_2_EV  # energy
+    out_data[:, 0] = (data[:, 1] - energy_reference) * HART_2_EV  # energy
     out_data[:, 1] = np.sum(data[:, 3:], axis=1)  # "contracted pdos"
+    return out_data
+
+
+def read_and_process_pdos_file(pdos_path, energy_reference=None):
+    data, kind = read_pdos_file(pdos_path)
+
+    if energy_reference is None:
+        raise ValueError("PDOS energy_reference must be provided explicitly")
+
+    out_data = process_pdos_data(data, energy_reference)
     return out_data, kind
 
 
-def process_pdos_files(pdos_workchain, newversion=True):
+def process_pdos_files(
+    pdos_workchain, newversion=True, manual_energy_reference_ev=None
+):
     dos = {}
 
     if newversion:
@@ -67,13 +234,25 @@ def process_pdos_files(pdos_workchain, newversion=True):
     # Identify the number of spin channels.
     nspin = 2 if any("BETA" in f for f in all_pdos) else 1
 
-    def _read_pdos(file):
+    def _read_raw_pdos(file):
         with retr_folder.open(file) as fhandle:
             try:
                 path = fhandle.name
             except AttributeError:
                 path = fhandle
-            pdos, kind = read_and_process_pdos_file(path)
+            data, kind = read_pdos_file(path)
+        return data, kind
+
+    raw_pdos = {file: _read_raw_pdos(file) for file in all_pdos}
+    energy_reference = get_pdos_energy_reference(pdos_workchain)
+    if manual_energy_reference_ev is not None:
+        energy_reference = dict(energy_reference)
+        energy_reference["hartree"] = manual_energy_reference_ev / HART_2_EV
+        energy_reference["manual_ev"] = manual_energy_reference_ev
+
+    def _read_pdos(file):
+        data, kind = raw_pdos[file]
+        pdos = process_pdos_data(data, energy_reference["hartree"])
         return pdos, kind
 
     # Element-wise PDOS.
@@ -110,6 +289,41 @@ def process_pdos_files(pdos_workchain, newversion=True):
                 for i_spin in range(nspin):
                     tdos[i_spin][:, 1] += dos[k][i_spin][:, 1]
     dos["tdos"] = tdos
+    homo_rel_ev = (
+        energy_reference["homo_hartree"] - energy_reference["hartree"]
+    ) * HART_2_EV
+    lumo = energy_reference["lumo_hartree"]
+    lumo_rel_ev = (
+        None if lumo is None else (lumo - energy_reference["hartree"]) * HART_2_EV
+    )
+    dos["_energy_reference"] = {
+        "hartree": energy_reference["hartree"],
+        "ev": energy_reference["hartree"] * HART_2_EV,
+        "homo_ev": energy_reference["homo_hartree"] * HART_2_EV,
+        "lumo_ev": None if lumo is None else lumo * HART_2_EV,
+        "homo_rel_ev": homo_rel_ev,
+        "lumo_rel_ev": lumo_rel_ev,
+        "global_gap_ev": (
+            None if lumo_rel_ev is None else max(0.0, lumo_rel_ev - homo_rel_ev)
+        ),
+        "frontier_separation_ev": (
+            None if lumo_rel_ev is None else lumo_rel_ev - homo_rel_ev
+        ),
+        "overlapping_frontiers": energy_reference.get("overlapping_frontiers", False),
+        "source_pk": energy_reference.get("source_pk"),
+        "spin_frontiers": energy_reference.get("spin_frontiers", []),
+        "uses_legacy_lumo": energy_reference.get("uses_legacy_lumo", False),
+        "missing_lumo_spins": energy_reference.get("missing_lumo_spins", []),
+        "warning": energy_reference.get("warning"),
+        "manual_ev": energy_reference.get("manual_ev"),
+        "description": (
+            "manual energy reference"
+            if manual_energy_reference_ev is not None
+            else "highest HOMO from the full-system OT calculation"
+            if energy_reference.get("warning")
+            else "midpoint between the highest HOMO and lowest LUMO from the full-system OT calculation"
+        ),
+    }
     return dos
 
 
@@ -371,15 +585,48 @@ class PdosSelectionWidget(_BaseSelectionWidget):
 
 
 class PdosStackWidget(_BaseStackWidget):
-    workchain = tl.Instance(orm.WorkChainNode, allow_none=True)
+    workchain_uuid = tl.Unicode(allow_none=True, default_value=None)
+    manual_energy_reference_ev = tl.Float(allow_none=True, default_value=None)
 
-    @tl.observe("workchain")
+    @property
+    def workchain(self):
+        return (
+            None if self.workchain_uuid is None else orm.load_node(self.workchain_uuid)
+        )
+
+    @workchain.setter
+    def workchain(self, value):
+        if value is None:
+            self.workchain_uuid = None
+        elif isinstance(value, orm.Node):
+            self.workchain_uuid = value.uuid
+        else:
+            self.workchain_uuid = orm.load_node(value).uuid
+
+    @tl.observe("workchain_uuid")
     def _on_workchain_change(self, change):
-        workchain = change["new"]
+        self.load_workchain(change["new"])
+
+    def load_workchain(self, workchain=None):
+        identifier = self.workchain_uuid if workchain is None else workchain
+        if identifier is None:
+            self.options = {}
+            self.data = {}
+            return
+        if isinstance(identifier, orm.Node):
+            identifier = identifier.uuid
+        workchain = orm.load_node(identifier)
         try:
-            data = process_pdos_files(workchain)
+            data = process_pdos_files(
+                workchain,
+                manual_energy_reference_ev=self.manual_energy_reference_ev,
+            )
         except (KeyError, common.NotExistentAttributeError):
-            data = process_pdos_files(workchain, newversion=False)
+            data = process_pdos_files(
+                workchain,
+                newversion=False,
+                manual_energy_reference_ev=self.manual_energy_reference_ev,
+            )
 
         self.options = {
             "Total DOS": "tdos",
@@ -402,6 +649,9 @@ class PdosStackWidget(_BaseStackWidget):
 
     @tl.observe("data")
     def _on_data_change(self, change):
+        if not self.data:
+            self.items = ()
+            return
         n_spin = len(self.data["tdos"])
         if self.data:
             self.items = ()
@@ -519,8 +769,42 @@ class PdosOverlapViewerWidget(ipw.VBox):
             style=style,
             layout=layout,
         )
+        self._orbital_projection_style = ipw.ToggleButtons(
+            options=[("Filled", "filled"), ("Lines", "line")],
+            value="filled",
+            description="Orbital style:",
+            style={"description_width": "100px", "button_width": "70px"},
+            layout=ipw.Layout(width="280px"),
+        )
+        self._density_min = ipw.Text(
+            value="",
+            placeholder="auto",
+            description="Y min:",
+            style={"description_width": "50px"},
+            layout=ipw.Layout(width="160px"),
+        )
+        self._density_max = ipw.Text(
+            value="",
+            placeholder="auto",
+            description="Y max:",
+            style={"description_width": "50px"},
+            layout=ipw.Layout(width="160px"),
+        )
         self._plot_output = ipw.Output()
         self._geometry_info = ipw.HTML()
+        self._workchain_uuid = None
+        self._manual_ref_checkbox = ipw.Checkbox(
+            description="Manual E_ref", value=False, indent=False
+        )
+        self._manual_ref_input = ipw.FloatText(
+            description="E_ref [eV]:",
+            disabled=True,
+            style={"description_width": "80px"},
+            layout=ipw.Layout(width="220px"),
+        )
+        self._manual_ref_button = ipw.Button(description="Apply E_ref")
+        self._manual_ref_checkbox.observe(self._on_manual_ref_toggle, names="value")
+        self._manual_ref_button.on_click(self._apply_energy_reference)
         self._projections = PdosStackWidget(
             item_class=PdosSelectionWidget, add_button_text="Add PDOS"
         )
@@ -539,17 +823,105 @@ class PdosOverlapViewerWidget(ipw.VBox):
         super().__init__(
             [
                 self._geometry_info,
+                ipw.HBox(
+                    [
+                        self._manual_ref_checkbox,
+                        self._manual_ref_input,
+                        self._manual_ref_button,
+                    ]
+                ),
                 self._plot_output,
                 self._fwhm_slider,
                 self._energy_range_slider,
+                ipw.HBox(
+                    [
+                        self._orbital_projection_style,
+                        self._density_min,
+                        self._density_max,
+                    ]
+                ),
                 ipw.HBox([plot_button, self.cumulative_plot, clear_button]),
                 self._projections,
                 self._overlap,
             ]
         )
 
-    def load_data(self, reference=None):
-        workchain = orm.load_node(pk=reference)
+    def _on_manual_ref_toggle(self, change):
+        self._manual_ref_input.disabled = not change["new"]
+
+    def _apply_energy_reference(self, _=None):
+        if self._workchain_uuid is None:
+            return
+        manual_ref = (
+            self._manual_ref_input.value if self._manual_ref_checkbox.value else None
+        )
+        self.load_data(self._workchain_uuid, manual_energy_reference_ev=manual_ref)
+        self.clear_plot()
+
+    def _format_energy_reference_info(self, reference):
+        manual = reference.get("manual_ev")
+        source_pk = reference.get("source_pk", "unknown")
+        source = "manual" if manual is not None else "automatic"
+        html = (
+            "<br><b>PDOS energy zero:</b> "
+            f"{source} E_ref = {reference['ev']:.3f} eV "
+            f"using the full-system OT step PK {source_pk}."
+        )
+        if manual is None and reference.get("overlapping_frontiers"):
+            html += (
+                " Spin frontiers overlap, so automatic E_ref is set to the "
+                "highest parsed HOMO."
+            )
+        elif manual is None and (
+            reference.get("uses_legacy_lumo") or reference.get("missing_lumo_spins")
+        ):
+            html += (
+                " Explicit unoccupied levels are missing, so automatic E_ref is "
+                "set to the highest parsed HOMO."
+            )
+        elif manual is None:
+            html += (
+                " Automatic E_ref is the midpoint between the highest parsed HOMO "
+                "and the lowest parsed LUMO, using one common reference for "
+                "all spin channels."
+            )
+        else:
+            html += " The manual value is used as one common reference for all spin channels."
+
+        frontier_parts = []
+        for frontier in reference.get("spin_frontiers", []):
+            spin = frontier["spin"]
+            homo_ev = frontier["homo"] * HART_2_EV
+            homo_rel_ev = (frontier["homo"] - reference["hartree"]) * HART_2_EV
+            frontier_parts.append(
+                f"spin {spin} HOMO = {homo_ev:.3f} eV ({homo_rel_ev:+.3f} eV vs E_ref)"
+            )
+        if frontier_parts:
+            html += (
+                "<br>Reliable occupied frontiers: " + "; ".join(frontier_parts) + "."
+            )
+
+        if reference.get("overlapping_frontiers"):
+            html += (
+                "<br>Signed LUMO-HOMO frontier separation: "
+                f"{reference['frontier_separation_ev']:+.3f} eV; "
+                "no positive global frontier gap."
+            )
+        if reference.get("warning"):
+            html += (
+                "<br><span style='color:#b45309'><b>Warning:</b> "
+                f"{reference.get('warning', '')}</span>"
+            )
+        else:
+            html += (
+                "<br>Frontier LUMO relative to E_ref: "
+                f"{reference['lumo_rel_ev']:+.3f} eV."
+            )
+        return html
+
+    def load_data(self, reference=None, manual_energy_reference_ev=None):
+        workchain = orm.load_node(reference)
+        self._workchain_uuid = workchain.uuid
         self.uks = workchain.inputs.dft_params.get("uks", False)
         self.do_overlap = (
             bool(workchain.inputs.do_overlap)
@@ -557,16 +929,22 @@ class PdosOverlapViewerWidget(ipw.VBox):
             else True
         )
         try:
-            self._geometry_info.value = spm.get_slab_calc_info(
-                workchain.inputs.structure
-            )
+            geometry_info = spm.get_slab_calc_info(workchain.inputs.structure)
         except common.NotExistentAttributeError:
-            self._geometry_info.value = spm.get_slab_calc_info(
-                workchain.inputs.slabsys_structure
-            )
+            geometry_info = spm.get_slab_calc_info(workchain.inputs.slabsys_structure)
 
         # Dealing with the projections data.
-        self._projections.workchain = workchain
+        self._projections.manual_energy_reference_ev = manual_energy_reference_ev
+        if self._projections.workchain_uuid != workchain.uuid:
+            self._projections.workchain_uuid = workchain.uuid
+        else:
+            self._projections.load_workchain()
+        reference_info = self._projections.data.get("_energy_reference", {})
+        if reference_info:
+            if manual_energy_reference_ev is None:
+                self._manual_ref_input.value = reference_info["ev"]
+            geometry_info += self._format_energy_reference_info(reference_info)
+        self._geometry_info.value = geometry_info
 
         # Dealing with the overlap data.
         if self.do_overlap:
@@ -589,7 +967,11 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
     def make_plot(self, _=None):
         with self._plot_output:
-            fig, collected_data = self._create_the_plot()
+            try:
+                fig, collected_data = self._create_the_plot()
+            except ValueError as exc:
+                print(exc)
+                return
             links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_csv_link(collected_data)}."""
             display(ipw.HTML(links))
 
@@ -597,7 +979,34 @@ class PdosOverlapViewerWidget(ipw.VBox):
         with self._plot_output:
             clear_output()
 
+    def _get_density_range(self):
+        def _parse(widget):
+            text = widget.value.strip()
+            if not text:
+                return None
+            value = float(text)
+            if not math.isfinite(value):
+                raise ValueError("Density limits must be finite.")
+            return value
+
+        try:
+            density_range = [_parse(self._density_min), _parse(self._density_max)]
+        except ValueError as exc:
+            raise ValueError(
+                "Y min and Y max must be finite numbers or empty."
+            ) from exc
+
+        if (
+            density_range[0] is not None
+            and density_range[1] is not None
+            and density_range[0] >= density_range[1]
+        ):
+            raise ValueError("Y min must be smaller than Y max.")
+
+        return density_range
+
     def _create_the_plot(self):
+        density_range = self._get_density_range()
         delta_e = np.min([self._fwhm_slider.value / 10, 0.005])
         elim = self._energy_range_slider.value
         energy_arr = np.arange(elim[0], elim[1], delta_e)
@@ -627,10 +1036,13 @@ class PdosOverlapViewerWidget(ipw.VBox):
         plt.xlim([np.min(energy_arr), np.max(energy_arr)])
         if ncol == 1:
             ylim[0] = 0.0
+        for i_limit, limit in enumerate(density_range):
+            if limit is not None:
+                ylim[i_limit] = limit
         plt.ylim(ylim)
         plt.axhline(0.0, color="k", lw=2.0, zorder=200)
         plt.ylabel("Density of States [a.u.]")
-        plt.xlabel("$E-E_F$ [eV]")
+        plt.xlabel("$E-E_{ref}$ [eV]")
         plt.show()
 
         return fig, (headers, data.T)
@@ -708,15 +1120,26 @@ class PdosOverlapViewerWidget(ipw.VBox):
             else:
                 cumulative_plot[spin] = series
 
-            ax1.fill_between(
-                energy_arr,
-                0.0,
-                cumulative_plot[spin] * (-2 * spin + 1),
-                facecolor=picked_color,
-                alpha=1.0,
-                zorder=-i_serie + 100,
-                label=label,
-            )
+            plot_series = cumulative_plot[spin] * (-2 * spin + 1)
+            if self._orbital_projection_style.value == "line":
+                ax1.plot(
+                    energy_arr,
+                    plot_series,
+                    color=picked_color,
+                    lw=1.6,
+                    zorder=-i_serie + 100,
+                    label=label,
+                )
+            else:
+                ax1.fill_between(
+                    energy_arr,
+                    0.0,
+                    plot_series,
+                    facecolor=picked_color,
+                    alpha=1.0,
+                    zorder=-i_serie + 100,
+                    label=label,
+                )
 
             collect_data_headers.append(f"{label} s{spin}")
             collect_data = np.vstack([collect_data, series])
