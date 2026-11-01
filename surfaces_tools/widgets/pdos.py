@@ -465,15 +465,19 @@ def get_colors(colors, n_points):
 
 def make_image_link(figure, text="PNG", data_format="png"):
     image_data = io.BytesIO()
-    figure.savefig(image_data, format=data_format, dpi=300, bbox_inches="tight")
+    with plt.rc_context({"svg.fonttype": "none"}):
+        figure.savefig(image_data, format=data_format, dpi=300, bbox_inches="tight")
     image_data.seek(0)  # rewind the data
     image_file = base64.b64encode(image_data.getvalue()).decode()
 
     filename = f"pdos.{data_format}"
+    mime_type = {"svg": "image/svg+xml", "pdf": "application/pdf"}.get(
+        data_format, f"image/{data_format}"
+    )
 
     html = f'<a download="{filename}" href="'
-    html += f'data:image/{data_format};name={filename};base64,{image_file}"'
-    html += ' id=f"pdos_{data_format}_link"'
+    html += f'data:{mime_type};name={filename};base64,{image_file}"'
+    html += f' id="pdos_{data_format}_link"'
     html += f' target="_blank">{text}</a>'
 
     return html
@@ -972,7 +976,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
             except ValueError as exc:
                 print(exc)
                 return
-            links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_csv_link(collected_data)}."""
+            links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_image_link(fig, text="SVG", data_format="svg")}, {make_csv_link(collected_data)}."""
             display(ipw.HTML(links))
 
     def clear_plot(self, _=None):
@@ -1051,6 +1055,8 @@ class PdosOverlapViewerWidget(ipw.VBox):
         self, ax1, ylim, energy_arr, collect_data, collect_data_headers
     ):
         for line_serie in self._projections.items:
+            if line_serie._data_selection.value is None:
+                continue
             (
                 label,
                 picked_color,
