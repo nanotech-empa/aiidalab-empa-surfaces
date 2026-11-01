@@ -769,6 +769,27 @@ class PdosOverlapViewerWidget(ipw.VBox):
             style=style,
             layout=layout,
         )
+        self._orbital_projection_style = ipw.ToggleButtons(
+            options=[("Filled", "filled"), ("Lines", "line")],
+            value="filled",
+            description="Orbital style:",
+            style={"description_width": "100px", "button_width": "70px"},
+            layout=ipw.Layout(width="280px"),
+        )
+        self._density_min = ipw.Text(
+            value="",
+            placeholder="auto",
+            description="Y min:",
+            style={"description_width": "50px"},
+            layout=ipw.Layout(width="160px"),
+        )
+        self._density_max = ipw.Text(
+            value="",
+            placeholder="auto",
+            description="Y max:",
+            style={"description_width": "50px"},
+            layout=ipw.Layout(width="160px"),
+        )
         self._plot_output = ipw.Output()
         self._geometry_info = ipw.HTML()
         self._workchain_uuid = None
@@ -812,6 +833,13 @@ class PdosOverlapViewerWidget(ipw.VBox):
                 self._plot_output,
                 self._fwhm_slider,
                 self._energy_range_slider,
+                ipw.HBox(
+                    [
+                        self._orbital_projection_style,
+                        self._density_min,
+                        self._density_max,
+                    ]
+                ),
                 ipw.HBox([plot_button, self.cumulative_plot, clear_button]),
                 self._projections,
                 self._overlap,
@@ -939,7 +967,11 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
     def make_plot(self, _=None):
         with self._plot_output:
-            fig, collected_data = self._create_the_plot()
+            try:
+                fig, collected_data = self._create_the_plot()
+            except ValueError as exc:
+                print(exc)
+                return
             links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_csv_link(collected_data)}."""
             display(ipw.HTML(links))
 
@@ -947,7 +979,34 @@ class PdosOverlapViewerWidget(ipw.VBox):
         with self._plot_output:
             clear_output()
 
+    def _get_density_range(self):
+        def _parse(widget):
+            text = widget.value.strip()
+            if not text:
+                return None
+            value = float(text)
+            if not math.isfinite(value):
+                raise ValueError("Density limits must be finite.")
+            return value
+
+        try:
+            density_range = [_parse(self._density_min), _parse(self._density_max)]
+        except ValueError as exc:
+            raise ValueError(
+                "Y min and Y max must be finite numbers or empty."
+            ) from exc
+
+        if (
+            density_range[0] is not None
+            and density_range[1] is not None
+            and density_range[0] >= density_range[1]
+        ):
+            raise ValueError("Y min must be smaller than Y max.")
+
+        return density_range
+
     def _create_the_plot(self):
+        density_range = self._get_density_range()
         delta_e = np.min([self._fwhm_slider.value / 10, 0.005])
         elim = self._energy_range_slider.value
         energy_arr = np.arange(elim[0], elim[1], delta_e)
@@ -977,6 +1036,9 @@ class PdosOverlapViewerWidget(ipw.VBox):
         plt.xlim([np.min(energy_arr), np.max(energy_arr)])
         if ncol == 1:
             ylim[0] = 0.0
+        for i_limit, limit in enumerate(density_range):
+            if limit is not None:
+                ylim[i_limit] = limit
         plt.ylim(ylim)
         plt.axhline(0.0, color="k", lw=2.0, zorder=200)
         plt.ylabel("Density of States [a.u.]")
@@ -1058,15 +1120,26 @@ class PdosOverlapViewerWidget(ipw.VBox):
             else:
                 cumulative_plot[spin] = series
 
-            ax1.fill_between(
-                energy_arr,
-                0.0,
-                cumulative_plot[spin] * (-2 * spin + 1),
-                facecolor=picked_color,
-                alpha=1.0,
-                zorder=-i_serie + 100,
-                label=label,
-            )
+            plot_series = cumulative_plot[spin] * (-2 * spin + 1)
+            if self._orbital_projection_style.value == "line":
+                ax1.plot(
+                    energy_arr,
+                    plot_series,
+                    color=picked_color,
+                    lw=1.6,
+                    zorder=-i_serie + 100,
+                    label=label,
+                )
+            else:
+                ax1.fill_between(
+                    energy_arr,
+                    0.0,
+                    plot_series,
+                    facecolor=picked_color,
+                    alpha=1.0,
+                    zorder=-i_serie + 100,
+                    label=label,
+                )
 
             collect_data_headers.append(f"{label} s{spin}")
             collect_data = np.vstack([collect_data, series])
