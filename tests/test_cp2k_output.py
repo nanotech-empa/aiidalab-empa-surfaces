@@ -1,3 +1,4 @@
+import ast
 import json
 from io import StringIO
 from pathlib import Path
@@ -114,3 +115,50 @@ def test_geometry_notebook_displays_parser_gap_or_unavailable(gap):
     expected = "unavailable" if gap is None else f"{gap:.3f} (eV)"
     assert f"Gap: </b>{expected}" in namespace["html"]
     assert "8.000" not in namespace["html"]
+
+
+@pytest.fixture
+def population_parser():
+    path = Path(__file__).resolve().parents[1] / "view_geometry_optimization.ipynb"
+    cells = json.loads(path.read_text())["cells"]
+    source = next(
+        "".join(c["source"])
+        for c in cells
+        if "def _parse_population_section" in "".join(c["source"])
+    )
+    tree = ast.parse(source)
+    tree.body = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+    namespace = {}
+    exec(compile(tree, str(path), "exec"), namespace)
+    return namespace["_parse_population_section"]
+
+
+def test_lowdin_reads_native_rks_atom_summaries_not_ao_rows(population_parser):
+    output = (Path(__file__).parent / "data" / "cp2k_lowdin_h2_rks.out").read_text()
+    entries = population_parser(output, "lowdin")
+    assert set(entries) == {1, 2}
+    for entry in entries.values():
+        assert entry["element"] == "H"
+        assert entry["population_total"] == 1.0
+        assert entry["added_electrons"] == 0.0
+        assert entry["spin_moment"] is None
+
+
+def test_lowdin_uks_keeps_both_spins_and_final_group(population_parser):
+    old = "LOWDIN POPULATION ANALYSIS\n 1 H 1 1.0 0.0 0.0 1.0\n# Total charge 1.0\n"
+    final = """LOWDIN POPULATION ANALYSIS
+# Orbital AO symbol Alpha population Beta population Net charge Spin moment
+1 H 1s 0.6 0.1
+1 H 1 0.7 0.3 0.0 0.4
+
+2 H 1s 0.2 0.6
+2 H 1 0.3 0.7 0.0 -0.4
+# Total charge 2.0 0.0
+"""
+    entries = population_parser(old + final, "lowdin")
+    assert set(entries) == {1, 2}
+    assert entries[1]["population_alpha"] == 0.7
+    assert entries[1]["population_beta"] == 0.3
+    assert entries[2]["spin_moment"] == -0.4
+    assert sum(entry["population_total"] for entry in entries.values()) == 2.0
+    assert sum(entry["spin_moment"] for entry in entries.values()) == 0.0
