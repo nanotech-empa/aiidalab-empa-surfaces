@@ -104,9 +104,41 @@ def test_standalone_unfolding_viewer(
                 ),
                 [0.0, 0.8],
             )
+        if projections:
+            for selection in ("1 2", "1,2", "1;2", "1..2", "1 .. 2", "1 ..2", "1.. 2"):
+                np.testing.assert_array_equal(
+                    namespace["_parse_atom_indices"](selection), [0, 1]
+                )
+            namespace["add_projection_button"].click()
+            control = namespace["projection_controls"][0]
+            control["atoms"].value = "1 .. 1"
+            control["channels"]["pz"].value = False
+            axis = figures[-1].axes[0]
+            # Atom 1 contributes 0.5 to MO 1; the displayed marker sizes are
+            # scale (260) * unfolded weights (0.2, 0.4) * that population.
+            np.testing.assert_allclose(axis.collections[2].get_sizes(), [26.0])
+            np.testing.assert_allclose(axis.collections[3].get_sizes(), [52.0])
+            np.testing.assert_allclose(axis.collections[2].get_offsets()[:, 1], [-1.0])
+            if spins == 2:
+                assert len(figures[-1].axes[1].collections[2].get_offsets()) == 0
         assert "workcalc" not in namespace
         assert namespace["calculation_info"]["uuid"] == workchain.uuid
     finally:
+
+        def close_widgets(value, seen):
+            from ipywidgets import Widget
+
+            if isinstance(value, Widget) and id(value) not in seen:
+                seen.add(id(value))
+                for child in getattr(value, "children", ()):
+                    close_widgets(child, seen)
+                value.close()
+            elif isinstance(value, dict):
+                for item in value.values():
+                    close_widgets(item, seen)
+
+        for control in namespace.get("projection_controls", []):
+            close_widgets(control, set())
         for value in namespace.values():
             close = getattr(value, "close", None)
             if callable(close) and value.__class__.__module__.startswith("ipywidgets"):

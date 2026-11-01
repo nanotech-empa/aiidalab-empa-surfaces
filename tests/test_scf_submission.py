@@ -113,17 +113,7 @@ def test_scf_builder(scf_notebook, mode, self_consistent, smearing):
             assert parameters["smear_t"] == 150
             assert parameters["force_multiplicity"] is True
     else:
-        assert parameters["periodic"] == "XYZ"
-        assert not any(
-            key in parameters
-            for key in (
-                "sc_diag",
-                "elpa_switch",
-                "added_mos",
-                "smear_t",
-                "force_multiplicity",
-            )
-        )
+        assert parameters == {"periodic": "XYZ"}
     if mode == "bader":
         assert builder.bader_cutoff.value == 1200
 
@@ -386,3 +376,31 @@ def test_invalid_basis_blocks_submission(scf_notebook, atoms):
     ui["unfolding_a1"].value = "2 0 0"
     ui["unfolding_primitive_basis_atoms"].value = atoms
     assert ui["prepare_scf"]() is None
+
+
+@pytest.mark.parametrize("field", ["basis_set_file_names", "potential_file_name"])
+def test_missing_dft_files_block_submission(scf_notebook, field):
+    getattr(scf_notebook["dft_settings_widget"], field).value = " "
+    assert scf_notebook["prepare_scf"]() is None
+
+
+def test_default_functionals_match_the_merged_backend(scf_notebook):
+    from aiida_nanotech_empa.workflows.cp2k import cp2k_utils
+
+    settings = scf_notebook["dft_settings_widget"]
+    assert settings.get_dft_params() == {}
+    settings.xc_functional.value = "PBE0"
+    parameters = scf_notebook["prepare_scf"]().dft_params.get_dict()
+    assert cp2k_utils.get_dft_file_names(parameters)["basis_set_file_names"] == [
+        "BASIS_MOLOPT_UZH",
+        "BASIS_ADMM_UZH",
+    ]
+    template = cp2k_utils.load_protocol("scf_ot_protocol.yml", "standard")
+    cp2k_utils.apply_xc_settings(template, parameters)
+    assert (
+        template["FORCE_EVAL"]["DFT"]["AUXILIARY_DENSITY_MATRIX_METHOD"][
+            "ADMM_PURIFICATION_METHOD"
+        ]
+        == settings.admm_purification_method.value
+        == "NONE"
+    )
