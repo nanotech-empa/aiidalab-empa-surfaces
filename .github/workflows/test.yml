@@ -12,5 +12,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e .[dev,scf-preview]
+      - run: pip install -e .[dev,scf-preview,unfolding-preview]
       - run: pytest
