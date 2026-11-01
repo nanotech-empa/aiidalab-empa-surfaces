@@ -967,7 +967,11 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
     def make_plot(self, _=None):
         with self._plot_output:
-            fig, collected_data = self._create_the_plot()
+            try:
+                fig, collected_data = self._create_the_plot()
+            except ValueError as exc:
+                print(exc)
+                return
             links = f"""Export in: {make_image_link(fig)}, {make_image_link(fig, text="PDF", data_format="pdf")}, {make_csv_link(collected_data)}."""
             display(ipw.HTML(links))
 
@@ -980,12 +984,17 @@ class PdosOverlapViewerWidget(ipw.VBox):
             text = widget.value.strip()
             if not text:
                 return None
-            return float(text)
+            value = float(text)
+            if not math.isfinite(value):
+                raise ValueError("Density limits must be finite.")
+            return value
 
         try:
             density_range = [_parse(self._density_min), _parse(self._density_max)]
         except ValueError as exc:
-            raise ValueError("Y min and Y max must be numbers or empty.") from exc
+            raise ValueError(
+                "Y min and Y max must be finite numbers or empty."
+            ) from exc
 
         if (
             density_range[0] is not None
@@ -997,6 +1006,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
         return density_range
 
     def _create_the_plot(self):
+        density_range = self._get_density_range()
         delta_e = np.min([self._fwhm_slider.value / 10, 0.005])
         elim = self._energy_range_slider.value
         energy_arr = np.arange(elim[0], elim[1], delta_e)
@@ -1012,7 +1022,6 @@ class PdosOverlapViewerWidget(ipw.VBox):
         ax1 = plt.gca()
 
         ylim = [None, None]
-        density_range = self._get_density_range()
 
         headers, data = self._plot_projections(ax1, ylim, energy_arr, data, headers)
         if self.do_overlap:
