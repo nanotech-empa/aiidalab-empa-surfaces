@@ -188,7 +188,7 @@ class DftSettingsWidget(ipw.VBox):
           <code>HF fraction</code> is the exact-exchange fraction.
           <code>HF cutoff radius</code> is the truncated Coulomb cutoff radius in Angstrom.
           <code>HF max memory</code> is CP2K HF memory in MiB per MPI process/rank.
-          <code>ADMM purification</code> controls the CP2K ADMM purification method; <code>NONE</code> is the default for diagonalization workflows with added MOs.
+          <code>ADMM purification</code> controls the CP2K ADMM purification method; <code>NONE</code> is the default for the hybrid workflows.
         </div>
         """
 
@@ -235,6 +235,10 @@ class DftSettingsWidget(ipw.VBox):
             for item in self.basis_set_file_names.value.replace(";", ",").split(",")
             if item.strip()
         ]
+        if not basis_files:
+            raise ValueError("Provide at least one basis file.")
+        if not self.potential_file_name.value.strip():
+            raise ValueError("Provide a potential file.")
         defaults = DEFAULTS[self.xc_functional.value]
         if ", ".join(basis_files) != defaults["basis_set_file_names"]:
             params["basis_set_file_names"] = basis_files

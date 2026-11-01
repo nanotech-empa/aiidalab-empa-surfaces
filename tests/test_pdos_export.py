@@ -3,6 +3,7 @@ import re
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from surfaces_tools.widgets.pdos import PdosOverlapViewerWidget, make_image_link
 
@@ -25,6 +26,24 @@ def test_make_svg_image_link_contains_vector_figure():
     svg = base64.b64decode(match.group(1)).decode()
     assert "<svg" in svg
     assert "PDOS" in svg
+    assert "<text" in svg
+
+
+@pytest.mark.parametrize(
+    "image_format,mime,signature",
+    [("png", "image/png", b"\x89PNG"), ("pdf", "application/pdf", b"%PDF")],
+)
+def test_existing_image_formats_keep_their_payload_and_mime(image_format, mime, signature):
+    fig, ax = plt.subplots()
+    ax.plot([0, 1], [1, 0])
+    try:
+        link = make_image_link(fig, text=image_format.upper(), data_format=image_format)
+        match = re.search(rf'data:{mime};name=pdos\.{image_format};base64,([^\"]+)', link)
+        assert match
+        assert base64.b64decode(match.group(1)).startswith(signature)
+        assert f'id="pdos_{image_format}_link"' in link
+    finally:
+        plt.close(fig)
 
 
 def test_plot_projections_ignores_empty_selection():
