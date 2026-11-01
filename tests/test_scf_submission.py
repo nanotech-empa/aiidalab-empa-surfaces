@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 from aiida import orm, plugins
 
-from surfaces_tools.widgets import inputs
+from surfaces_tools.widgets import dft_settings, inputs
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
@@ -37,6 +37,7 @@ def scf_notebook(aiida_profile, aiida_localhost):
         "np": np,
         "plt": plt,
         "inputs": inputs,
+        "dft_settings": dft_settings,
         "orm": orm,
         "Cp2kScfWorkChain": plugins.WorkflowFactory("nanotech_empa.cp2k.scf"),
         "structure_selector": SimpleNamespace(
@@ -261,6 +262,32 @@ def test_preview_closed_path_keeps_final_gamma(scf_notebook):
     assert len(path_points) == 3
 
 
+def test_selected_dft_settings_reach_builder(scf_notebook):
+    ui = scf_notebook
+    settings = ui["dft_settings_widget"]
+    settings.xc_functional.value = "PBE0"
+    settings.hfx_fraction.value = 0.3
+    settings.basis_set_file_names.value = "BASIS_CUSTOM, BASIS_ADMM_UZH"
+    settings.potential_file_name.value = "POTENTIAL_CUSTOM"
+    settings.basis_set_overrides.value = '{"H": "custom-basis"}'
+    builder = ui["prepare_scf"]()
+    parameters = builder.dft_params.get_dict()
+    assert parameters["xc_functional"] == "PBE0"
+    assert parameters["hfx_fraction"] == 0.3
+    assert parameters["basis_set_file_names"] == ["BASIS_CUSTOM", "BASIS_ADMM_UZH"]
+    assert parameters["potential_file_name"] == "POTENTIAL_CUSTOM"
+    assert parameters["basis_set_overrides"] == {"H": "custom-basis"}
+    assert (
+        ui["Cp2kScfWorkChain"].spec().inputs.validate(builder._inputs(prune=True))
+        is None
+    )
+
+
+def test_invalid_basis_override_blocks_submission(scf_notebook):
+    scf_notebook["dft_settings_widget"].basis_set_overrides.value = "[1]"
+    assert scf_notebook["prepare_scf"]() is None
+
+
 def test_empty_basis_submission_and_edits_never_detect(scf_notebook, monkeypatch):
     from cp2k_spm_tools.cp2k_unfolding import geometry
 
@@ -349,3 +376,31 @@ def test_invalid_basis_blocks_submission(scf_notebook, atoms):
     ui["unfolding_a1"].value = "2 0 0"
     ui["unfolding_primitive_basis_atoms"].value = atoms
     assert ui["prepare_scf"]() is None
+
+
+@pytest.mark.parametrize("field", ["basis_set_file_names", "potential_file_name"])
+def test_missing_dft_files_block_submission(scf_notebook, field):
+    getattr(scf_notebook["dft_settings_widget"], field).value = " "
+    assert scf_notebook["prepare_scf"]() is None
+
+
+def test_default_functionals_match_the_merged_backend(scf_notebook):
+    from aiida_nanotech_empa.workflows.cp2k import cp2k_utils
+
+    settings = scf_notebook["dft_settings_widget"]
+    assert settings.get_dft_params() == {}
+    settings.xc_functional.value = "PBE0"
+    parameters = scf_notebook["prepare_scf"]().dft_params.get_dict()
+    assert cp2k_utils.get_dft_file_names(parameters)["basis_set_file_names"] == [
+        "BASIS_MOLOPT_UZH",
+        "BASIS_ADMM_UZH",
+    ]
+    template = cp2k_utils.load_protocol("scf_ot_protocol.yml", "standard")
+    cp2k_utils.apply_xc_settings(template, parameters)
+    assert (
+        template["FORCE_EVAL"]["DFT"]["AUXILIARY_DENSITY_MATRIX_METHOD"][
+            "ADMM_PURIFICATION_METHOD"
+        ]
+        == settings.admm_purification_method.value
+        == "NONE"
+    )
