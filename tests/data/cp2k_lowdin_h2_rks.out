@@ -1,0 +1,28 @@
+# Generated with CP2K 2023.1 for neutral H2, enabling LOWDIN/PRINT_GOP.
+LOWDIN POPULATION ANALYSIS
+
+ # Orbital  AO symbol  Orbital population                            Net charge
+
+         1  H   2s               0.629937
+         2  H   3s               0.246431
+         3  H   4s               0.084004
+         4  H   3py              0.000000
+         5  H   3pz              0.039279
+         6  H   3px              0.000000
+         7  H   4py              0.000000
+         8  H   4pz              0.000348
+         9  H   4px              0.000000
+       1     H        1          1.000000                             -0.000000
+
+        10  H   2s               0.629937
+        11  H   3s               0.246431
+        12  H   4s               0.084004
+        13  H   3py              0.000000
+        14  H   3pz              0.039279
+        15  H   3px              0.000000
+        16  H   4py              0.000000
+        17  H   4pz              0.000348
+        18  H   4px              0.000000
+       2     H        1          1.000000                              0.000000
+
+ # Total charge                              2.000000                 -0.000000

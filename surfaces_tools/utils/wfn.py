@@ -28,6 +28,11 @@ def get_cp2k_code(process_node):
         pass
 
     try:
+        return process_node.inputs.cp2k_code
+    except common.NotExistentAttributeError:
+        pass
+
+    try:
         return process_node.inputs.cp2k.code
     except common.NotExistentAttributeError:
         return None
@@ -44,7 +49,7 @@ def copy_wfn(computer=None, wfn_search_path=None, wfn_name=None):
     """Creates a copy of a wfn in a folder."""
     transport = computer.get_transport()
     with transport as trs:
-        result = trs.copyfile(wfn_search_path, wfn_search_path)
+        result = trs.copyfile(wfn_search_path, wfn_name)
 
     return result
 

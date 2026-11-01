@@ -2,6 +2,8 @@
 
 # AiiDAlab - Empa Surfaces app
 
+> **Legacy Python 3.9 / AiiDA 2.6.3:** use [v1.1.0](https://github.com/nanotech-empa/aiidalab-empa-surfaces/releases/tag/v1.1.0). See the [Empa legacy compatibility guide](https://github.com/nanotech-empa/aiida-nanotech-empa/blob/master/docs/legacy-python39-aiida263.md) for the matching package versions and installation constraints. Use a tagged version to preserve this runtime.
+
 The Empa Surfaces AiiDAlab app enables the user to prepare and run automatic AiiDA workflows for calculations relevant in on-surface chemistry.
 Features include:
 
