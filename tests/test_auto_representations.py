@@ -109,3 +109,31 @@ class AutoRepresentationsTest(unittest.TestCase):
         self.assertEqual(viewer._all_representations[0].selection.value, "1..5")
         self.assertEqual(viewer.atoms_not_represented.value, "")
         self.assertEqual(auto_rep.status.value, "")
+
+    def test_encoded_auto_representations_survive_extended_xyz_round_trip(self):
+        from io import StringIO
+        from ase.io import read, write
+
+        viewer = viewers.StructureDataViewer()
+        viewer.structure = Atoms(
+            "Au2CH",
+            positions=[[0, 0, 0], [1, 0, 0], [0, 0, 2], [0, 1, 2]],
+            cell=[5, 5, 8],
+            pbc=True,
+        )
+        apply_auto_representations(viewer, {"all_molecules": [[2, 3]]})
+        stream = StringIO()
+        write(stream, viewer.structure, format="extxyz")
+        stream.seek(0)
+        loaded = read(stream, format="extxyz")
+        restored = viewers.StructureDataViewer()
+        restored.structure = loaded
+        AutoRepresentationWidget(restored).structure = loaded
+        self.assertEqual(len(restored._all_representations), 2)
+        self.assertEqual(
+            [r.type.value for r in restored._all_representations],
+            ["ballstick", "spacefill"],
+        )
+        self.assertEqual(
+            [r.selection.value for r in restored._all_representations], ["3..4", "1..2"]
+        )
