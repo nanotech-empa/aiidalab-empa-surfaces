@@ -26,9 +26,9 @@ class PoissonSettingsWidget(ipw.VBox):
         self._updating = False
         self.active = ipw.ToggleButton(
             value=False,
-            description="Apply electrostatics and cell",
+            description="Apply selected settings",
             icon="check",
-            layout=ipw.Layout(width="280px"),
+            layout=ipw.Layout(width="310px"),
         )
         self.periodic = ipw.Dropdown(
             description="Periodic axes:",
@@ -47,17 +47,59 @@ class PoissonSettingsWidget(ipw.VBox):
         )
         self.extra = ipw.Textarea(
             value="{}",
-            description="POISSON settings:",
+            description="Optional overrides:",
             style={"description_width": "140px"},
             layout=ipw.Layout(width="90%", height="90px"),
         )
         self.guidance = ipw.HTML()
+        self.current_settings = ipw.HTML()
         self.preview = ipw.HTML()
-        advanced = ipw.Accordion(children=[ipw.VBox([self.extra])], selected_index=None)
-        advanced.set_title(0, "Additional CP2K POISSON settings (JSON)")
+        extra_help = ipw.HTML(
+            "<p><b>Usually leave <code>{}</code>.</b> This uses CP2K's default "
+            "parameters for the solver selected above. You do not need to enter JSON "
+            "to choose a solver or its periodic axes.</p>"
+            "<p>For example, with <b>MT</b> selected, this explicitly retains its "
+            "default ALPHA value of 7.0:</p>"
+            '<pre>{\n  "MT": {\n    "ALPHA": 7.0\n  }\n}</pre>'
+            "<p>This MT example applies only to the MT solver. For a basic "
+            "<b>ANALYTIC</b> wire setup, leave <code>{}</code> and choose its "
+            "periodic axis above. Set <code>PERIODIC</code> and "
+            "<code>POISSON_SOLVER</code> using the dropdowns, not in this field. "
+            '<a href="https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/DFT/POISSON/MT.html" '
+            'target="_blank">CP2K MT parameter reference</a>.</p>'
+        )
+        advanced = ipw.Accordion(
+            children=[ipw.VBox([extra_help, self.extra])], selected_index=None
+        )
+        advanced.set_title(0, "Advanced: additional CP2K POISSON settings (JSON)")
+        examples = ipw.HTML(
+            '<table style="border-collapse:collapse;text-align:left">'
+            '<tr><th style="padding:5px 12px">Example system</th>'
+            '<th style="padding:5px 12px">Periodic axes</th>'
+            '<th style="padding:5px 12px">Solver</th>'
+            '<th style="padding:5px 12px">When you apply</th></tr>'
+            '<tr><td style="padding:5px 12px">Isolated molecule</td><td>NONE</td><td>MT</td>'
+            '<td style="padding:5px 12px">Prepare space around the molecule in all directions.</td></tr>'
+            '<tr><td style="padding:5px 12px">Slab in the xy plane</td><td>XY</td><td>MT</td>'
+            '<td style="padding:5px 12px">Keep the in-plane cell vectors; prepare vacuum along z.</td></tr>'
+            '<tr><td style="padding:5px 12px">Wire along z</td><td>Z</td><td>ANALYTIC</td>'
+            '<td style="padding:5px 12px">Keep the wire cell vector; prepare space in x and y. '
+            "MT is not implemented for 1D.</td></tr></table>"
+            "<p>For a wire along x or y, choose X or Y instead. For a slab in "
+            "another cell plane, choose XZ or YZ. ANALYTIC may converge slowly. "
+            "WAVELET needs the density to vanish at isolated cell faces; build and "
+            "orientation restrictions may apply. IMPLICIT and MULTIPOLE need "
+            "method-specific settings. "
+            '<a href="https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/DFT/POISSON.html" '
+            'target="_blank">CP2K solver guidance</a>.</p>'
+        )
+        guide = ipw.Accordion(children=[examples], selected_index=None)
+        guide.set_title(0, "Examples: molecule, slab and wire")
         super().__init__(
             children=[
                 self.guidance,
+                self.current_settings,
+                guide,
                 self.periodic,
                 self.solver,
                 advanced,
@@ -78,7 +120,7 @@ class PoissonSettingsWidget(ipw.VBox):
             self.original = None if atoms is None else atoms.copy()
             self.applied = None
             self.active.value = False
-            self.active.description = "Apply electrostatics and cell"
+            self.active.description = "Apply selected settings"
             self.active.button_style = ""
             kind = details.get("system_type", "")
             periodic = details.get("periodic_axes")
@@ -105,18 +147,11 @@ class PoissonSettingsWidget(ipw.VBox):
                 "Bulk": "3D system",
             }.get(kind, "2D slab" if kind.startswith("Slab") else "system")
             self.guidance.value = (
-                f"<b>Detected: {html.escape(dimension)}.</b> Off by default: use the original "
-                "cell with XYZ/PERIODIC electrostatics. Activate to apply the solver settings "
-                "and cell preview below. Deactivate to restore "
-                "the original cell and positions.<br>"
-                "<b>MT supports 0D and 2D, and is not implemented for 1D.</b> "
-                "For 1D, select the periodic cell axis explicitly and a supported solver. "
-                "ANALYTIC supports 0D/1D/2D but may converge slowly. "
-                "WAVELET needs density to vanish at isolated cell faces; availability and "
-                "supported orientations depend on the CP2K version/build. "
-                "IMPLICIT and MULTIPOLE require method-specific settings and validation. "
-                '<a href="https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/DFT/POISSON.html" '
-                'target="_blank">CP2K solver guidance</a>.'
+                f"<p><b>Detected: {html.escape(dimension)}.</b> "
+                "Review the suggested solver and cell changes below. "
+                "<b>MT supports molecules (0D) and slabs (2D), and is not implemented for 1D.</b> "
+                "For a wire, choose its periodic cell axis and a supported solver; "
+                "ANALYTIC is offered but may converge slowly.</p>"
             )
         finally:
             self._updating = False
@@ -157,14 +192,47 @@ class PoissonSettingsWidget(ipw.VBox):
         validate_cell(proposal, params)
         return proposal
 
+    def _show_current_settings(self, error=None):
+        if self.original is None:
+            self.current_settings.value = "<p>Select a structure above to review its cell and suggested settings.</p>"
+        elif self.active.value and error:
+            self.current_settings.value = (
+                '<p style="padding:10px;background:#fff3cd"><b>Submission is blocked:</b> '
+                "the selected settings are invalid. Correct them, or click "
+                "<b>Undo: restore original settings</b> to return to the original cell "
+                "and XYZ/PERIODIC electrostatics.</p>"
+            )
+        elif self.active.value:
+            p = self.settings()
+            self.current_settings.value = (
+                '<p style="padding:10px;background:#e9f5e9"><b>Currently used for submission:</b> '
+                f"periodic axes <b>{html.escape(p['periodic'])}</b>; Poisson solver "
+                f"<b>{html.escape(p['poisson_solver'])}</b>; the prepared cell shown below. "
+                "The selected settings are applied. Changes to these controls now update "
+                "the applied settings. Click <b>Undo: restore original settings</b> to "
+                "restore the original cell, atomic positions and XYZ/PERIODIC electrostatics.</p>"
+            )
+        else:
+            self.current_settings.value = (
+                '<p style="padding:10px;background:#eef4fb"><b>Currently used for submission:</b> '
+                "periodic axes <b>XYZ</b> (periodic along all three cell axes); Poisson solver "
+                "<b>PERIODIC</b>; the <b>original cell and atomic positions</b>. "
+                "The suggested settings below are <b>not applied</b>. Click "
+                "<b>Apply selected settings</b> to use them and the previewed cell. "
+                "Until you click that button, changing the fields below does not change "
+                "the settings used for submission.</p>"
+            )
+
     def _refresh(self):
         try:
             proposal = self._proposal()
         except (ValueError, KeyError) as exc:
+            self._show_current_settings(error=str(exc))
             self.active.disabled = not self.active.value
             self.preview.value = f'<p style="color:#a00">{html.escape(str(exc))}</p>'
             return None
         self.active.disabled = False
+        self._show_current_settings()
 
         def lengths(atoms):
             return " × ".join(f"{x:.3f}" for x in atoms.cell.lengths())
@@ -177,13 +245,20 @@ class PoissonSettingsWidget(ipw.VBox):
             else f"new volume {new_volume:.2f} Å³"
         )
         self.preview.value = (
-            f"<p>Cell lengths: <b>{lengths(self.original)} Å → {lengths(proposal)} Å</b>; "
+            "<p><b>"
+            + (
+                "Applied cell"
+                if self.active.value
+                else "Cell preview — applied only after clicking Apply selected settings"
+            )
+            + "</b><br>"
+            f"Original → prepared cell lengths: <b>{lengths(self.original)} Å → {lengths(proposal)} Å</b>; "
             f"{volume}. Periodic lattice vectors are retained. "
             "Only isolated directions may grow; the atoms are translated rigidly to the centre "
             "in those directions.<br>MT preparation uses twice the atomic span plus 15 Å; "
             "other solvers use the atomic span plus 15 Å. Already larger cells are retained. "
             "This is a geometric starting point: check density tails and vacuum convergence. "
-            "Changes take effect only while the button is active.</p>"
+            "Click the button to apply these changes, or undo them to restore the original geometry.</p>"
         )
         return proposal
 
@@ -200,9 +275,9 @@ class PoissonSettingsWidget(ipw.VBox):
         if self._updating:
             return
         self.active.description = (
-            "Active — click to restore"
+            "Undo: restore original settings"
             if self.active.value
-            else "Apply electrostatics and cell"
+            else "Apply selected settings"
         )
         self.active.button_style = "success" if self.active.value else ""
         proposal = self._refresh()
