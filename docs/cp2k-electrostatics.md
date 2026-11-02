@@ -17,6 +17,9 @@ MT is available for 0D molecules and 2D slabs, **not for 1D wires**. For 1D,
 choose its periodic cell axis and an explicitly supported solver. ANALYTIC is
 available with a slow-convergence warning. The guide links to CP2K's documented
 solver prerequisites; alternative methods require their own scientific checks.
+The existing SlabXY, SlabXZ and SlabYZ structure classifications suggest XY,
+XZ and YZ respectively, even if the additional axes hint is unavailable.
+An unknown slab plane or wire direction still requires an explicit choice.
 
 The expandable **Examples: molecule, slab and wire** guide shows:
 

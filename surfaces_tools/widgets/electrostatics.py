@@ -124,14 +124,14 @@ class PoissonSettingsWidget(ipw.VBox):
             self.active.button_style = ""
             kind = details.get("system_type", "")
             periodic = details.get("periodic_axes")
-            if periodic is None and kind != "Wire" and not kind.startswith("Slab"):
+            if periodic is None and kind != "Wire":
                 periodic = {
                     "Molecule": "NONE",
                     "SlabXY": "XY",
                     "SlabYZ": "YZ",
                     "SlabXZ": "XZ",
                     "Bulk": "XYZ",
-                }.get(kind, "XYZ")
+                }.get(kind, None if kind.startswith("Slab") else "XYZ")
             self.periodic.value = periodic
             self.solver.value = (
                 "ANALYTIC"
