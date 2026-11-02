@@ -52,15 +52,21 @@ class InputDetails(ipw.VBox):
 
     def __init__(
         self,
+        structure_info_separate=False,
     ):
         """
         Arguments:
+            structure_info_separate (bool): expose structure_info for display beside
+                the structure editor instead of among the calculation inputs.
             sections(list): list of tuples each containing the displayed name of an input section and the
                 section object. Each object should containt 'structure' trait pointing to the imported
                 structure. The trait will be linked to 'structure' trait of this class.
         """
         # Displaying input sections.
         self.output = ipw.Output()
+        self.structure_info = StructureInfoWidget()
+        self._structure_info_separate = structure_info_separate
+        tr.dlink((self, "details"), (self.structure_info, "details"))
         self.electrostatics = PoissonSettingsWidget(
             self._publish_electrostatic_structure, self._isolation_geometries
         )
@@ -170,8 +176,15 @@ class InputDetails(ipw.VBox):
             self.displayed_sections = []
             add_children = []
             for sec in SECTIONS_TO_DISPLAY[sys_type]:
-                section = sec()
-                if hasattr(section, "traits_to_link"):
+                if sec is StructureInfoWidget:
+                    if self._structure_info_separate:
+                        continue
+                    section = self.structure_info
+                else:
+                    section = sec()
+                if sec is not StructureInfoWidget and hasattr(
+                    section, "traits_to_link"
+                ):
                     for trait in section.traits_to_link():
                         tr.link((self, trait), (section, trait))
                 self.displayed_sections.append(section)
@@ -237,15 +250,14 @@ class StructureInfoWidget(ipw.Accordion):
 
         super().__init__(children=[ipw.VBox([self.info])], selected_index=None)
         self.set_title(0, "Structure details")
+        self.layout.display = "none"
 
     @tr.observe("details")
     def _observe_details(self, _=None):
-        if self.details is None:
-            return
-        else:
-            self.children = [ipw.VBox([self.info])]
-            with self.info:
-                clear_output()
+        self.layout.display = "" if self.details else "none"
+        with self.info:
+            clear_output()
+            if self.details:
                 print(self.details["summary"])
 
     def traits_to_link(self):

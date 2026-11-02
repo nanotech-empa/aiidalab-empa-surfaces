@@ -160,6 +160,44 @@ def test_input_details_applies_to_manager_without_resetting_spin_inputs():
     link.unlink()
 
 
+def test_separate_structure_details_update_without_repeating_analysis(monkeypatch):
+    from surfaces_tools.widgets import analyze_structure
+    from surfaces_tools.widgets.inputs import StructureInfoWidget
+
+    calls = []
+    analyze = analyze_structure.StructureAnalyzer.analyze
+
+    def counted_analysis(analyzer):
+        calls.append(analyzer.structure)
+        return analyze(analyzer)
+
+    monkeypatch.setattr(
+        analyze_structure.StructureAnalyzer, "analyze", counted_analysis
+    )
+    details = InputDetails(structure_info_separate=True)
+    panel = details.structure_info
+    assert panel.layout.display == "none"
+    calls.clear()
+    details.structure = molecule()
+    assert len(calls) == 1
+    assert panel.details["numatoms"] == 2
+    assert panel.layout.display == ""
+    assert not any(
+        isinstance(section, StructureInfoWidget)
+        for section in details.displayed_sections
+    )
+    details.structure = Atoms(
+        "H2O", positions=[[2, 2, 2], [2, 2.8, 2], [2.8, 2, 2]], cell=[12, 12, 12]
+    )
+    assert len(calls) == 2
+    assert details.structure_info is panel
+    assert panel.details["numatoms"] == 3
+    assert panel.details["all_elements"] == details.details["all_elements"]
+    details.structure = None
+    assert panel.details == {}
+    assert panel.layout.display == "none"
+
+
 def test_neb_preparation_uses_shared_cell_translation_and_provenance(aiida_profile):
     geometries = [molecule(), molecule()]
     geometries[1].positions[:, 0] += 3.0
