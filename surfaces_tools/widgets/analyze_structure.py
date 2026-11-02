@@ -238,7 +238,8 @@ class StructureAnalyzer(tr.HasTraits):
         if self.structure is None:
             return {}
 
-        atoms = self.structure
+        # Analysis must not overwrite the submitted structure's cell or PBC.
+        atoms = self.structure.copy()
 
         sys_size = np.ptp(atoms.positions, axis=0)
         no_cell = (
@@ -280,6 +281,25 @@ class StructureAnalyzer(tr.HasTraits):
                 np.array([0, 0, 1]),
             )
             dir_short = [f"{x:.2f}" for x in direction]
+        periodic_axes = None
+        if is_a_molecule:
+            periodic_axes = "NONE"
+        elif is_a_bulk:
+            periodic_axes = "XYZ"
+        elif is_a_wire:
+            vectors = np.asarray(atoms.cell)
+            overlap = np.abs(vectors @ direction) / np.linalg.norm(vectors, axis=1)
+            axis = int(np.argmax(overlap))
+            if overlap[axis] > 1 - 1e-6:
+                periodic_axes = "XYZ"[axis]
+        elif is_a_slab:
+            reciprocal = np.linalg.inv(atoms.cell).T
+            overlap = np.abs(reciprocal @ direction) / np.linalg.norm(
+                reciprocal, axis=1
+            )
+            axis = int(np.argmax(overlap))
+            if overlap[axis] > 1 - 1e-6:
+                periodic_axes = "XYZ".replace("XYZ"[axis], "")
         #
 
         total_charge = np.sum(atoms.get_atomic_numbers())
@@ -434,6 +454,7 @@ class StructureAnalyzer(tr.HasTraits):
         return {
             "total_charge": total_charge,
             "system_type": sys_type,
+            "periodic_axes": periodic_axes,
             "cell": cell_str,
             "slab_layers": slab_layers,
             "bottom_H": sorted(bottom_h),
