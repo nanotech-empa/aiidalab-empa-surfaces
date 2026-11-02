@@ -105,8 +105,9 @@ class PoissonSettingsWidget(ipw.VBox):
                 "Bulk": "3D system",
             }.get(kind, "2D slab" if kind.startswith("Slab") else "system")
             self.guidance.value = (
-                f"<b>Detected: {html.escape(dimension)}.</b> Changes are off by default. "
-                "Review the solver and cell preview before applying them. Deactivate to restore "
+                f"<b>Detected: {html.escape(dimension)}.</b> Off by default: use the original "
+                "cell with XYZ/PERIODIC electrostatics. Activate to apply the solver settings "
+                "and cell preview below. Deactivate to restore "
                 "the original cell and positions.<br>"
                 "<b>MT supports 0D and 2D, and is not implemented for 1D.</b> "
                 "For 1D, select the periodic cell axis explicitly and a supported solver. "
