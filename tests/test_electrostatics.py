@@ -29,6 +29,7 @@ def test_notebook_links_to_an_existing_structure_manager(name):
     import ast
     import json
     from pathlib import Path
+
     from IPython.core.inputtransformer2 import TransformerManager
 
     notebook = json.loads((Path(__file__).resolve().parents[1] / name).read_text())

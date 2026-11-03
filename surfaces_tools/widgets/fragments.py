@@ -6,8 +6,8 @@ from IPython.display import clear_output, display
 
 from surfaces_tools.utils.atom_indices import string_range_to_list
 
-from .analyze_structure import StructureAnalyzer
 from ._lifecycle import close_owned_widgets
+from .analyze_structure import StructureAnalyzer
 
 STYLE = {"description_width": "100px"}
 BOX_LAYOUT = ipw.Layout(

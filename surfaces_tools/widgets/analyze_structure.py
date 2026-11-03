@@ -300,7 +300,6 @@ class StructureAnalyzer(tr.HasTraits):
             axis = int(np.argmax(overlap))
             if overlap[axis] > 1 - 1e-6:
                 periodic_axes = "XYZ".replace("XYZ"[axis], "")
-        #
 
         total_charge = np.sum(atoms.get_atomic_numbers())
         bottom_h = []

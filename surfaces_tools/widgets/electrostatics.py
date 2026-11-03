@@ -5,7 +5,6 @@ import json
 
 import ipywidgets as ipw
 import numpy as np
-
 from aiida_nanotech_empa.workflows.cp2k.electrostatics import (
     PERIODICITIES,
     SOLVER_DIMENSIONS,

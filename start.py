@@ -212,7 +212,7 @@ def _card(appbase, icon, title, description, notebook):
     """
 
 
-def get_start_widget(appbase, jupbase):  # noqa: ARG001
+def get_start_widget(appbase, jupbase):
     sections = []
     for title, items in ITEMS:
         cards = "".join(_card(appbase, *item) for item in items)
