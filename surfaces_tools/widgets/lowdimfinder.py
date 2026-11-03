@@ -532,7 +532,6 @@ class LowDimFinder:
     """
 
     def __init__(self, aiida_structure, **kwargs):
-
         self.params = {
             "bond_margin": 0.0,
             "radii_offset": 0.0,
@@ -913,6 +912,9 @@ class LowDimFinder:
 
             return
 
+        # ASE builds the full supercell symbol list; retrieve it once per group.
+        chemical_symbols = self.supercell.get_chemical_symbols()
+
         if self._get_dimensionality()[self._low_dim_index] == 2:
             # get positions and chemical symbols
             for i in self._get_unit_cell_groups()[self._low_dim_index]:
@@ -923,7 +925,7 @@ class LowDimFinder:
                         self.supercell.positions[i][2],
                     ]
                 )
-                symbols.append(self.supercell.get_chemical_symbols()[i])
+                symbols.append(chemical_symbols[i])
                 tags.append(self.supercell.get_tags()[i])
                 # min and max z
                 normal_vec_z = np.cross(
@@ -993,7 +995,7 @@ class LowDimFinder:
                         self.supercell.positions[i][2],
                     ]
                 )
-                symbols.append(self.supercell.get_chemical_symbols()[i])
+                symbols.append(chemical_symbols[i])
                 tags.append(self.supercell.get_tags()[i])
 
                 if min_x is None or min_x > np.dot(
@@ -1043,7 +1045,7 @@ class LowDimFinder:
                         self.supercell.positions[i][2],
                     ]
                 )
-                symbols.append(self.supercell.get_chemical_symbols()[i])
+                symbols.append(chemical_symbols[i])
                 tags.append(self.supercell.get_tags()[i])
 
                 if min_x is None or min_x > np.dot(
@@ -1350,7 +1352,9 @@ class LowDimFinder:
             "chemical_formula": self._chemical_formula,
             "positions": self._positions,
             "chemical_symbols": self._chemical_symbols,
-            "unit_cell_ids": self._unit_cell_groups,
+            "unit_cell_ids": [
+                [idx % self.n_unit for idx in group] for group in self._unit_cell_groups
+            ],
             "cell": self._cell,
             "tags": self._tags,
         }

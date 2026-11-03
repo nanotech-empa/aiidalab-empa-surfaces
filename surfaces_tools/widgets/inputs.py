@@ -11,6 +11,7 @@ from ..utils.atom_indices import string_range_to_list
 from ..utils.cp2k_input_validity import validate_input
 from ..utils.neb_resources import at_least
 from . import analyze_structure, constraints, stack
+from .electrostatics import PoissonSettingsWidget
 
 
 def cp2k_bool(value):
@@ -51,15 +52,24 @@ class InputDetails(ipw.VBox):
 
     def __init__(
         self,
+        structure_info_separate=False,
     ):
         """
         Arguments:
+            structure_info_separate (bool): expose structure_info for display beside
+                the structure editor instead of among the calculation inputs.
             sections(list): list of tuples each containing the displayed name of an input section and the
                 section object. Each object should containt 'structure' trait pointing to the imported
                 structure. The trait will be linked to 'structure' trait of this class.
         """
         # Displaying input sections.
         self.output = ipw.Output()
+        self.structure_info = StructureInfoWidget()
+        self._structure_info_separate = structure_info_separate
+        tr.dlink((self, "details"), (self.structure_info, "details"))
+        self.electrostatics = PoissonSettingsWidget(
+            self._publish_electrostatic_structure, self._isolation_geometries
+        )
         self.displayed_sections = []
         # self.neb = False
 
@@ -67,7 +77,63 @@ class InputDetails(ipw.VBox):
         tr.dlink((self, "structure"), (self.strusture_analyzer, "structure"))
         tr.dlink((self.strusture_analyzer, "details"), (self, "details"))
 
-        super().__init__(children=[self.output])
+        super().__init__(children=[self.electrostatics, self.output])
+
+    def _publish_electrostatic_structure(self, atoms):
+        if self.structure_manager is not None:
+            self.structure_manager.structure = atoms
+        else:
+            self.structure = atoms
+
+    def _isolation_geometries(self):
+        if not self.neb:
+            return None
+        section = next(
+            (s for s in self.displayed_sections if isinstance(s, NebWidget)), None
+        )
+        if section is None:
+            raise ValueError(
+                "Select the NEB input replicas before preparing their common cell"
+            )
+        params = section.return_dict()
+        if "restart_from" in params:
+            raise ValueError(
+                "NEB restart retains its original cell and electrostatics; prepare a new band to change them"
+            )
+        ids = [params["initial_uuid"], *params.get("replica_uuids", [])]
+        return [orm.load_node(identifier).get_ase() for identifier in ids]
+
+    @tr.observe("neb_state")
+    def _observe_isolation_neb_state(self, _=None):
+        if hasattr(self, "electrostatics") and self.neb:
+            if self.electrostatics.active.value:
+                self.electrostatics.active.value = False
+            self.electrostatics._refresh()
+
+    def prepare_neb_structures(self, parameters):
+        """Create explicitly requested replicas with one shared cell and translation."""
+        ids = [parameters["initial_uuid"], *parameters.get("replica_uuids", [])]
+        if not self.electrostatics.active.value:
+            return [orm.load_node(identifier) for identifier in ids]
+        from ..utils.electrostatics import apply_cell_plan
+
+        self.electrostatics.return_dict()
+        prepared = self.electrostatics.prepared_geometries
+        result = []
+        for identifier, atoms in zip(ids, prepared, strict=True):
+            source = orm.load_node(identifier)
+            original = source.get_ase()
+            plan = orm.Dict(
+                dict={
+                    "cell": atoms.cell.tolist(),
+                    "translation": (
+                        atoms.positions[0] - original.positions[0]
+                    ).tolist(),
+                    "pbc": atoms.pbc.tolist(),
+                }
+            )
+            result.append(apply_cell_plan(source, plan))
+        return result
 
     @tr.default("neb")
     def _default_neb(self):
@@ -87,6 +153,9 @@ class InputDetails(ipw.VBox):
 
     @tr.observe("details", "neb", "replica", "phonons")
     def _observe_details(self, _=None):
+        if self.electrostatics.publishing:
+            return
+        self.electrostatics.set_structure(self.structure, self.details)
         self.to_fix = []
         self.net_charge = 0
         self.do_cell_opt = False
@@ -107,12 +176,20 @@ class InputDetails(ipw.VBox):
             self.displayed_sections = []
             add_children = []
             for sec in SECTIONS_TO_DISPLAY[sys_type]:
-                section = sec()
-                if hasattr(section, "traits_to_link"):
+                if sec is StructureInfoWidget:
+                    if self._structure_info_separate:
+                        continue
+                    section = self.structure_info
+                else:
+                    section = sec()
+                if sec is not StructureInfoWidget and hasattr(
+                    section, "traits_to_link"
+                ):
                     for trait in section.traits_to_link():
                         tr.link((self, trait), (section, trait))
                 self.displayed_sections.append(section)
             display(ipw.VBox(add_children + self.displayed_sections))
+        self.electrostatics._refresh()
 
     def return_final_dictionary(self):
         final_dictionary = {
@@ -133,12 +210,16 @@ class InputDetails(ipw.VBox):
                     else:
                         final_dictionary[key] = to_add[key]
 
-        # If its a molecule, make non-periodic.
-        if (
-            self.details["system_type"] == "Molecule"
-            and "forceperiodic" not in final_dictionary["dft_params"].keys()
-        ):
-            final_dictionary["dft_params"]["periodic"] = "NONE"
+        try:
+            final_dictionary.setdefault("dft_params", {}).update(
+                self.electrostatics.return_dict()["dft_params"]
+            )
+        except ValueError as exc:
+            return False, str(exc), final_dictionary
+
+        if self.neb and "restart_from" in final_dictionary:
+            restart = orm.load_node(final_dictionary["restart_from"])
+            final_dictionary["dft_params"] = restart.inputs.dft_params.get_dict()
 
         # Check input validity.
         can_submit, error_msg = validate_input(self.details, final_dictionary)
@@ -169,15 +250,14 @@ class StructureInfoWidget(ipw.Accordion):
 
         super().__init__(children=[ipw.VBox([self.info])], selected_index=None)
         self.set_title(0, "Structure details")
+        self.layout.display = "none"
 
     @tr.observe("details")
     def _observe_details(self, _=None):
-        if self.details is None:
-            return
-        else:
-            self.children = [ipw.VBox([self.info])]
-            with self.info:
-                clear_output()
+        self.layout.display = "" if self.details else "none"
+        with self.info:
+            clear_output()
+            if self.details:
                 print(self.details["summary"])
 
     def traits_to_link(self):
@@ -198,24 +278,6 @@ class VdwSelectorWidget(ipw.Checkbox):
 
     def return_dict(self):
         return {"dft_params": {"vdw": self.value}}
-
-    def traits_to_link(self):
-        return []
-
-
-class ForcePeriodicWidget(ipw.Checkbox):
-    def __init__(self):
-        super().__init__(
-            value=False,
-            description="Keep periodic",
-            # style={"description_width": "120px"},
-        )
-
-    def return_dict(self):
-        if self.value:
-            return {"dft_params": {"forceperiodic": self.value}}
-        else:
-            return {}
 
     def traits_to_link(self):
         return []
@@ -1417,7 +1479,6 @@ SECTIONS_TO_DISPLAY = {
         VdwSelectorWidget,
         UksSectionWidget,
         constraints.ConstraintsWidget,
-        ForcePeriodicWidget,
     ],
     "Replica": [
         VdwSelectorWidget,

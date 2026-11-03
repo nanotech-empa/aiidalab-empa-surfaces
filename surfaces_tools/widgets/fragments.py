@@ -7,6 +7,7 @@ from IPython.display import clear_output, display
 from surfaces_tools.utils.atom_indices import string_range_to_list
 
 from .analyze_structure import StructureAnalyzer
+from ._lifecycle import close_owned_widgets
 
 STYLE = {"description_width": "100px"}
 BOX_LAYOUT = ipw.Layout(
@@ -21,6 +22,8 @@ class Fragment(ipw.VBox):
     master_class = None
 
     def __init__(self, indices="1..2", name="no-name"):
+        self._closed = False
+        self._links = []
         self.label = ipw.HTML("<b>Fragment</b>")
         self.name = ipw.Text(description="Name", value=name, style=STYLE)
         self.indices = ipw.Text(
@@ -31,13 +34,17 @@ class Fragment(ipw.VBox):
             description="Multiplicity", value=1, style=STYLE
         )
 
-        ipw.dlink(
-            (self.name, "value"),
-            (self.label, "value"),
-            transform=lambda x: f"<b>Fragment: {x}</b>",
+        self._links.append(
+            ipw.dlink(
+                (self.name, "value"),
+                (self.label, "value"),
+                transform=lambda x: f"<b>Fragment: {x}</b>",
+            )
         )
 
         self.output = ipw.Output()
+        self._multiplicity_box = ipw.VBox([self.multiplicity])
+        self.resources_message = awb.utils.StatusHTML()
 
         # Delete button.
         self.delete_button = ipw.Button(description="Delete", button_style="danger")
@@ -48,7 +55,7 @@ class Fragment(ipw.VBox):
         self.structure_analyzer = StructureAnalyzer()
         self.resources_estimator = awe.ResourcesEstimatorWidget()
         self.resources_estimator.link_to_resources_widget(self.resources)
-        ipw.dlink((self, "uks"), (self.resources_estimator, "uks"))
+        self._links.append(ipw.dlink((self, "uks"), (self.resources_estimator, "uks")))
 
         super().__init__(
             children=[
@@ -59,6 +66,7 @@ class Fragment(ipw.VBox):
                 self.charge,
                 self.output,
                 ipw.HTML("Resources:"),
+                self.resources_message,
                 self.resources,
                 self.delete_button,
             ],
@@ -70,15 +78,59 @@ class Fragment(ipw.VBox):
         with self.output:
             clear_output()
             if change["new"]:
-                display(ipw.VBox([self.multiplicity]))
+                display(self._multiplicity_box)
+
+    def close(self):
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
+        for link in getattr(self, "_links", ()):
+            link.unlink()
+        self._links = []
+        if hasattr(self, "delete_button"):
+            self.delete_button.on_click(self.delete_myself, remove=True)
+        self.master_class = None
+        close_owned_widgets(
+            *self.children,
+            getattr(self, "_multiplicity_box", None),
+            getattr(self, "resources_estimator", None),
+            self.layout,
+        )
+        self.children = ()
+        super().close()
 
     def delete_myself(self, _):
         self.master_class.delete_fragment(self)
 
     def estimate_computational_resources(self, whole_structure, selected_code):
-        self.structure_analyzer.structure = whole_structure[
-            string_range_to_list(self.indices.value)[0]
+        indices, is_valid = string_range_to_list(self.indices.value)
+        if not is_valid or not indices:
+            self.resources_message.message = (
+                "<span style='color:red'>Error:</span> "
+                "Select at least one atom before estimating resources."
+            )
+            return
+
+        out_of_range = [
+            index + 1 for index in indices if index < 0 or index >= len(whole_structure)
         ]
+        if out_of_range:
+            self.resources_message.message = (
+                "<span style='color:red'>Error:</span> "
+                f"Atom indices out of range: {out_of_range}"
+            )
+            return
+
+        selected_structure = whole_structure[indices]
+        if len(selected_structure) == 0:
+            self.resources_message.message = (
+                "<span style='color:red'>Error:</span> "
+                "The selected fragment contains no atoms."
+            )
+            return
+
+        self.resources_message.message = ""
+        self.structure_analyzer.structure = selected_structure
         self.resources_estimator.details = self.structure_analyzer.details
         self.resources_estimator.selected_code = selected_code
         self.resources_estimator.estimate_resources()
@@ -90,6 +142,8 @@ class FragmentList(ipw.VBox):
     uks = traitlets.Bool(False)
 
     def __init__(self, add_fragment_visibility="visible"):
+        self._closed = False
+        self._fragment_links = {}
         # Fragment selection.
         self.new_fragment_name = ipw.Text(
             value="",
@@ -99,7 +153,9 @@ class FragmentList(ipw.VBox):
         self.new_fragment_indices = ipw.HTML(
             value="", description="Selected indices:", style=STYLE
         )
-        ipw.dlink((self, "selection_string"), (self.new_fragment_indices, "value"))
+        self._selection_link = ipw.dlink(
+            (self, "selection_string"), (self.new_fragment_indices, "value")
+        )
         self.add_new_fragment_button = ipw.Button(
             description="Add fragment", button_style="info"
         )
@@ -148,16 +204,35 @@ class FragmentList(ipw.VBox):
 
         self.fragment_add_message.message = f"""<span style="color:blue">Info:</span> Removing {fragment.name.value} ({fragment.indices.value}) from the fragment list."""
         self.fragments = self.fragments[:index] + self.fragments[index + 1 :]
-        del fragment
 
     @traitlets.observe("fragments")
     def _observe_fragments(self, change):
         """Update the list of fragments."""
-        if change["new"]:
-            self.fragment_output.children = change["new"]
-            for fragment in self.fragments:
-                ipw.dlink((self, "uks"), (fragment, "uks"))
-            self.fragments[-1].master_class = self
-        else:
-            self.fragment_output.children = []
+        current = set(change["new"])
+        for fragment in list(self._fragment_links):
+            if fragment not in current:
+                self._fragment_links.pop(fragment).unlink()
+                fragment.master_class = None
+                fragment.close()
+        for fragment in current:
+            if fragment not in self._fragment_links:
+                self._fragment_links[fragment] = ipw.dlink(
+                    (self, "uks"), (fragment, "uks")
+                )
+                fragment.master_class = self
+        self.fragment_output.children = change["new"]
+        if not current:
             self.fragment_add_message.message = ""
+
+    def close(self):
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
+        self.fragments = []
+        if hasattr(self, "_selection_link"):
+            self._selection_link.unlink()
+        if hasattr(self, "add_new_fragment_button"):
+            self.add_new_fragment_button.on_click(self.add_fragment, remove=True)
+        close_owned_widgets(*self.children, self.layout, shared=(BOX_LAYOUT,))
+        self.children = ()
+        super().close()
