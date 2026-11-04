@@ -11,7 +11,7 @@ from surfaces_tools.widgets.series_plotter import SeriesPlotter
 
 
 def test_series_rows_are_released():
-    plotter = SeriesPlotter(lambda: [], "test")
+    plotter = SeriesPlotter(list, "test")
     baseline = set(_instances)
     removed = []
     for _ in range(20):
@@ -28,7 +28,7 @@ def test_series_rows_are_released():
 
 
 def test_clear_releases_plot_outputs():
-    plotter = SeriesPlotter(lambda: [], "test")
+    plotter = SeriesPlotter(list, "test")
     baseline = set(_instances)
     removed = []
     for _ in range(20):

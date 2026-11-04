@@ -2,7 +2,6 @@ import json
 
 import ipywidgets as ipw
 
-
 DEFAULTS = {
     "PBE": {
         "basis_set_file_names": "BASIS_MOLOPT",

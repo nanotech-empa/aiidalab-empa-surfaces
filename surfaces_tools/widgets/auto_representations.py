@@ -1,8 +1,8 @@
-import traitlets as tr
 import ipywidgets as ipw
-from ase import Atoms
+import traitlets as tr
 from aiidalab_widgets_base import viewers as awb_viewers
 from aiidalab_widgets_base.utils import list_to_string_range
+from ase import Atoms
 
 from .analyze_structure import StructureAnalyzer
 

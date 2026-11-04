@@ -1,7 +1,8 @@
+import re
+
 import aiidalab_widgets_base as awb
 import ipywidgets as ipw
 import traitlets as tr
-import re
 from aiida_nanotech_empa.workflows.cp2k import cp2k_utils
 from ase import Atoms
 
