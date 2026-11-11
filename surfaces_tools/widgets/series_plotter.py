@@ -408,20 +408,26 @@ class SeriesPlotter:
 
     def create_zip_link(self, b):
         self.zip_btn.disabled = True
+        self.link_out.clear_output()
+        self.zip_progress.value = 0
+        try:
+            filename = f"{self.zip_prepend}_pk{self.wc_pk}.zip"
 
-        filename = f"{self.zip_prepend}_pk{self.wc_pk}.zip"
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(
+                zip_buffer, "w", zipfile.ZIP_DEFLATED, False
+            ) as zip_file:
+                self.data_to_zip(zip_file)
 
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, False) as zip_file:
-            self.data_to_zip(zip_file)
+            os.makedirs("tmp", exist_ok=True)
 
-        os.makedirs("tmp", exist_ok=True)
+            with open("tmp/" + filename, "wb") as f:
+                f.write(zip_buffer.getvalue())
 
-        with open("tmp/" + filename, "wb") as f:
-            f.write(zip_buffer.getvalue())
-
-        with self.link_out:
-            display(HTML(download_link(filename)))
+            with self.link_out:
+                display(HTML(download_link(filename)))
+        finally:
+            self.zip_btn.disabled = False
 
     def data_to_zip(self, zip_file):
         index_list = self.select_indexes_function()
@@ -429,6 +435,7 @@ class SeriesPlotter:
         num_series = len(self.elem_list)
 
         total_pics = len(index_list) * num_series
+        completed = 0
 
         for i in index_list:
             for i_ser in range(num_series):
@@ -518,7 +525,8 @@ class SeriesPlotter:
                     name=f"'{plot_name}'",
                 )
                 zip_file.writestr("itx/" + plot_name + ".itx", str(igorwave))
-                self.zip_progress.value += 1.0 / float(total_pics - 1)
+                completed += 1
+                self.zip_progress.value = completed / total_pics
 
     def full_clear(self, b):
         plots = self.plot_output.children
