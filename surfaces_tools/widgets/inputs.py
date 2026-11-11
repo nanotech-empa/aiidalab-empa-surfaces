@@ -3,7 +3,7 @@ from functools import partial, reduce
 import ipywidgets as ipw
 import numpy as np
 import traitlets as tr
-from aiida import orm
+from aiida import common, orm
 from ase import Atoms
 from IPython.display import clear_output, display
 
@@ -68,7 +68,9 @@ class InputDetails(ipw.VBox):
         self._structure_info_separate = structure_info_separate
         tr.dlink((self, "details"), (self.structure_info, "details"))
         self.electrostatics = PoissonSettingsWidget(
-            self._publish_electrostatic_structure, self._isolation_geometries
+            self._publish_electrostatic_structure,
+            self._isolation_geometries,
+            self._effective_electrostatics,
         )
         self.displayed_sections = []
         # self.neb = False
@@ -84,6 +86,19 @@ class InputDetails(ipw.VBox):
             self.structure_manager.structure = atoms
         else:
             self.structure = atoms
+
+    def _effective_electrostatics(self):
+        restart = self.neb_state.get("restart_from", "") if self.neb else ""
+        if restart:
+            # Resolve on each call; no ORM node is retained in widget state.
+            try:
+                node, _, _ = NebWidget._validated_restart_source(restart)
+                return node.inputs.dft_params.get_dict()
+            except (common.NotExistent, AttributeError) as exc:
+                raise ValueError(
+                    "Choose a valid NEB restart to determine inherited electrostatics"
+                ) from exc
+        return {"periodic": "XYZ"}
 
     def _isolation_geometries(self):
         if not self.neb:
@@ -730,6 +745,10 @@ class NebWidget(ipw.VBox):
     # ------------------------------------------------------------------
 
     def _restart_source(self):
+        return self._validated_restart_source(self.restart_from.value)
+
+    @staticmethod
+    def _validated_restart_source(pk):
         """The calculation being restarted: its structure and its replica count.
 
         A restart reuses that calculation's optimised replicas, so the band is
@@ -737,7 +756,6 @@ class NebWidget(ipw.VBox):
         which supplies the tags written into every replica file. Taking it from
         the calculation being restarted keeps it consistent with those replicas.
         """
-        pk = self.restart_from.value
         try:
             node = orm.load_node(pk)
             structure = node.inputs.structure

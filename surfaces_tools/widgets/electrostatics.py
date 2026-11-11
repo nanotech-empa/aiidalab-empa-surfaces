@@ -5,7 +5,6 @@ import json
 
 import ipywidgets as ipw
 import numpy as np
-
 from aiida_nanotech_empa.workflows.cp2k.electrostatics import (
     PERIODICITIES,
     SOLVER_DIMENSIONS,
@@ -16,9 +15,12 @@ from aiida_nanotech_empa.workflows.cp2k.electrostatics import (
 
 
 class PoissonSettingsWidget(ipw.VBox):
-    def __init__(self, on_structure=None, get_geometries=None):
+    def __init__(
+        self, on_structure=None, get_geometries=None, get_effective_settings=None
+    ):
         self.on_structure = on_structure
         self.get_geometries = get_geometries
+        self.get_effective_settings = get_effective_settings
         self.prepared_geometries = []
         self.original = None
         self.applied = None
@@ -87,8 +89,8 @@ class PoissonSettingsWidget(ipw.VBox):
             "MT is not implemented for 1D.</td></tr></table>"
             "<p>For a wire along x or y, choose X or Y instead. For a slab in "
             "another cell plane, choose XZ or YZ. ANALYTIC may converge slowly. "
-            "WAVELET needs the density to vanish at isolated cell faces; build and "
-            "orientation restrictions may apply. IMPLICIT and MULTIPOLE need "
+            "WAVELET supports 2D only for XZ and requires FFTSG; density must vanish "
+            "at isolated cell faces. IMPLICIT and MULTIPOLE need "
             "method-specific settings. "
             '<a href="https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/DFT/POISSON.html" '
             'target="_blank">CP2K solver guidance</a>.</p>'
@@ -147,7 +149,9 @@ class PoissonSettingsWidget(ipw.VBox):
                 "Bulk": "3D system",
             }.get(kind, "2D slab" if kind.startswith("Slab") else "system")
             self.guidance.value = (
-                f"<p><b>Detected: {html.escape(dimension)}.</b> "
+                f"<p><b>Structural connectivity: {html.escape(dimension)}.</b> "
+                "This classification does not set calculation boundary conditions. "
+                "A 0D molecule can use a 3D-periodic XYZ calculation. "
                 "Review the suggested solver and cell changes below. "
                 "<b>MT supports molecules (0D) and slabs (2D), and is not implemented for 1D.</b> "
                 "For a wire, choose its periodic cell axis and a supported solver; "
@@ -200,28 +204,50 @@ class PoissonSettingsWidget(ipw.VBox):
                 '<p style="padding:10px;background:#fff3cd"><b>Submission is blocked:</b> '
                 "the selected settings are invalid. Correct them, or click "
                 "<b>Undo: restore original settings</b> to return to the original cell "
-                "and XYZ/PERIODIC electrostatics.</p>"
+                "and inherited/default electrostatics shown when inactive.</p>"
             )
         elif self.active.value:
             p = self.settings()
+            dimension = 0 if p["periodic"] == "NONE" else len(p["periodic"])
+            nonperiodic = (
+                "".join(axis for axis in "XYZ" if axis not in p["periodic"]) or "NONE"
+            )
             self.current_settings.value = (
                 '<p style="padding:10px;background:#e9f5e9"><b>Currently used for submission:</b> '
-                f"periodic axes <b>{html.escape(p['periodic'])}</b>; Poisson solver "
+                f"effective <b>{dimension}D {'nonperiodic' if dimension == 0 else 'periodic'} model</b>; "
+                f"periodic axes <b>{html.escape(p['periodic'])}</b>; nonperiodic axes <b>{nonperiodic}</b>; Poisson solver "
                 f"<b>{html.escape(p['poisson_solver'])}</b>; the prepared cell shown below. "
                 "The selected settings are applied. Changes to these controls now update "
                 "the applied settings. Click <b>Undo: restore original settings</b> to "
-                "restore the original cell, atomic positions and XYZ/PERIODIC electrostatics.</p>"
+                "restore the original cell, atomic positions and inherited/default electrostatics shown when inactive.</p>"
             )
         else:
+            try:
+                p = poisson_settings(self._effective_settings())
+            except (ValueError, KeyError, AttributeError) as exc:
+                self.current_settings.value = f"<p><b>Effective calculation model unavailable:</b> {html.escape(str(exc))}</p>"
+                return
+            dimension = 0 if p["PERIODIC"] == "NONE" else len(p["PERIODIC"])
+            nonperiodic = (
+                "".join(axis for axis in "XYZ" if axis not in p["PERIODIC"]) or "NONE"
+            )
             self.current_settings.value = (
                 '<p style="padding:10px;background:#eef4fb"><b>Currently used for submission:</b> '
-                "periodic axes <b>XYZ</b> (periodic along all three cell axes); Poisson solver "
-                "<b>PERIODIC</b>; the <b>original cell and atomic positions</b>. "
+                f"effective <b>{dimension}D {'nonperiodic' if dimension == 0 else 'periodic'} model</b>; "
+                f"periodic axes <b>{p['PERIODIC']}</b>; nonperiodic axes <b>{nonperiodic}</b>; "
+                f"Poisson solver <b>{p['POISSON_SOLVER']}</b>; the <b>original cell and atomic positions</b>. "
+                "Source PBC metadata is distinct; derived calculation structures use these effective axes. "
                 "The suggested settings below are <b>not applied</b>. Click "
                 "<b>Apply selected settings</b> to use them and the previewed cell. "
-                "Until you click that button, changing the fields below does not change "
-                "the settings used for submission.</p>"
+                "Until then, editing these fields changes neither the model nor the cell.</p>"
             )
+
+    def _effective_settings(self):
+        return (
+            self.get_effective_settings()
+            if self.get_effective_settings is not None
+            else {"periodic": "XYZ"}
+        )
 
     def _refresh(self):
         try:
@@ -258,7 +284,13 @@ class PoissonSettingsWidget(ipw.VBox):
             "in those directions.<br>MT preparation uses twice the atomic span plus 15 Å; "
             "other solvers use the atomic span plus 15 Å. Already larger cells are retained. "
             "This is a geometric starting point: check density tails and vacuum convergence. "
-            "Click the button to apply these changes, or undo them to restore the original geometry.</p>"
+            + (
+                "These changes are applied. Click <b>Undo: restore original settings</b> "
+                "to restore the original geometry."
+                if self.active.value
+                else "Click <b>Apply selected settings</b> to apply these changes."
+            )
+            + "</p>"
         )
         return proposal
 
@@ -290,8 +322,8 @@ class PoissonSettingsWidget(ipw.VBox):
     def return_dict(self):
         if not self.active.value:
             if self.original is not None:
-                validate_cell(self.original, {"periodic": "XYZ"})
-            return {"dft_params": {"periodic": "XYZ"}}
+                validate_cell(self.original, self._effective_settings())
+            return {"dft_params": self._effective_settings()}
         if self._refresh() is None or self.applied is None:
             raise ValueError("Review and apply valid Poisson solver and cell settings")
         return {"dft_params": self.settings()}
