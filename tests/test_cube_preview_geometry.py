@@ -164,7 +164,50 @@ def retained(aiida_profile_clean, aiida_localhost, tmp_path):
     root.base.links.add_incoming(
         source, link_type=LinkType.INPUT_WORK, link_label="structure"
     )
+    for label in ("all", "sheet", "molecule"):
+        root.base.links.add_incoming(
+            orm.Dict({"indices": [0, 1]}).store(),
+            link_type=LinkType.INPUT_WORK,
+            link_label="fragments__" + label,
+        )
     root.store()
+    native = orm.CalcJobNode(
+        computer=aiida_localhost, process_type="aiida.calculations:cp2k"
+    )
+    native_parameters = orm.Dict(
+        {
+            "FORCE_EVAL": {
+                "SUBSYS": {"CELL": {"PERIODIC": "XYZ"}},
+                "DFT": {"POISSON": {"PERIODIC": "XYZ", "POISSON_SOLVER": "PERIODIC"}},
+            }
+        }
+    ).store()
+    native.base.links.add_incoming(
+        native_parameters, link_type=LinkType.INPUT_CALC, link_label="parameters"
+    )
+    native.store()
+    source_remote = orm.RemoteData(
+        computer=aiida_localhost, remote_path=str(tmp_path / "scf-source")
+    )
+    source_remote.base.links.add_incoming(
+        native, link_type=LinkType.CREATE, link_label="remote_folder"
+    )
+    source_remote.store()
+    energies = orm.Dict(
+        {
+            "unrelaxed_separation_energy": -0.00051,
+            "separation_energy": -0.00049,
+            "sheet": {"unrelaxed": -5.0, "relaxed": -5.0001},
+            "molecule": {"unrelaxed": -2.0, "relaxed": -2.0001},
+        }
+    )
+    energies.base.links.add_incoming(
+        native, link_type=LinkType.CREATE, link_label="energies"
+    )
+    energies.store()
+    energies.base.links.add_incoming(
+        root, link_type=LinkType.RETURN, link_label="energies"
+    )
     params = orm.Dict(
         {
             "steps": [
@@ -185,6 +228,11 @@ def retained(aiida_profile_clean, aiida_localhost, tmp_path):
     node.base.links.add_incoming(
         params, link_type=LinkType.INPUT_CALC, link_label="parameters"
     )
+    node.base.links.add_incoming(
+        source_remote,
+        link_type=LinkType.INPUT_CALC,
+        link_label="parent_folders__folder1",
+    )
     node.base.links.add_incoming(root, link_type=LinkType.CALL_CALC, link_label="cube")
     node.store()
     folder = orm.FolderData()
@@ -198,7 +246,7 @@ def retained(aiida_profile_clean, aiida_localhost, tmp_path):
         node, link_type=LinkType.CREATE, link_label="remote_folder"
     )
     remote.store()
-    for process in (node, root):
+    for process in (node, root, native):
         process.set_process_state(ProcessState.FINISHED)
         process.set_exit_status(0)
         process.seal()
@@ -239,10 +287,10 @@ def test_real_widget_load_reconstructs_qualified_legacy_preview_and_preserves_re
         hashlib.sha256((path / "ChargeDiff.cube").read_bytes()).hexdigest() == raw_hash
     )
     assert (
-        orm.QueryBuilder().append(orm.ProcessNode).count() == 2
+        orm.QueryBuilder().append(orm.ProcessNode).count() == 3
     )  # synthetic fixtures only
     widget.node_pk = None
-    assert widget._viewer.cube is None and not widget._cube_cache
+    assert widget._shared_viewer is None and not widget._cube_cache
     widget.node_pk = node.pk
     widget.cube_selector.value = "reduced_ChargeDiff.cube"
     assert "Derived preview" in widget.error_message.value
@@ -317,10 +365,15 @@ def test_ngl_serialization_preserves_nonzero_origin(monkeypatch):
         if isinstance(source, str):
             captured.append(Cube.from_file(source))
         return SimpleNamespace(
-            id="test-component", clear=lambda: None, add_surface=lambda **kw: None
+            id="test-component",
+            clear=lambda: None,
+            add_surface=lambda **kw: None,
+            add_ball_and_stick=lambda **kw: None,
         )
 
-    monkeypatch.setattr(m.nglview.NGLWidget, "add_component", add)
+    from aiidalab_widgets_empa import cube as shared
+
+    monkeypatch.setattr(shared.nglview.NGLWidget, "add_component", add)
     widget = m.CubeArrayData3dViewerWidget()
     c = make_cube()
     widget.cube = c
