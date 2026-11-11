@@ -500,6 +500,18 @@ def make_csv_link(collected_data):
     return html
 
 
+def pdos_display_bounds(dos):
+    """Display the stored spectrum, with 0.5 eV padding for broadened peaks."""
+    energies = np.concatenate([channel[:, 0] for channel in dos["tdos"]])
+    energies = energies[np.isfinite(energies)]
+    if not energies.size:
+        raise ValueError("No finite stored PDOS eigenvalues are available to display.")
+    return (
+        math.floor((float(energies.min()) - 0.5) * 10) / 10,
+        math.ceil((float(energies.max()) + 0.5) * 10) / 10,
+    )
+
+
 class _BaseSelectionWidget(stack.HorizontalItemWidget):
     data = tl.Dict(allow_none=True)
     options = tl.Union([tl.Dict(), tl.List()], allow_none=True)
@@ -553,6 +565,28 @@ class _BaseSelectionWidget(stack.HorizontalItemWidget):
 class _BaseStackWidget(stack.VerticalStackWidget):
     data = tl.Dict(allow_none=True)
     options = tl.Union([tl.Dict(), tl.List()], allow_none=True)
+
+    def selection_state(self):
+        """Keep only plain display preferences across a same-source reload."""
+        return [
+            (
+                item._spin_selector.value,
+                item._data_selection.value,
+                item._color_picker.value,
+                item._norm_factor.value,
+            )
+            for item in self.items
+        ]
+
+    def restore_selection_state(self, state):
+        self.items = ()
+        for spin, selection, color, factor in state:
+            self.add_item(None)
+            item = self.items[-1]
+            item._spin_selector.value = spin
+            item._data_selection.value = selection
+            item._color_picker.value = color
+            item._norm_factor.value = factor
 
     def add_item(self, _):
         self.items += (
@@ -860,7 +894,6 @@ class PdosOverlapViewerWidget(ipw.VBox):
             self._manual_ref_input.value if self._manual_ref_checkbox.value else None
         )
         self.load_data(self._workchain_uuid, manual_energy_reference_ev=manual_ref)
-        self.clear_plot()
 
     def _format_energy_reference_info(self, reference):
         manual = reference.get("manual_ev")
@@ -925,7 +958,13 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
     def load_data(self, reference=None, manual_energy_reference_ev=None):
         workchain = orm.load_node(reference)
+        same_source = self._workchain_uuid == workchain.uuid
         self._workchain_uuid = workchain.uuid
+        projection_state = self._projections.selection_state() if same_source else None
+        overlap_state = self._overlap.selection_state() if same_source else None
+        old_reference = self._projections.data.get("_energy_reference", {})
+        old_range = self._energy_range_slider.value
+        self.clear_plot()
         self.uks = workchain.inputs.dft_params.get("uks", False)
         self.do_overlap = (
             bool(workchain.inputs.do_overlap)
@@ -951,6 +990,7 @@ class PdosOverlapViewerWidget(ipw.VBox):
         self._geometry_info.value = geometry_info
 
         # Dealing with the overlap data.
+        self._overlap.add_item_button.disabled = not self.do_overlap
         if self.do_overlap:
             overlap_calculation = spm.get_calc_by_label(workchain, "overlap")
             with overlap_calculation.outputs.retrieved.open(
@@ -958,16 +998,28 @@ class PdosOverlapViewerWidget(ipw.VBox):
             ) as fhandle:
                 self._overlap.data = load_overlap_npz(fhandle.name)
         else:
-            self._overlap.add_item_button.disabled = True
+            self._overlap.items = ()
 
-        # Initialize selections.
-        energy_lim = [
-            float(workchain.inputs.overlap_params["--emin1"]),
-            float(workchain.inputs.overlap_params["--emax1"]),
-        ]
-        self._energy_range_slider.min = energy_lim[0]
-        self._energy_range_slider.max = energy_lim[1]
-        self._energy_range_slider.value = energy_lim
+        if same_source:
+            self._projections.restore_selection_state(projection_state)
+            if self.do_overlap:
+                self._overlap.restore_selection_state(overlap_state)
+
+        # The MO/overlap computation window does not limit stored PDOS states.
+        lower, upper = pdos_display_bounds(self._projections.data)
+        energy_lim = (lower, upper)
+        if same_source and old_reference and reference_info:
+            shift = old_reference["ev"] - reference_info["ev"]
+            shifted = (old_range[0] + shift, old_range[1] + shift)
+            clipped = (max(lower, shifted[0]), min(upper, shifted[1]))
+            if clipped[0] < clipped[1]:
+                energy_lim = clipped
+        slider = self._energy_range_slider
+        # Expand before contracting, including large manual reference shifts.
+        slider.min = min(slider.min, lower)
+        slider.max = max(slider.max, upper)
+        slider.value = energy_lim
+        slider.min, slider.max = lower, upper
 
     def make_plot(self, _=None):
         with self._plot_output:
