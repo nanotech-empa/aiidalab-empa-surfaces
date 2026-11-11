@@ -1,8 +1,10 @@
 import copy
+from fnmatch import fnmatch
+from html import escape
 import logging
 import re
 import tempfile
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 import aiidalab_widgets_base as awb
 import ase.io.cube
@@ -16,6 +18,7 @@ import toml
 import traitlets as tl
 from aiida import orm, plugins
 from cubehandler import Cube
+from cubehandler.cube import ANG_TO_BOHR
 from PIL import ImageColor
 from scipy.ndimage import map_coordinates
 
@@ -535,7 +538,9 @@ class CubePlaneCut2D(ipw.VBox):
 
     def _cart_to_indexcoords(self, grid):
         nx, ny, nz = self.cube.data.shape
-        fractional = (self._sinv @ grid.reshape(-1, 3).T).T
+        fractional = (
+            self._sinv @ (grid.reshape(-1, 3) - self.cube.origin / ANG_TO_BOHR).T
+        ).T
         indexes = np.empty_like(fractional)
         indexes[:, 0] = fractional[:, 0] * nx
         indexes[:, 1] = fractional[:, 1] * ny
@@ -756,7 +761,12 @@ class CubeArrayData3dViewerWidget(ipw.VBox):
             nglview.ASEStructure(self.structure)
         )
         with tempfile.NamedTemporaryFile(mode="w") as tempf:
-            ase.io.cube.write_cube(tempf, self.structure, self.cube.data)
+            ase.io.cube.write_cube(
+                tempf,
+                self.structure,
+                self.cube.data,
+                origin=self.cube.origin / ANG_TO_BOHR,
+            )
             self._cube_component = self.viewer.add_component(tempf.name, ext="cube")
             self._cube_component.clear()
         self._loaded_cube = self.cube
@@ -889,6 +899,102 @@ def render_cube_file(settings, code_uuid, render_source_remote_uuid, remote_data
     return builder
 
 
+def _load_cube_preview(calc_uuid, cube_name):
+    """Load retained data, deriving a labelled preview only from qualified source."""
+    calc = orm.load_node(calc_uuid)
+    preview = Cube.from_content(
+        calc.outputs.retrieved.get_object_content(f"out_cubes/{cube_name}")
+    )
+    # Follow the recorded shrink input, never an unrelated cube with a similar name.
+    matches = []
+    for step in calc.inputs.parameters.get_dict().get("steps", []):
+        options = step.get("options", {})
+        prefix = options.get("prefix", "reduced_")
+        if step.get("command") != "shrink" or not cube_name.startswith(prefix):
+            continue
+        original_name = cube_name[len(prefix) :]
+        for arg in step.get("args", []):
+            path = PurePosixPath(arg)
+            if (
+                not path.is_absolute()
+                and ".." not in path.parts
+                and fnmatch(original_name, path.name)
+            ):
+                matches.append(
+                    (path.parent / original_name, options.get("method", "slicing"))
+                )
+    if not matches:
+        return preview, ""
+    unavailable = (
+        "Retained reduced preview. Its grid could not be checked against the full "
+        "cube. Spatial alignment is unverified."
+    )
+    if len(matches) != 1 or calc.computer.transport_type != "core.local":
+        return preview, unavailable
+    source_path, method = matches[0]
+    source_path = Path(calc.get_remote_workdir()) / str(source_path)
+    if not source_path.is_file():
+        return preview, unavailable
+    source = Cube.from_file(source_path, read_data=False)
+    if (
+        not np.array_equal(source.ase_atoms.numbers, preview.ase_atoms.numbers)
+        or not np.allclose(
+            source.ase_atoms.positions, preview.ase_atoms.positions, atol=1e-5, rtol=0
+        )
+        or not np.allclose(source.origin, preview.origin, atol=1e-6, rtol=0)
+    ):
+        raise ValueError(
+            "Full and reduced cube structures or origins differ. Preview correction was refused."
+        )
+    shape = np.asarray(preview.data.shape)
+    source_shape = np.asarray(source.cell_n)
+    cell_matches = np.allclose(source.cell, preview.cell, atol=2e-4, rtol=0)
+    if cell_matches and np.all(source_shape % shape == 0):
+        return preview, "Retained preview. Cell and sampling match the full cube grid."
+    if method != "slicing":
+        raise ValueError(
+            "This reduced grid needs correction. Automatic reconstruction supports slicing only."
+        )
+    # Reject a full cube whose cell already disagrees with its calculation model.
+    caller = calc.caller
+    if caller is None or "structure" not in caller.inputs:
+        raise ValueError(
+            "Cannot qualify the full cube against its source calculation cell."
+        )
+    if not np.allclose(
+        source.cell / ANG_TO_BOHR, caller.inputs.structure.cell, atol=2e-4, rtol=0
+    ):
+        raise ValueError(
+            "The full cube cell differs from the source calculation. Preview correction was refused."
+        )
+    source = Cube.from_file(source_path)
+    # Qualify the retained values against the known legacy slicing algorithm.
+    legacy_voxels = source.cell / source_shape / ANG_TO_BOHR
+    strides = np.rint(1.0 / (2 * np.linalg.norm(legacy_voxels, axis=1))).astype(int)
+    if np.any(strides < 1):
+        raise ValueError(
+            "The retained preview does not match the supported legacy slicing path."
+        )
+    samples = source.data[:: strides[0], :: strides[1], :: strides[2]]
+    tolerance = abs(preview.scaling_factor) * 0.000501
+    if samples.shape != preview.data.shape or not np.allclose(
+        samples, preview.data, atol=tolerance, rtol=1e-6
+    ):
+        raise ValueError(
+            "Retained preview values do not match the full cube. Preview correction was refused."
+        )
+    legacy_cell = source.cell / shape * shape[:, None]
+    if not cell_matches and not np.allclose(
+        legacy_cell, preview.cell, atol=2e-4, rtol=0
+    ):
+        raise ValueError("The reduced cell does not match the known legacy grid error.")
+    source.reduce_data_density_slicing()
+    return source, (
+        "Derived preview reconstructed from the original full cube with cell-aligned "
+        "sampling. Stored cubes are unchanged. Use the full grid for density integrals."
+    )
+
+
 class HandleCubeFiles(ipw.VBox):
     node_pk = tl.Int(None, allow_none=True)
     nel_up = tl.Int(None, allow_none=True)
@@ -899,8 +1005,9 @@ class HandleCubeFiles(ipw.VBox):
     render_source_remote_uuid = tl.Unicode(allow_none=True)
 
     def __init__(self):
-        self.node = None
+        self.retrieved_uuid = None
         self._cube_cache = {}
+        self._cube_preview_messages = {}
         self._viewer = CubeArrayData3dViewerWidget(layout=ipw.Layout(width="550px"))
         self.slice2d = CubePlaneCut2D()
         self._viewer.slice2d = self.slice2d
@@ -1029,20 +1136,21 @@ class HandleCubeFiles(ipw.VBox):
 
     def show_selected_cube(self, _=None):
 
-        if not self.cube_selector.value or self.node is None:
+        if not self.cube_selector.value or self.retrieved_uuid is None:
             return
         cube_name = self.cube_selector.value
         try:
             if cube_name not in self._cube_cache:
-                self._cube_cache[cube_name] = Cube.from_content(
-                    self.node.get_object_content(f"out_cubes/{cube_name}")
-                )
+                preview, message = _load_cube_preview(self.node_pk, cube_name)
+                self._cube_cache[cube_name] = preview
+                self._cube_preview_messages[cube_name] = message
+            self.error_message.value = escape(self._cube_preview_messages[cube_name])
             self._viewer.cube = self._cube_cache[cube_name]
             self._sync_plane()
-        except FileNotFoundError:
+        except (FileNotFoundError, ValueError) as exc:
+            self._viewer.cube = None
             self.error_message.value = (
-                "<span style='color:red'>Selected cube file is no longer available "
-                "in the retrieved out_cubes folder.</span>"
+                f"<span style='color:red'>{escape(str(exc))}</span>"
             )
 
     def get_calcs(self):
@@ -1073,8 +1181,9 @@ class HandleCubeFiles(ipw.VBox):
         if not self.node_pk:
             return
         calc = orm.load_node(self.node_pk)
-        self.node = calc.outputs.retrieved
+        self.retrieved_uuid = calc.outputs.retrieved.uuid
         self._cube_cache = {}
+        self._cube_preview_messages = {}
         self.render_source_remote_uuid = calc.outputs.remote_folder.uuid
 
         parent_folders = getattr(calc.inputs, "parent_folders", None)
@@ -1094,7 +1203,7 @@ class HandleCubeFiles(ipw.VBox):
         )  # captures orbital number and spin (1 or 2)
 
         try:
-            cube_names = self.node.list_object_names("out_cubes")
+            cube_names = calc.outputs.retrieved.list_object_names("out_cubes")
         except (FileNotFoundError, NotADirectoryError):
             self.cube_selector.value = None
             self.cube_selector.options = []
@@ -1180,8 +1289,9 @@ class HandleCubeFiles(ipw.VBox):
         if self.node_pk:
             self.select_calculation()
         else:
-            self.node = None
+            self.retrieved_uuid = None
             self._cube_cache = {}
+            self._cube_preview_messages = {}
             self.cube_selector.options = []
             self._viewer.cube = None
             self.render_instructions = {}
