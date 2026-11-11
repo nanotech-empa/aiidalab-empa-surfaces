@@ -324,7 +324,15 @@ class StructureAnalyzer(tr.HasTraits):
         # Do not use a set in the following line list(set(atoms.get_chemical_symbols()))
         # need ALL atoms and elements for spin guess and for cost calculation
         all_elements = atoms.get_chemical_symbols()
-        summary = ""
+        dimension = int(np.amax(res["dimensionality"]))
+        source_axes = (
+            "".join(axis for axis, enabled in zip("XYZ", self.structure.pbc) if enabled)
+            or "NONE"
+        )
+        summary = (
+            f"Structural connectivity: {dimension}D (classification, not calculation boundary conditions).\n"
+            f"Source structure PBC metadata: {source_axes}. See effective calculation settings below.\n"
+        )
         cases = []
         if len(spins_up) > 0:
             summary += "spins_up: " + awb.utils.list_to_string_range(spins_up) + "\n"
@@ -401,7 +409,14 @@ class StructureAnalyzer(tr.HasTraits):
             # End slab layers
             summary += "Slab " + slabtype + " contains: \n"
         summary += (
-            "Cell: " + " ".join([str(i) for i in atoms.cell.diagonal().tolist()]) + "\n"
+            "Cell lengths (Å): "
+            + " ".join(f"{value:.6g}" for value in atoms.cell.lengths())
+            + "\n"
+        )
+        summary += (
+            "Cell angles (°): "
+            + " ".join(f"{value:.6g}" for value in atoms.cell.angles())
+            + "\n"
         )
         if len(slabatoms) == 0:
             slab_elements = set()
@@ -454,7 +469,10 @@ class StructureAnalyzer(tr.HasTraits):
         return {
             "total_charge": total_charge,
             "system_type": sys_type,
-            "periodic_axes": periodic_axes,
+            "periodic_axes": periodic_axes,  # structural suggestion; retained for existing callers
+            "structural_dimension": dimension,
+            "structural_periodic_axes": periodic_axes,
+            "source_pbc": self.structure.pbc.tolist(),
             "cell": cell_str,
             "slab_layers": slab_layers,
             "bottom_H": sorted(bottom_h),
