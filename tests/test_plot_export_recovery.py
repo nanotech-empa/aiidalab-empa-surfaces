@@ -131,7 +131,7 @@ def test_error_reenables_button_clears_old_link_and_allows_retry(
     assert not p.zip_btn.disabled and len(shown) == 2 and len(cleared) == 3
 
 
-def formatter(version):
+def formatter(version, node):
     nb = json.loads((ROOT.parent / "view_adsorption_energy.ipynb").read_text())
     method = next(
         n
@@ -142,7 +142,7 @@ def formatter(version):
         for n in cls.body
         if isinstance(n, ast.FunctionDef) and n.name == "print_results"
     )
-    env = {"HART_2_EV": HART_2_EV}
+    env = {"HART_2_EV": HART_2_EV, "orm": NS(load_node=lambda uuid: node)}
     exec(
         compile(
             ast.Module(body=[method], type_ignores=[]),
@@ -163,8 +163,9 @@ def test_weak_binding_sign_and_precision_convert_before_formatting(energy):
         "separation_energy": 2 * energy,
         "sheet": {"unrelaxed": -5.0, "relaxed": -5.0001},
     }
-    p = NS(node=NS(outputs=NS(energies=values)), fragment_labels=["sheet"])
-    actual = formatter("candidate")(p)
+    node = NS(outputs=NS(energies=values))
+    p = NS(_workflow_uuid="test-source", fragment_labels=["sheet"])
+    actual = formatter("candidate", node)(p)
     expected = [
         f"Adsorption energy (frozen): {energy * HART_2_EV:.3f} (eV)",
         f"Adsorption energy: {2 * energy * HART_2_EV:.3f} (eV)",
