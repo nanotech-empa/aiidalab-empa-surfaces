@@ -16,6 +16,13 @@ Features include:
 * GW calculations for isolated systems;
 * ...
 
+The modern app uses the official `aiidalab-widgets-base` 3.0.1 release.
+Explicitly loading the same stored structure after editing it can retain the
+edited geometry or representation controls. Select another structure before
+returning to the stored source when this occurs. The proposed upstream fix,
+[aiidalab-widgets-base#832](https://github.com/aiidalab/aiidalab-widgets-base/pull/832),
+is pending maintainer review and is not a runtime dependency or a hidden patch.
+
 ## AiiDAlab app for Scanning Probe Microscopy simulations
 
 This repository contains AiiDA workflows and Jupyter GUI for running scanning probe microscopy simulations.
