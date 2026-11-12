@@ -15,23 +15,18 @@ ICONS = {
     """,
     "geometry": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M9 49c10-23 18-23 26-8s13 11 20-17" />
-            <path d="M42 20h13v13" />
-            <circle cx="20" cy="23" r="5" />
-            <circle cx="35" cy="29" r="4" />
-            <circle cx="27" cy="39" r="3" />
-            <path d="M24 25l7 3M33 32l-4 5" />
+            <path d="M9 23c5 0 7 29 23 29s18-29 23-29"/>
+            <path d="M32 10v20m-5-5 5 5 5-5"/>
+            <circle cx="32" cy="42" r="4"/>
         </svg>
     """,
     "scf": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M13 46h38" />
-            <path d="M18 38c6-18 12-18 18 0s11 10 16-8" />
-            <circle cx="20" cy="24" r="5" />
-            <circle cx="34" cy="20" r="4" />
-            <circle cx="45" cy="30" r="5" />
-            <path d="M25 23l5-2M38 23l4 4" />
-            <path d="M22 52h20" opacity=".55" />
+            <path d="M10 12v40h45"/>
+            <path d="m17 17 8 15 8-5 8 13h14"/>
+            <path d="M17 44h38" stroke-dasharray="3 5" opacity=".5"/>
+            <circle cx="25" cy="32" r="2"/>
+            <circle cx="41" cy="40" r="2"/>
         </svg>
     """,
     "adsorption": """
@@ -47,22 +42,25 @@ ICONS = {
     """,
     "phonons": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M8 32c6-14 12-14 18 0s12 14 18 0 8-10 12-6" />
-            <circle cx="13" cy="42" r="5" />
-            <circle cx="32" cy="42" r="5" />
-            <circle cx="51" cy="42" r="5" />
-            <path d="M18 42h9M37 42h9" />
-            <path d="M13 22v-7M32 18v-7M51 22v-7" />
+            <path d="M18 32h8m12 0h8"/>
+            <circle cx="12" cy="32" r="6"/>
+            <circle cx="32" cy="32" r="6"/>
+            <circle cx="52" cy="32" r="6"/>
+            <path d="M12 10v12m-4-8 4-4 4 4M32 42v12m-4-4 4 4 4-4M52 10v12m-4-8 4-4 4 4"/>
         </svg>
     """,
     "replica": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
-            <circle cx="12" cy="34" r="6" />
-            <circle cx="32" cy="24" r="6" />
-            <circle cx="52" cy="34" r="6" />
-            <path d="M18 32l8-5M38 27l8 5" />
-            <path d="M10 48c10 6 33 6 44 0" />
-            <path d="M49 45l5 3-5 3" />
+            <path d="M8 47c16 0 28-30 48-30" stroke-dasharray="3 5" opacity=".5"/>
+            <circle cx="13" cy="41" r="4"/>
+            <circle cx="21" cy="49" r="3"/>
+            <path d="m16 44 3 3"/>
+            <circle cx="29" cy="27" r="4"/>
+            <circle cx="39" cy="31" r="3"/>
+            <path d="m33 29 3 1"/>
+            <circle cx="45" cy="13" r="4"/>
+            <circle cx="55" cy="17" r="3"/>
+            <path d="m49 15 3 1"/>
         </svg>
     """,
     "neb": """
@@ -78,10 +76,11 @@ ICONS = {
     """,
     "search": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
-            <circle cx="27" cy="27" r="14" />
-            <path d="M38 38l13 13" />
-            <path d="M22 22h10v10H22z" />
-            <path d="M22 22l5-5 5 5M32 32l-5 5-5-5" />
+            <circle cx="27" cy="27" r="15"/>
+            <path d="m38 38 14 14M22 23l10 3-5 9"/>
+            <circle cx="21" cy="22" r="3"/>
+            <circle cx="33" cy="26" r="3"/>
+            <circle cx="26" cy="36" r="3"/>
         </svg>
     """,
     "spm": """
@@ -107,12 +106,26 @@ ICONS = {
     """,
     "pdos": """
         <svg viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M12 52h42M12 52V12" />
-            <path d="M19 48V32M28 48V18M37 48V26M46 48V38" />
-            <path d="M18 24c7 6 12 6 18 0s10-6 15 1" />
+            <path d="M12 10v44h43"/>
+            <path d="M12 48h6c18 0 17-5 4-8s-5-5 7-8 26-7 7-10-17-7-24-7"/>
+            <path d="M12 48c17 0 20-4 12-7s20-8 18-12-22-5-30-5" opacity=".5"/>
         </svg>
     """,
 }
+
+
+ICONS["benchmark"] = """<svg viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M11 47a24 24 0 1 1 42 0"/>
+            <path d="m15 20 5 5m12-11v7m17-1-5 5M8 35h7m34 0h7M22 52h20"/>
+            <path d="m32 38 12-12"/>
+            <circle cx="32" cy="38" r="4"/>
+        </svg>"""
+
+ICONS["xps"] = """<svg viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M10 12v42h46"/>
+            <path d="M15 48h4c5 0 4-29 10-29s4 29 9 29c4 0 3-17 8-17s4 17 9 17"/>
+            <path d="m44 9-6 8h8l-6 8"/>
+        </svg>"""
 
 
 ITEMS = [
@@ -130,6 +143,12 @@ ITEMS = [
     (
         "Density functional theory",
         [
+            (
+                "xps",
+                "CP2K XPS · Work in progress",
+                "Molecular core-level methods under development.",
+                "xps_guide.ipynb",
+            ),
             (
                 "geometry",
                 "Geometry optimization",
@@ -167,7 +186,7 @@ ITEMS = [
                 "submit_neb.ipynb",
             ),
             (
-                "geometry",
+                "benchmark",
                 "CSCS CP2K benchmark",
                 "Compare CP2K resource configurations.",
                 "submit_benchmark.ipynb",
@@ -250,7 +269,7 @@ def get_start_widget(appbase, jupbase):  # noqa: ARG001
             }}
             .surface-sections {{
                 display: grid;
-                grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+                grid-template-columns: minmax(0, 1fr);
                 gap: 18px;
                 align-items: start;
             }}
@@ -263,7 +282,7 @@ def get_start_widget(appbase, jupbase):  # noqa: ARG001
             }}
             .surface-grid {{
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
                 gap: 10px;
             }}
             .surface-card {{
@@ -307,6 +326,7 @@ def get_start_widget(appbase, jupbase):  # noqa: ARG001
                 stroke-linecap: round;
                 stroke-linejoin: round;
             }}
+            .surface-icon-xps {{ color: #7c3aad; background: #f3eafb; }}
             .surface-icon-adsorption,
             .surface-icon-replica {{
                 color: var(--surface-green);
