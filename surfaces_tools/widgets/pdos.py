@@ -993,10 +993,10 @@ class PdosOverlapViewerWidget(ipw.VBox):
         self._overlap.add_item_button.disabled = not self.do_overlap
         if self.do_overlap:
             overlap_calculation = spm.get_calc_by_label(workchain, "overlap")
-            with overlap_calculation.outputs.retrieved.open(
+            with overlap_calculation.outputs.retrieved.base.repository.open(
                 "overlap.npz", mode="rb"
             ) as fhandle:
-                self._overlap.data = load_overlap_npz(fhandle.name)
+                self._overlap.data = load_overlap_npz(fhandle)
         else:
             self._overlap.items = ()
 
