@@ -66,7 +66,7 @@ def sources(aiida_profile_clean):
         },
     }
 
-    def create(shift=0.0, two_spins=False):
+    def create(shift=0.0, two_spins=False, do_overlap=False):
         root = orm.WorkChainNode()
         inputs = {
             "structure": orm.StructureData(
@@ -76,7 +76,7 @@ def sources(aiida_profile_clean):
             ),
             "pdos_lists": orm.List(list=fixture["pdos_lists"]),
             "dft_params": orm.Dict(dict={"uks": two_spins}),
-            "do_overlap": orm.Bool(False),
+            "do_overlap": orm.Bool(do_overlap),
             "overlap_params": orm.Dict(dict={"--emin1": "-2", "--emax1": "2"}),
         }
         for label, value in inputs.items():
@@ -118,6 +118,61 @@ def sources(aiida_profile_clean):
 
     yield create
     assert orm.QueryBuilder().append(orm.CalcJobNode).count() == 0
+
+
+def test_viewer_reads_overlap_from_repository_stream_without_name(
+    module, sources, monkeypatch
+):
+    """Packed repository readers are seekable streams, not filesystem paths."""
+    from types import SimpleNamespace
+
+    identifier = sources(do_overlap=True)
+    matrix = np.zeros((100, 3))
+    matrix[:3] = np.eye(3)
+    archive = io.BytesIO()
+    np.savez(
+        archive,
+        metadata=np.array([{"nspin_g1": 1, "nspin_g2": 1, "homo_i_g2": [1]}]),
+        overlap_matrix_s0s0=matrix,
+        energies_g1_s0=np.linspace(-8, 8, 100),
+        energies_g2_s0=np.array([-2.0, -1.0, 1.0]),
+        orb_indexes_g2_s0=np.array([0, 1, 2]),
+    )
+    archive.seek(0)
+    assert not hasattr(archive, "name")
+    requested = []
+
+    def open_archive(name, mode):
+        requested.append((name, mode))
+        return archive
+
+    calculation = SimpleNamespace(
+        outputs=SimpleNamespace(
+            retrieved=SimpleNamespace(
+                open=open_archive,
+                base=SimpleNamespace(repository=SimpleNamespace(open=open_archive)),
+            )
+        )
+    )
+
+    def find_overlap(workchain, label):
+        assert workchain.uuid == identifier and label == "overlap"
+        return calculation
+
+    monkeypatch.setattr(module.spm, "get_calc_by_label", find_overlap)
+    widget = module.PdosOverlapViewerWidget()
+    try:
+        widget.load_data(identifier)
+        assert requested == [("overlap.npz", "rb")]
+        assert archive.closed
+        assert widget._workchain_uuid == identifier
+        assert not widget._overlap.add_item_button.disabled
+        np.testing.assert_array_equal(widget._overlap.data["overlap_matrix"][0], matrix)
+        np.testing.assert_array_equal(
+            widget._overlap.data["energies_g2"][0], [-2.0, -1.0, 1.0]
+        )
+    finally:
+        widget.close()
 
 
 def choose_three(viewer):
