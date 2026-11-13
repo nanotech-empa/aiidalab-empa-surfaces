@@ -193,12 +193,33 @@ restrict larger layouts. Do not submit these drafts. Restore the agreed localhos
 five-image, five-per-group, one-node/four-MPI/one-thread layout before S04.
 
 A fractional node per group describes how BAND shares its MPI allocation; it is
-not a fractional machine request. The current backend's optional initial SCF
-uses `int(NPROC_REP / tasks_per_node)` machines, retaining tasks per node. This
-can yield zero machines when a group occupies less than one node. A form-only
-layout PASS does not qualify that initial-SCF path. The campaign's restored
-four-MPI, one-group layout yields one machine correctly. Record actual WFN reuse
-and whether an initial SCF is needed before scientific execution.
+not a fractional machine request. The selected backend allocates the optional
+initial SCF exactly NPROC_REP MPI ranks on the fewest whole nodes within the
+BAND node/per-node limits. For example, BAND 1node/20MPI with five environments
+uses SCF 1node/4MPI; BAND 4nodes/6MPI with three environments uses SCF 2nodes/4MPI.
+Threads and the parent BAND allocation are retained. Inconsistent allocations
+return exit392 before child submission. Record actual WFN reuse and whether an
+initial SCF runs. A form-only layout PASS does not qualify the native SCF path.
+
+**Initial-SCF allocation regression:** keep the NH3 S04 draft unchanged and open
+a separate fresh NEB page. Use a bare SMILES-C methane structure in a 12 Å cell,
+with no calculation ancestor, and a saved endpoint moving only H atom4 by
+0.03 Å along z. Load the saved endpoints by PK. Insert/interpolate one row at
+local factor1/3, then a second after it at factor0.5, giving four explicit images
+at fractions0,1/3,2/3,1. Inspect all four Show actions. Source FFF may be retained;
+review the effective original-cell XYZ/PERIODIC model and trace native TTT copies
+to their source UUIDs. Choose Standard PBE-D3/RKS/charge0, CI-NEB/spring0.05/CIafter5,
+frames/endpoints off and restart blank. Set localhost1node/4MPI/1thread/600s and
+two replicas/group: two environments, NPROC_REP2. A new kernel after backend
+alignment is required. Submit once after review. With naturally unavailable WFN,
+expect serial SCF1node/2MPI then BAND1node/4MPI, each with its requested600s limit;
+no retry loop is added. Audit ranks/threads, WFN copies, all four replica results
+and SCF/BAND convergence separately. This is functional allocation coverage,
+not methane barrier validation. Save evidence/reopening route and close only
+completed-test tabs. The generic two-endpoint/count4 CP2K interpolation route is
+also supported; its bisected fractions need not be uniform.
+
+See the [backend resource recipe](https://github.com/nanotech-empa/aiida-nanotech-empa/blob/master/docs/neb-initial-scf-resources.md).
 
 **PASS:** correct ordered images, useful rejection diagnostics, image floor,
 one-group layout and final resources. **FAIL:** silent invalid mapping, lost row
