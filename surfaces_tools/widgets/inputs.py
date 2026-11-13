@@ -1071,9 +1071,17 @@ class NebWidget(ipw.VBox):
             for d in range(1, self.n_replica_trait + 1)
             if self.n_replica_trait % d == 0
         ]
-        previous = self.n_replica_per_group.value
+        # The linked model may arrive before the matching divisor options.
+        previous = self.n_replica_per_group_trait
         self.n_replica_per_group.options = divisors
         self.n_replica_per_group.value = previous if previous in divisors else 1
+
+    @tr.observe("n_replica_per_group_trait")
+    def _observe_n_replica_per_group_trait(self, _=None):
+        # InputDetails restores this trait when Show rebuilds the section.
+        value = self.n_replica_per_group_trait
+        if value in self.n_replica_per_group.options:
+            self.n_replica_per_group.value = value
 
     def on_n_replica_per_group_change(self, _=None):
         if self.n_replica_per_group.value is not None:

@@ -164,6 +164,42 @@ This does not establish a vibrational minimum or an experimental inversion barri
    interpolated by CP2K. Capture all five UUIDs/PKs. Identical-element permutations
    cannot be detected from species lists alone; inspect the atom correspondence.
 
+### Grouping and processor layout regression
+
+All rows below are **form-only checks**, with one thread per MPI task. After
+setting each layout, use **Show** on an image and switch between Replicas and
+Advanced settings. The visible **# rep / group**, resource helper and
+**# processors / rep** must retain the same layout. The automated regression
+also compares the parent, section and resource traits with the prepared builder.
+
+| Images | Replicas/group | Nodes | MPI tasks/node | Groups | NPROC_REP |
+| --- | --- | --- | --- | --- | --- |
+| 5 | 5 | 1 | 1 / 2 / 4 / 8 | 1 | 1 / 2 / 4 / 8 |
+| 5 | 1 | 1 | 5 / 10 / 20 / 40 | 5 | 1 / 2 / 4 / 8 |
+| 6 | 3 | 1 | 8 | 2 | 4 |
+| 6 | 2 | 1 | 12 | 3 | 4 |
+| 6 | 1 | 1 | 24 | 6 | 4 |
+| 6 | 6 | 1 | 4 | 1 | 4 |
+| 5 | 5 | 2 | 4 | 1 | 8 |
+| 6 | 3 | 2 | 4 | 2 | 4 |
+| 5 | 1 | 5 | 4 | 5 | 4 |
+
+Use a disposable six-image draft for the additional divisors. Also change a count
+so that its previous group size no longer divides it, and verify the deliberate
+fallback to one replica/group is reflected everywhere. Count/group changes can
+resize the resource fields. Record the resulting allocation before resetting it.
+An existing Daint code may be selected for these form checks if local metadata
+restrict larger layouts. Do not submit these drafts. Restore the agreed localhost
+five-image, five-per-group, one-node/four-MPI/one-thread layout before S04.
+
+A fractional node per group describes how BAND shares its MPI allocation; it is
+not a fractional machine request. The current backend's optional initial SCF
+uses `int(NPROC_REP / tasks_per_node)` machines, retaining tasks per node. This
+can yield zero machines when a group occupies less than one node. A form-only
+layout PASS does not qualify that initial-SCF path. The campaign's restored
+four-MPI, one-group layout yields one machine correctly. Record actual WFN reuse
+and whether an initial SCF is needed before scientific execution.
+
 **PASS:** correct ordered images, useful rejection diagnostics, image floor,
 one-group layout and final resources. **FAIL:** silent invalid mapping, lost row
 state or unsafe layout. **BLOCKED:** editor cannot represent the chosen endpoints.
