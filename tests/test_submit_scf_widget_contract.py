@@ -35,13 +35,21 @@ def test_submit_scf_structure_selector_initializes(aiida_profile_tmp, monkeypatc
         (Path(__file__).parents[1] / "submit_scf.ipynb").read_text(encoding="utf-8")
     )
     namespace = {"display": display}
-    for index in (2, 3, 4):
-        source = "".join(notebook["cells"][index]["source"])
+    for prefix in (
+        "# General imports.",
+        "Cp2kScfWorkChain =",
+        "# Structure selector.",
+    ):
+        source = next(
+            "".join(cell["source"])
+            for cell in notebook["cells"]
+            if "".join(cell["source"]).startswith(prefix)
+        )
         # The fixture already loaded a temporary brokerless SQLite profile.
         source = "\n".join(
             line for line in source.splitlines() if not line.startswith("%")
         )
-        exec(compile(source, f"submit_scf.ipynb:cell{index}", "exec"), namespace)
+        exec(compile(source, f"submit_scf.ipynb:{prefix}", "exec"), namespace)
 
     manager = namespace["structure_selector"]
     details = namespace["input_details"]

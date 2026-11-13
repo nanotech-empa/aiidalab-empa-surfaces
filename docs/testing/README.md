@@ -262,3 +262,27 @@ both the AiiDAlab-level and in-app assistants, with their actual documentation
 sources identified separately. Do not confuse drafted knowledge with deployed
 help, indexed chatbot content or validated chatbot answers. Keep this work in
 the current old-style GUI and the preparation boundary.
+
+
+## Page layout: one page scrollbar
+
+Search results, plots and logs must expand in the normal page flow. A long
+result must not create a second scrollbar inside a notebook or widget output,
+including when the page restores a saved `output_scroll` state. Input controls
+such as text editors retain their normal scrolling.
+
+Each canonical notebook starts with an uncaptured call to
+`surfaces_tools.page_layout.apply_page_layout()`. The integration test checks
+every tracked notebook, including search, export, submission and result pages.
+Keep that first cell when adding a page.
+
+Run `python -m pytest -q tests/test_page_layout.py`. The Chromium regression
+also runs when Playwright and a browser are already available;
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` can select an existing browser. It checks saved
+scrolling wrappers, asynchronous output growth and page scrolling. It does not
+install a browser.
+
+In the manual suite, search a date range with more than one screen of results.
+Scroll while pointing at the table and at a long plot/output: the page must
+move, with no separate output scrollbar or inset scrolling border. Check the
+same behavior after a new search and after reopening the page.

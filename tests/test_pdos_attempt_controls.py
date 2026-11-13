@@ -87,10 +87,13 @@ def pdos_builder(version, structure, code, details, attempts=1):
         "skip_wfn_restart_search": NS(value=True),
     }
     env.update(ipw=ipw, dft_settings=dft_settings)
+    advanced_source = next(
+        "".join(cell["source"])
+        for cell in nb["cells"]
+        if "max_cp2k_attempts = ipw.BoundedIntText" in "".join(cell["source"])
+    )
     exec(
-        compile(
-            "".join(nb["cells"][9]["source"]), "<actual PDOS Advanced settings>", "exec"
-        ),
+        compile(advanced_source, "<actual PDOS Advanced settings>", "exec"),
         env,
     )
     env["skip_wfn_restart_search"].value = True
@@ -127,9 +130,14 @@ def test_actual_control_is_visible_in_normal_advanced_display(source):
     assert env["advanced_settings"].get_title(0) == "Restart"
     notebook = json.loads((ROOT / "submit_pdos.ipynb").read_text())
     shown = []
+    display_source = next(
+        "".join(cell["source"])
+        for cell in notebook["cells"]
+        if "display(workflow_description, advanced_settings" in "".join(cell["source"])
+    )
     exec(
         compile(
-            "".join(notebook["cells"][22]["source"]),
+            display_source,
             "<normal Advanced settings display>",
             "exec",
         ),

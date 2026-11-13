@@ -96,12 +96,17 @@ def form_factory(aiida_profile_tmp, aiida_localhost, monkeypatch):
         notebook = json.loads(
             (Path(__file__).parents[1] / "submit_neb.ipynb").read_text()
         )
-        tree = ast.parse("".join(notebook["cells"][6]["source"]))
+        source = next(
+            "".join(cell["source"])
+            for cell in notebook["cells"]
+            if "def _neb_resource_info(" in "".join(cell["source"])
+        )
+        tree = ast.parse(source)
         functions = [n for n in tree.body if isinstance(n, ast.FunctionDef)]
         exec(
             compile(
                 ast.Module(body=functions, type_ignores=[]),
-                "submit_neb.ipynb:6",
+                "submit_neb.ipynb:resource-and-builder-functions",
                 "exec",
             ),
             namespace,
