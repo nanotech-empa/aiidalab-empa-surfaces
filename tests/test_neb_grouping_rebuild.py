@@ -246,3 +246,48 @@ def test_linked_group_can_arrive_before_its_divisor_options():
     widget.n_replica_trait = 10
     assert widget.n_replica_per_group.value == 5
     assert widget.n_replica_per_group_trait == 5
+
+
+def test_edit_store_from_viewer_then_insert_keeps_visible_empty_row(form_factory):
+    """The in-page editing route must expose the row it counts for NEB."""
+    form = form_factory(2)
+    section(form).initial_row.from_current.click()
+    edited = form.manager.structure.copy()
+    edited.positions[1, 2] += 0.03
+    form.manager.structure = edited
+    form.manager.store_structure()
+    saved = form.manager.structure_node
+    assert saved.is_stored
+    section(form).last_row.from_current.click()
+    current = section(form)
+    current.initial_row.insert.click()
+    current = section(form)
+    assert len(current.replica_rows) == 1
+    assert current.rows_box.children == tuple(current.replica_rows)
+    assert current.replica_rows[0].pk.value == 0
+    assert current.neb_state["intermediate_pks"] == [0]
+    assert form.details.neb_state["intermediate_pks"] == [0]
+    assert current.n_replica.value == 3
+    assert "3 defined above" in current.n_replica_info.value
+    assert current.initial_row.pk.value == form.images[0].pk
+    assert current.last_row.pk.value == saved.pk
+    assert current.replica_rows[0].interpolation_box.layout.display == "flex"
+    assert not current.replica_rows[0].interpolate.disabled
+
+    current.replica_rows[0].interpolate.click()
+    midpoint_pk = section(form).replica_rows[0].pk.value
+    assert midpoint_pk
+    section(form).replica_rows[0].insert.click()
+    current = section(form)
+    assert current.rows_box.children == tuple(current.replica_rows)
+    assert [r.pk.value for r in current.replica_rows] == [midpoint_pk, 0]
+    current.replica_rows[1].interpolate.click()
+    current = section(form)
+    form.images = [orm.load_node(row.pk.value) for row in current.all_rows()]
+    set_layout(form, 2, 1, 4)
+    assert_layout(form, 2, 1, 4, 2)
+    for image in form.images:
+        next(r for r in section(form).all_rows() if r.pk.value == image.pk).show.click()
+        current = section(form)
+        assert current.rows_box.children == tuple(current.replica_rows)
+        assert_layout(form, 2, 1, 4, 2)
