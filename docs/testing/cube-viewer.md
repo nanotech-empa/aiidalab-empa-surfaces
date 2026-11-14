@@ -6,6 +6,24 @@ Missing source/code/resources means BLOCKED with clear feedback. Do not rerun
 SCFs or replace unavailable native data. Render one job on one CPU and one
 thread, maximum 600 s, with the native slot otherwise idle.
 
+For a server without a display, register a `nanotech_empa.cubehandler` Code
+whose executable selects a working off-screen VTK backend on that computer.
+An OSMesa installation can be selected with a launcher like:
+
+```sh
+#!/bin/sh
+export LD_LIBRARY_PATH=/path/to/mesa/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
+exec /path/to/cubehandler "$@"
+```
+
+The library and executable paths must refer to the installed runtime. Code
+registration alone does not install OSMesa. Keep the renderer on the cube's
+computer and use its registered Code in **Render**. If rendering fails, retain
+the failed result and inspect its diagnostics before retrying. A successful
+render must contain every requested image at its requested dimensions and
+format; a completed process without that image is not reusable.
+
 1. Open the adsorption result and click **View cube files**. Confirm the URL
    identifies its actual completed cubehelper, not the energy parent. Pending
    or unavailable outputs must not expose a stale link from a different workflow.
