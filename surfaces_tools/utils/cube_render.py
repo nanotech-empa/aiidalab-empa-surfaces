@@ -22,6 +22,8 @@ from cubehandler.cube import ANG_TO_BOHR, RenderLighting
 from cubehandler.slice_plane import SlicePlane
 from PIL import ImageColor
 from aiidalab_widgets_empa.cube_views import render_settings_from_view
+from aiida_nanotech_empa.utils.cubehandler_results import rendered_images
+from aiida.common.exceptions import NotExistent
 from .cube_results import CUBE_TYPES, cube_boundary, is_cube_helper
 
 _VIEW_PREFIX = "surfaces_cube_view_"
@@ -191,8 +193,18 @@ def _existing_render(plan):
         project="*",
     )
     for node in q.all(flat=True):
-        if not node.is_terminated or node.is_finished_ok:
+        if not node.is_terminated:
             return node.uuid
+        if node.is_finished_ok:
+            try:
+                images = rendered_images(
+                    node.inputs.parameters.get_dict(),
+                    node.outputs.retrieved.base.repository.open,
+                )
+            except (OSError, ValueError, SyntaxError, NotExistent, AttributeError):
+                continue
+            if images:
+                return node.uuid
     return None
 
 

@@ -265,6 +265,81 @@ def test_actual_query_reuses_same_render_and_callback_consumes_review(
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize(
+    "output", ["absent", "empty", "corrupt", "wrong-size", "wrong-format", "valid"]
+)
+def test_completed_render_reuse_requires_the_requested_image(
+    widget, monkeypatch, output
+):
+    import io
+
+    from PIL import Image
+
+    request = plan(widget)
+    builder = cube_render.render_builder(request)
+    parameters = builder.parameters.get_dict()
+    previous = orm.CalcJobNode(
+        computer=builder.code.computer,
+        process_type=builder.process_class.build_process_type(),
+    )
+    previous.base.links.add_incoming(
+        orm.Dict(parameters).store(), LinkType.INPUT_CALC, "parameters"
+    )
+    previous.store()
+    retrieved = None
+    if output != "absent":
+        retrieved = orm.FolderData()
+        if output != "empty":
+            data = b"native render failed"
+            if output != "corrupt":
+                options = parameters["steps"][0]["options"]
+                size = (options["width"], options["height"])
+                if output == "wrong-size":
+                    size = (size[0] - 1, size[1])
+                stream = io.BytesIO()
+                Image.new("RGB", size, "#336699").save(
+                    stream, format="JPEG" if output == "wrong-format" else "PNG"
+                )
+                data = stream.getvalue()
+            retrieved.base.repository.put_object_from_filelike(
+                io.BytesIO(data), "out_cubes/render.png"
+            )
+        retrieved.store()
+        retrieved.base.links.add_incoming(previous, LinkType.CREATE, "retrieved")
+    previous.set_process_state(ProcessState.FINISHED)
+    previous.set_exit_status(0)
+    previous.seal()
+    before = previous.base.attributes.all
+    repository_before = retrieved.base.repository.metadata if retrieved else None
+    calls = []
+
+    def capture(new_builder):
+        node = orm.CalcJobNode(
+            computer=new_builder.code.computer,
+            process_type=new_builder.process_class.build_process_type(),
+        )
+        node.base.links.add_incoming(
+            new_builder.parameters.store(), LinkType.INPUT_CALC, "parameters"
+        )
+        node.store()
+        calls.append(node.uuid)
+        return node
+
+    monkeypatch.setattr(cube_render, "submit", capture)
+    first = cube_render.submit_reviewed_render(request)
+    second = cube_render.submit_reviewed_render(request)
+    if output == "valid":
+        assert first["reused"] and first["uuid"] == previous.uuid
+        assert not calls
+    else:
+        assert not first["reused"] and first["uuid"] != previous.uuid
+        assert calls == [first["uuid"]]
+    assert second["reused"] and second["uuid"] == first["uuid"]
+    assert previous.base.attributes.all == before
+    if retrieved:
+        assert retrieved.base.repository.metadata == repository_before
+
+
 def test_named_view_reopens_without_scientific_mutation(widget):
     node = orm.load_node(widget._helper_uuid)
     attributes = node.base.attributes.all
