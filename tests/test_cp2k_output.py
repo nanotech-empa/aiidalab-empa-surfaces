@@ -94,6 +94,7 @@ def test_geometry_notebook_displays_parser_gap_or_unavailable(gap):
     if gap is not None:
         parameters["bandgap_spin1_au"] = gap / HART_2_EV
     namespace = {
+        "is_scf": True,
         "workcalc": SimpleNamespace(
             label="CP2K_SCF",
             outputs=SimpleNamespace(
