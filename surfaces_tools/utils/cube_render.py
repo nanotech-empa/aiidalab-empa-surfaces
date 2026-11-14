@@ -9,6 +9,7 @@ import fcntl
 import hashlib
 import json
 import math
+from importlib.metadata import version
 from fnmatch import fnmatch
 from pathlib import Path, PurePosixPath
 from tempfile import gettempdir
@@ -18,6 +19,7 @@ from aiida import orm, plugins
 from aiida.engine import submit
 from aiida.orm.implementation import clean_value
 from cubehandler import Cube
+import cubehandler
 from cubehandler.cube import ANG_TO_BOHR, RenderLighting
 from cubehandler.slice_plane import SlicePlane
 from PIL import ImageColor
@@ -46,6 +48,18 @@ def _sha(path):
         for block in iter(lambda: f.read(1024 * 1024), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def _renderer_identity():
+    """Identify only the local renderer implementation, not the whole app."""
+    root = Path(cubehandler.__file__).parent
+    return {
+        "version": version("cubehandler"),
+        "files": {
+            name: _sha(root / name)
+            for name in ("cube.py", "slice_plane.py", "cli/main.py")
+        },
+    }
 
 
 def validate_settings(values, *, periodic):
@@ -169,6 +183,7 @@ def prepare_render(identifier, cube_name, code_uuid, settings, *, resources=None
         {
             "source": source,
             "code_uuid": code.uuid,
+            "renderer": _renderer_identity(),
             "settings": values,
             "resources": budget,
         }
@@ -237,7 +252,7 @@ def render_builder(plan):
     )
     if fresh != plan:
         raise ValueError(
-            "The cube source or render settings changed. Review the render again."
+            "The cube source, renderer or render settings changed. Review the render again."
         )
     p = plan["settings"]
     companions = {}

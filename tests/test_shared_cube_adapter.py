@@ -362,6 +362,60 @@ def test_named_view_reopens_without_scientific_mutation(widget):
     )
 
 
+@pytest.mark.parametrize("change", ["version", "source"])
+def test_renderer_update_invalidates_review_and_completed_reuse(
+    widget, monkeypatch, change
+):
+    import copy
+    import io
+
+    from PIL import Image
+
+    original = plan(widget)
+    builder = cube_render.render_builder(original)
+    parameters = builder.parameters.get_dict()
+    assert parameters["surfaces_render"]["renderer"] == original["renderer"]
+    node = orm.CalcJobNode(
+        computer=builder.code.computer,
+        process_type=builder.process_class.build_process_type(),
+    )
+    node.base.links.add_incoming(
+        orm.Dict(parameters).store(), LinkType.INPUT_CALC, "parameters"
+    )
+    node.store()
+    stream = io.BytesIO()
+    Image.new(
+        "RGB",
+        (original["settings"]["width"], original["settings"]["height"]),
+        "#336699",
+    ).save(stream, format="PNG")
+    retrieved = orm.FolderData()
+    retrieved.base.repository.put_object_from_filelike(
+        io.BytesIO(stream.getvalue()), "out_cubes/render.png"
+    )
+    retrieved.store()
+    retrieved.base.links.add_incoming(node, LinkType.CREATE, "retrieved")
+    node.set_process_state(ProcessState.FINISHED)
+    node.set_exit_status(0)
+    node.seal()
+    assert cube_render._existing_render(original) == node.uuid
+    before = (node.base.attributes.all, retrieved.base.repository.metadata)
+    updated = copy.deepcopy(original["renderer"])
+    if change == "version":
+        updated["version"] = "synthetic-next-renderer"
+    else:
+        updated["files"]["cube.py"] = "0" * 64
+    monkeypatch.setattr(cube_render, "_renderer_identity", lambda: updated)
+    current = plan(widget)
+    assert current["digest"] != original["digest"]
+    assert current["source"] == original["source"]
+    assert current["settings"] == original["settings"]
+    assert cube_render._existing_render(current) is None
+    with pytest.raises(ValueError, match="renderer"):
+        cube_render.render_builder(original)
+    assert (node.base.attributes.all, retrieved.base.repository.metadata) == before
+
+
 def adsorption_viewer_class():
     notebook = json.loads(
         (Path(__file__).parents[1] / "view_adsorption_energy.ipynb").read_text()
