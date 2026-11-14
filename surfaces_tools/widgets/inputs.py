@@ -73,6 +73,7 @@ class InputDetails(ipw.VBox):
             self._effective_electrostatics,
         )
         self.displayed_sections = []
+        self._section_links = []
         # self.neb = False
 
         self.strusture_analyzer = analyze_structure.StructureAnalyzer()
@@ -170,6 +171,10 @@ class InputDetails(ipw.VBox):
     def _observe_details(self, _=None):
         if self.electrostatics.publishing:
             return
+        # Retired sections must not echo state into their replacements.
+        for link in self._section_links:
+            link.unlink()
+        self._section_links.clear()
         self.electrostatics.set_structure(self.structure, self.details)
         self.to_fix = []
         self.net_charge = 0
@@ -201,7 +206,9 @@ class InputDetails(ipw.VBox):
                     section, "traits_to_link"
                 ):
                     for trait in section.traits_to_link():
-                        tr.link((self, trait), (section, trait))
+                        self._section_links.append(
+                            tr.link((self, trait), (section, trait))
+                        )
                 self.displayed_sections.append(section)
             display(ipw.VBox(add_children + self.displayed_sections))
         self.electrostatics._refresh()
