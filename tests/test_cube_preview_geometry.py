@@ -5,7 +5,7 @@ import hashlib
 import numpy as np
 import pytest
 from ase import Atoms
-from aiida import orm
+from aiida import orm, plugins
 from aiida.common.links import LinkType
 from aiida.engine import ProcessState
 from cubehandler import Cube
@@ -141,8 +141,8 @@ def test_skimage_updates_grid_count():
     np.testing.assert_allclose(c.dcell_au, cell / np.array(c.data.shape)[:, None])
 
 
-@pytest.fixture
-def retained(aiida_profile_clean, aiida_localhost, tmp_path):
+@pytest.fixture(params=["entry-point", "class-path"])
+def retained(aiida_profile_clean, aiida_localhost, tmp_path, request):
     assert aiida_profile_clean.is_test_profile
     old = old_class()
     full = make_cube(old)
@@ -158,9 +158,18 @@ def retained(aiida_profile_clean, aiida_localhost, tmp_path):
         default_calc_job_plugin="nanotech_empa.cubehandler",
     ).store()
     source = orm.StructureData(ase=make_cube().ase_atoms).store()
-    root = orm.WorkChainNode(
-        process_type="aiida.workflows:nanotech_empa.cp2k.fragment_separation"
-    )
+    root_type = "aiida.workflows:nanotech_empa.cp2k.fragment_separation"
+    helper_type = "aiida.calculations:nanotech_empa.cubehandler"
+    if request.param == "class-path":
+        # This is the serialization used by the real installed factories, not
+        # a hand-picked plugin string that can conceal an incompatible guard.
+        root_type = plugins.WorkflowFactory(
+            "nanotech_empa.cp2k.fragment_separation"
+        ).build_process_type()
+        helper_type = plugins.CalculationFactory(
+            "nanotech_empa.cubehandler"
+        ).build_process_type()
+    root = orm.WorkChainNode(process_type=root_type)
     root.base.links.add_incoming(
         source, link_type=LinkType.INPUT_WORK, link_label="structure"
     )
@@ -221,7 +230,7 @@ def retained(aiida_profile_clean, aiida_localhost, tmp_path):
     ).store()
     node = orm.CalcJobNode(
         computer=aiida_localhost,
-        process_type="aiida.calculations:nanotech_empa.cubehandler",
+        process_type=helper_type,
     )
     node.base.attributes.set("remote_workdir", str(tmp_path))
     node.base.links.add_incoming(code, link_type=LinkType.INPUT_CALC, link_label="code")

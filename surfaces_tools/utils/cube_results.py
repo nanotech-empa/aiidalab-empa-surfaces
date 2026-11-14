@@ -1,21 +1,42 @@
 """Short-lived provenance lookup for cube result navigation and boundary models."""
 
 from html import escape
-from aiida import orm
+from aiida import orm, plugins
 from aiida_nanotech_empa.utils.cp2k_results import calculation_boundary
 
 CUBE_TYPE = "aiida.calculations:nanotech_empa.cubehandler"
 ADSORPTION_TYPE = "aiida.workflows:nanotech_empa.cp2k.fragment_separation"
 
 
+def _process_types(entry_point, process_class):
+    """AiiDA records either the entry point or the fully qualified class path."""
+    return (entry_point, f"{process_class.__module__}.{process_class.__name__}")
+
+
+CUBE_TYPES = _process_types(
+    CUBE_TYPE, plugins.CalculationFactory("nanotech_empa.cubehandler")
+)
+ADSORPTION_TYPES = _process_types(
+    ADSORPTION_TYPE, plugins.WorkflowFactory("nanotech_empa.cp2k.fragment_separation")
+)
+
+
+def is_cube_helper(node):
+    """Recognize the canonical calculation class without relying on a label."""
+    return isinstance(node, orm.CalcJobNode) and node.process_type in CUBE_TYPES
+
+
 def adsorption_cube_links(identifier):
     """Resolve only this adsorption workflow's own successful retrieved cubes."""
     root = orm.load_node(identifier)
-    if root.process_type != ADSORPTION_TYPE:
+    if (
+        not isinstance(root, orm.WorkChainNode)
+        or root.process_type not in ADSORPTION_TYPES
+    ):
         raise ValueError("Select a Cp2kFragmentSeparationWorkChain adsorption result.")
     ready, pending = [], False
     for child in root.called_descendants:
-        if not isinstance(child, orm.CalcJobNode) or child.process_type != CUBE_TYPE:
+        if not is_cube_helper(child):
             continue
         pending |= not child.is_terminated
         if not child.is_finished_ok or "retrieved" not in child.outputs:

@@ -22,7 +22,7 @@ from cubehandler.cube import ANG_TO_BOHR, RenderLighting
 from cubehandler.slice_plane import SlicePlane
 from PIL import ImageColor
 from aiidalab_widgets_empa.cube_views import render_settings_from_view
-from .cube_results import CUBE_TYPE, cube_boundary
+from .cube_results import CUBE_TYPES, cube_boundary, is_cube_helper
 
 _VIEW_PREFIX = "surfaces_cube_view_"
 RESOURCES = {
@@ -78,7 +78,7 @@ def _source(identifier, cube_name):
     from surfaces_tools.widgets.cube import _load_cube_preview
 
     node = orm.load_node(identifier)
-    if node.process_type != CUBE_TYPE or not node.is_finished_ok:
+    if not is_cube_helper(node) or not node.is_finished_ok:
         raise ValueError("Select a completed cubehandler result.")
     if node.computer.transport_type != "core.local":
         raise ValueError("This render route is qualified only for local cube files.")
@@ -187,7 +187,7 @@ def _existing_render(plan):
         orm.CalcJobNode,
         with_incoming="parameters",
         edge_filters={"label": "parameters"},
-        filters={"process_type": CUBE_TYPE},
+        filters={"process_type": {"in": CUBE_TYPES}},
         project="*",
     )
     for node in q.all(flat=True):
