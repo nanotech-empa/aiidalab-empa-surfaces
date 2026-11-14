@@ -17,6 +17,62 @@ from surfaces_tools.widgets import dft_settings, inputs
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
 
+@pytest.mark.parametrize("mode", ["overlap", "sparse", "unfolding"])
+@pytest.mark.parametrize("use_elpa", [False, True])
+def test_explicit_diagonalizer_choice_preserves_other_builder_inputs(
+    scf_notebook, mode, use_elpa, monkeypatch
+):
+    from aiida import engine
+
+    def unexpected_submit(*args, **kwargs):
+        raise AssertionError("Reviewing diagonalizer choices must not submit")
+
+    monkeypatch.setattr(engine, "submit", unexpected_submit)
+    ui = scf_notebook
+    assert ui["use_elpa"].value is True
+    ui["write_overlap_matrix"].value = True
+    ui["retrieve_sparse_overlap"].value = mode == "sparse"
+    if mode == "unfolding":
+        ui["compute_unfolding"].value = True
+        ui["unfolding_a1"].value = "8 0 0"
+        ui["unfolding_primitive_basis_atoms"].value = "1 2"
+    assert ui["use_elpa"] in ui["overlap_options"].children
+    original = ui["prepare_scf"]()
+    expected = original.dft_params.get_dict()
+    ui["use_elpa"].value = use_elpa
+    selected = ui["prepare_scf"]()
+    actual = selected.dft_params.get_dict()
+    assert actual.pop("elpa_switch") is use_elpa
+    assert expected.pop("elpa_switch") is True
+    assert actual == expected
+    assert selected.options.get_dict() == original.options.get_dict()
+    assert selected.structure.uuid == original.structure.uuid
+    assert selected.protocol.value == original.protocol.value
+    assert selected.overlap_matrix.value == original.overlap_matrix.value
+    assert (
+        ui["Cp2kScfWorkChain"].spec().inputs.validate(selected._inputs(prune=True))
+        is None
+    )
+    # Rebuilding the visible section must retain the deliberate choice.
+    ui["write_overlap_matrix"].value = False
+    ui["write_overlap_matrix"].value = True
+    assert ui["use_elpa"].value is use_elpa
+    assert ui["prepare_scf"]().dft_params["elpa_switch"] is use_elpa
+
+
+@pytest.mark.parametrize("bader", [False, True])
+def test_hidden_diagonalizer_choice_does_not_enable_a_diagonalization(
+    scf_notebook, bader
+):
+    ui = scf_notebook
+    ui["use_elpa"].value = False
+    ui["compute_bader_charges"].value = bader
+    assert ui["use_elpa"] not in ui["overlap_options"].children
+    builder = ui["prepare_scf"]()
+    assert not builder.run_diag_scf.value
+    assert "elpa_switch" not in builder.dft_params.get_dict()
+
+
 @pytest.fixture
 def scf_notebook(aiida_profile, aiida_localhost):
     codes = {

@@ -453,7 +453,10 @@ C01 must also pass before reporting the full requested adsorption coverage.
    memory budget** and available worker headroom separately; there is no overall
    memory field to set in this form. Set **ADDED_MOS: 8**
    provisionally (four for the smaller 2×2 fallback), **Overlap digits: 14**,
-   **AO threshold: 1e-10**. With ordinary B(q3)/N(q5), U1 has 288 electrons and
+   and **AO threshold: 1e-10**. Choose **use ELPA** for the selected runtime;
+   leave it off for the localhost ARM case, as the backend ELPA option selects
+   an AVX2 kernel. As in PDOS/SPM, leaving ELPA off retains CP2K’s standard
+   diagonalizer selection. With ordinary B(q3)/N(q5), U1 has 288 electrons and
    144 occupied bands; verify actual data and energy coverage. Agree whether
    to enable **Self-consistent diagonalisation**; use it for the proposed pristine
    control, leave Fermi-Dirac smearing off. Check compatibility with the frozen
