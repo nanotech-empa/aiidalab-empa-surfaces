@@ -240,7 +240,8 @@ def test_actual_query_reuses_same_render_and_callback_consumes_review(
 
     def capture(builder):
         node = orm.CalcJobNode(
-            computer=builder.code.computer, process_type=cube_results.CUBE_TYPE
+            computer=builder.code.computer,
+            process_type=builder.process_class.build_process_type(),
         )
         node.base.links.add_incoming(
             builder.parameters.store(),

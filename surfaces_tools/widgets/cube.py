@@ -375,7 +375,7 @@ class HandleCubeFiles(ipw.VBox):
             return
         try:
             node = orm.load_node(self.node_pk)
-            if node.process_type != cube_results.CUBE_TYPE or not node.is_finished_ok:
+            if not cube_results.is_cube_helper(node) or not node.is_finished_ok:
                 raise ValueError("Select a completed cubehelper result.")
             names = node.outputs.retrieved.list_object_names("out_cubes")
             model = cube_results.cube_boundary(node.uuid)
