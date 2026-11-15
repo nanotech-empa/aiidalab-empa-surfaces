@@ -1007,7 +1007,9 @@ class PdosOverlapViewerWidget(ipw.VBox):
 
         # The MO/overlap computation window does not limit stored PDOS states.
         lower, upper = pdos_display_bounds(self._projections.data)
-        energy_lim = (lower, upper)
+        # Start near the energy reference, retaining access to the full spectrum.
+        lower, upper = min(lower, -2.0), max(upper, 2.0)
+        energy_lim = (-2.0, 2.0)
         if same_source and old_reference and reference_info:
             shift = old_reference["ev"] - reference_info["ev"]
             shifted = (old_range[0] + shift, old_range[1] + shift)
