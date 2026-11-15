@@ -198,7 +198,7 @@ def test_actual_load_includes_native_frontiers_and_all_stored_states(module, sou
     slider = viewer._energy_range_slider
     assert energies.shape == (100,)
     assert slider.min < energies.min() < -2.435 < 2.435 < energies.max() < slider.max
-    assert slider.value == (slider.min, slider.max)
+    assert slider.value == (-2.0, 2.0)
     assert orm.load_node(identifier).inputs.overlap_params.get_dict() == {
         "--emin1": "-2",
         "--emax1": "2",
@@ -277,6 +277,7 @@ def test_same_source_reopen_preserves_rows_but_new_source_resets(module, sources
     viewer.clear_plot = Mock(wraps=viewer.clear_plot)
     viewer.load_data(second)
     viewer.clear_plot.assert_called_once()
+    assert viewer._energy_range_slider.value == (-2.0, 2.0)
     assert viewer._projections.selection_state() == [(0, "tdos", "lightgray", 0.02)]
     assert viewer._overlap.items == ()
     assert viewer._overlap.add_item_button.disabled
