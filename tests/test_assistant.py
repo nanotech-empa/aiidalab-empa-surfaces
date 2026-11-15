@@ -1,3 +1,5 @@
+import pytest
+
 from types import SimpleNamespace
 
 import ipywidgets as ipw
@@ -6,7 +8,7 @@ from surfaces_tools.assistant import create_panel
 
 
 def test_bindings_edit_the_real_code_selector_and_ignore_unrelated_state(monkeypatch):
-    from aiidalab_ai_assistant import forms
+    forms = pytest.importorskip("aiidalab_ai_assistant.forms")
 
     monkeypatch.setattr(forms, "panel", lambda adapter: adapter)
     dropdown = ipw.Dropdown(options=[("None", None), ("Configured code", "code-uuid")])

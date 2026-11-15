@@ -23,8 +23,9 @@ def profile(aiida_config_factory, aiida_profile_factory, tmp_path_factory):  # n
 def gui(profile, monkeypatch):
     import aiidalab_widgets_base as awb
     import aiidalab_widgets_empa as awe
-    from aiidalab_ai_assistant import forms
-    from aiidalab_ai_assistant.tools import ToolRegistry
+
+    forms = pytest.importorskip("aiidalab_ai_assistant.forms")
+    ToolRegistry = pytest.importorskip("aiidalab_ai_assistant.tools").ToolRegistry
 
     from surfaces_tools.widgets.dft_settings import DftSettingsWidget
     from surfaces_tools.widgets.inputs import InputDetails
