@@ -1,0 +1,156 @@
+"""Optional chat bindings for host-declared notebook forms and actions."""
+
+FIELD_NAMES = (
+    "protocol",
+    "workflow_description",
+    "text_calc_description",
+    "tot_charge",
+    "spin_u",
+    "spin_d",
+    "cell_opt",
+    "max_nodes",
+    "mem_node",
+    "max_hours",
+    "pseudo_family_dropdown",
+    "pw_code_dropdown",
+    "pp_code_dropdown",
+    "projwfc_code_dropdown",
+    "code_input_widget",
+    "cubehandler_code",
+    "parent_calc_folder",
+    "skip_wfn_restart_search",
+)
+
+
+def make_structure_manager(*args, **kwargs):
+    """Construct the unchanged GUI and retain explicit importer references."""
+    import aiidalab_widgets_base as awb
+    import aiidalab_widgets_empa as awe
+
+    manager = awb.StructureManagerWidget(*args, **kwargs)
+    kinds = (
+        ("file", awb.StructureUploadWidget),
+        ("database", awb.StructureBrowserWidget),
+        ("cdxml", awe.CdxmlUploadWidget),
+    )
+    manager.assistant_importers = {
+        name: importer
+        for importer in kwargs.get("importers", ())
+        for name, cls in kinds
+        if isinstance(importer, cls)
+    }
+    manager.assistant_editors = tuple(kwargs.get("editors", ()))
+    return manager
+
+
+def create_panel(page, namespace):
+    try:
+        from aiidalab_ai_assistant.forms import panel
+        from aiidalab_ai_assistant.guided import (
+            GuidedFormAdapter,
+            form_controls,
+            messages,
+        )
+        from aiidalab_ai_assistant.structures import StructureTools
+    except ModuleNotFoundError as exc:
+        if not exc.name.startswith("aiidalab_ai_assistant"):
+            raise
+        import ipywidgets as ipw
+
+        return ipw.HTML(
+            "AI assistant is optional; install aiidalab-ai-assistant to enable it."
+        )
+    from .assistant_bindings import DRAFT_BUTTONS, EXECUTION_BUTTONS, FORM_ROOTS
+
+    roots = {
+        name: namespace[name]
+        for name in FORM_ROOTS.get(page, FIELD_NAMES)
+        if name in namespace
+    }
+    draft = {
+        name: namespace[name]
+        for name in DRAFT_BUTTONS.get(page, ())
+        if name in namespace
+    }
+    execution = {
+        name: namespace[name]
+        for name in EXECUTION_BUTTONS.get(page, ())
+        if name in namespace
+    }
+    selector = namespace.get("structure_selector")
+    if selector is None and page == "cdxml_editor.ipynb":
+        selector = namespace.get("editor")
+    structure_tools = StructureTools(selector) if selector is not None else None
+    if selector is not None:
+        roots.update(
+            {
+                f"geometry_editor.{i}": widget
+                for i, widget in enumerate(getattr(selector, "assistant_editors", ()))
+            }
+        )
+    spm_buttons = namespace.get("submit_button") if page == "submit_spm.ipynb" else None
+
+    diagnostics = [
+        namespace[name]
+        for name in (
+            "output",
+            "submit_out",
+            "info",
+            "unfolding_status",
+            "submission_links",
+        )
+        if name in namespace
+    ]
+
+    def fields():
+        values, _ = form_controls(roots)
+        if structure_tools:
+            values.update(structure_tools.fields())
+        return values
+
+    def draft_buttons():
+        _, values = form_controls(roots)
+        values.update(draft)
+        return values
+
+    def execution_buttons():
+        active = execution
+        if spm_buttons is not None:
+            active = {
+                name: widget
+                for name, widget in execution.items()
+                if widget in spm_buttons.children
+            }
+        return {
+            name: getattr(widget, "btn_submit", widget)
+            for name, widget in active.items()
+        }
+
+    def context():
+        submitted = {}
+        for name, widget in execution.items():
+            process = getattr(widget, "process", None)
+            if process is not None:
+                submitted[name] = str(process.uuid)
+            del process
+        result = {
+            "page": page,
+            "messages": messages([*roots.values(), *execution.values(), *diagnostics]),
+            "submitted_processes": submitted,
+            "execution": "Review science and resources, then request the current execution action. Only the user's action button executes it.",
+        }
+        if structure_tools:
+            result.update(structure_tools.context())
+        return result
+
+    # Do not retain the notebook namespace, credential widgets or ORM objects.
+    return panel(
+        GuidedFormAdapter(
+            "surfaces",
+            fields,
+            context=context,
+            draft_buttons=draft_buttons,
+            execution_buttons=execution_buttons,
+            structure_tools=structure_tools,
+        )
+    )
