@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "title": "On-surface chemistry",
+  "notebook": "submit_geometry_optimization.ipynb",
+  "assistant": {
+    "embedded": true
+  },
+  "capabilities": [
+    "Shared chat and current app-owned Git guidance",
+    "Inspect AiiDA and laboratory openBIS records",
+    "Fill declared scientific/resource forms and apply draft controls",
+    "Review existing solver/submission actions with user execution",
+    "Guide result inspection and openBIS export through existing tools"
+  ],
+  "workflow_guides": [
+    {
+      "id": "surfaces.workflows",
+      "title": "On-surface chemistry operating guide",
+      "path": "docs/agents/README.md",
+      "topics": [
+        "surfaces",
+        "openbis",
+        "export",
+        "esporta",
+        "submit",
+        "sottomissione"
+      ]
+    },
+    {
+      "id": "surfaces.electrostatics",
+      "title": "CP2K effective electrostatics and isolation",
+      "path": "docs/cp2k-electrostatics.md",
+      "topics": [
+        "electrostatics",
+        "boundary",
+        "isolated",
+        "poisson",
+        "mt"
+      ]
+    }
+  ]
+}
