@@ -115,3 +115,45 @@ def test_unsupported_structure_without_provenance_returns_no_restart(aiida_profi
         ase=ase.Atoms("H", positions=[[0, 0, 0]], cell=[10] * 3)
     ).store()
     assert wfn.structure_available_wfn(structure, dft_params={}) is None
+
+
+@pytest.mark.parametrize("available", [False, True])
+def test_imported_endpoint_uses_selected_computer(
+    aiida_profile_tmp, aiida_localhost, tmp_path, monkeypatch, available
+):
+    assert aiida_profile_tmp.is_test_profile
+    imported = orm.Computer(
+        label="imported-original-account",
+        hostname=aiida_localhost.hostname,
+        transport_type="core.local",
+        scheduler_type="core.direct",
+        workdir=str(tmp_path),
+    ).store()
+    structure, _, source = _structure_from_workchain(imported, tmp_path)
+    if available:
+        (tmp_path / "aiida-RESTART.wfn").write_bytes(b"original data")
+    source_attributes = source.base.attributes.all
+    real_transport = orm.Computer.get_transport
+
+    def selected_only(computer, *args, **kwargs):
+        assert computer.uuid == aiida_localhost.uuid
+        return real_transport(computer, *args, **kwargs)
+
+    monkeypatch.setattr(orm.Computer, "get_transport", selected_only)
+    messages = []
+    found = wfn.structure_available_wfn(
+        structure,
+        selected_computer=aiida_localhost,
+        return_path=False,
+        dft_params={"uks": False},
+        reporter=messages.append,
+    )
+    if available:
+        assert found.computer.uuid == aiida_localhost.uuid
+        assert found.get_remote_path() == source.get_remote_path()
+        assert not found.is_stored
+    else:
+        assert found is None
+    assert messages
+    assert source.base.attributes.all == source_attributes
+    assert not imported.is_user_configured(orm.User.collection.get_default())

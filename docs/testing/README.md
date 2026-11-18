@@ -29,6 +29,12 @@ source selection where required. Never hide it with an EMPA private-cache patch.
 
 ## Coverage and ownership
 
+For automatic WFN discovery, imported structures use the selected destination
+account to check compatible restart files. Missing or unreadable optional files
+produce a diagnostic and a fresh SCF; users do not need to configure imported
+computers. A manually supplied restart folder retains precedence and is not
+silently discarded. See the [restart policy](../wfn-restarts.md).
+
 | Cases | App / purpose | Evidence required |
 | --- | --- | --- |
 | S00–S01, E01–E02 | Launch, CH4 creation, Au(111), cell editing, auto/manual representations | Geometry versus display changes; saved representations on new structures; no scientific submission |
