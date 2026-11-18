@@ -2,6 +2,7 @@ import re
 
 import numpy as np
 from aiida import common, orm
+from aiida_nanotech_empa.utils.wfn import available_wfn_folder
 
 
 def find_first_workchain(node):
@@ -60,6 +61,8 @@ def structure_available_wfn(
     current_hostname=None,
     return_path=True,
     dft_params=None,
+    selected_computer=None,
+    reporter=None,
 ):
     """
     Checks availability of .wfn file corresponding to a structure and returns the remote path.
@@ -71,6 +74,9 @@ def structure_available_wfn(
     :param dft_params: dictionary with dft parameters needed to check if restart with UKS is possible
     :return: remote path or folder
     """
+
+    if selected_computer is not None:
+        current_hostname = selected_computer.hostname
 
     struc_node = node
     generating_workchain = find_first_workchain(struc_node)
@@ -158,31 +164,21 @@ def structure_available_wfn(
     else:
         return None
 
-    wfn_exists = False
-    try:  # noqa: TC101, TRY101
-        wfn_search_path = (
-            generating_workchain.outputs.remote_folder.get_remote_path()
-            + "/"
-            + wfn_name
-        )
-
-        wfn_exists = remote_file_exists(code.computer, wfn_search_path)
+    try:
+        source_folder = generating_workchain.outputs.remote_folder
     except common.NotExistentAttributeError:
-        pass
-
-    if not wfn_exists:
         return None
 
-    if create_a_copy:
-        copy_wfn(
-            computer=code.computer,
-            wfn_search_path=wfn_search_path,
-            wfn_name=generating_workchain.outputs.remote_folder.get_remote_path()
-            + "/"
-            + "aiida-RESTART.wfn",
-        )
+    folder = available_wfn_folder(
+        source_folder,
+        wfn_name,
+        selected_computer=selected_computer,
+        copy_to="aiida-RESTART.wfn" if create_a_copy else None,
+        reporter=reporter,
+    )
+    if folder is None:
+        return None
 
     if return_path:
-        return wfn_search_path
-    else:
-        return generating_workchain.outputs.remote_folder
+        return folder.get_remote_path() + "/" + wfn_name
+    return folder

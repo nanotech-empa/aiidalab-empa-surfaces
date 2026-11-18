@@ -79,3 +79,96 @@ def test_restart_choice(notebook, skip, manual):
     else:
         assert builder.parent_calc_folder is found_wfn
         search.assert_called_once()
+        assert search.call_args.kwargs["selected_computer"] is code.computer
+        assert search.call_args.kwargs["reporter"] is print
+
+
+@pytest.mark.parametrize("notebook", NOTEBOOKS)
+def test_unavailable_automatic_wfn_leaves_fresh_scf_builder(notebook):
+    """The real notebook branch must not attach an unavailable parent folder."""
+    path = Path(__file__).resolve().parents[1] / notebook
+    cells = json.loads(path.read_text())["cells"]
+    source = next(
+        "".join(c["source"])
+        for c in cells
+        if "parent_calc_folder_path =" in "".join(c["source"])
+    )
+    nodes = list(ast.walk(ast.parse(source)))
+    branch = next(
+        node
+        for node in nodes
+        if isinstance(node, ast.If)
+        and isinstance(node.test, ast.Name)
+        and node.test.id == "parent_calc_folder_path"
+    )
+    code = SimpleNamespace(computer=object())
+    builder = SimpleNamespace(code=code, cp2k_code=code)
+    search = Mock(return_value=None)
+    namespace = {
+        "parent_calc_folder_path": "",
+        "skip_wfn_restart_search": SimpleNamespace(value=False),
+        "structure_selector": SimpleNamespace(
+            structure_node=SimpleNamespace(is_stored=True)
+        ),
+        "builder": builder,
+        "code": code,
+        "parameters": {"dft_params": {}},
+        "dft_params_dict": {},
+        "dft_params": {},
+        "wfn": SimpleNamespace(structure_available_wfn=search),
+    }
+    exec(
+        compile(ast.Module(body=[branch], type_ignores=[]), str(path), "exec"),
+        namespace,
+    )
+    search.assert_called_once()
+    assert not hasattr(builder, "parent_calc_folder")
+
+
+@pytest.mark.parametrize("restart", [False, True])
+@pytest.mark.parametrize("available", [False, True])
+def test_replica_chain_preserves_explicit_restart_and_automatic_search(
+    restart, available
+):
+    path = Path(__file__).resolve().parents[1] / "submit_replica_chain.ipynb"
+    source = next(
+        "".join(c["source"])
+        for c in json.loads(path.read_text())["cells"]
+        if "wfn.structure_available_wfn(" in "".join(c.get("source", []))
+    )
+    branch = next(
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.If)
+        and isinstance(node.test, ast.Compare)
+        and isinstance(node.test.left, ast.Constant)
+        and node.test.left.value == "restart_from"
+    )
+    found = SimpleNamespace(pk=1)
+    search = Mock(return_value=found if available else None)
+    code = SimpleNamespace(computer=object())
+    builder = SimpleNamespace()
+    namespace = {
+        "parameters": {"restart_from": "explicit-parent"} if restart else {},
+        "builder": builder,
+        "orm": SimpleNamespace(Str=str),
+        "structure_selector": SimpleNamespace(
+            structure_node=SimpleNamespace(is_stored=True)
+        ),
+        "wfn": SimpleNamespace(structure_available_wfn=search),
+        "code": code,
+        "dft_params_dict": {},
+    }
+    exec(
+        compile(ast.Module(body=[branch], type_ignores=[]), str(path), "exec"),
+        namespace,
+    )
+    if restart:
+        search.assert_not_called()
+        assert builder.restart_from == "explicit-parent"
+        assert not hasattr(builder, "parent_calc_folder")
+    else:
+        search.assert_called_once()
+        assert search.call_args.kwargs["selected_computer"] is code.computer
+        assert search.call_args.kwargs["reporter"] is print
+        assert hasattr(builder, "parent_calc_folder") is available
