@@ -13,7 +13,9 @@ class CommentsWidget(ipw.VBox):
         try:
             node = orm.load_node(workchain)
         except (ValueError, TypeError, NotExistent, MultipleObjectsError):
-            super().__init__([ipw.Label("The requested AiiDA node could not be found.")])
+            super().__init__(
+                [ipw.Label("The requested AiiDA node could not be found.")]
+            )
             return
         self.node_uuid = str(node.uuid)
         self.old_comments = ipw.Output()
