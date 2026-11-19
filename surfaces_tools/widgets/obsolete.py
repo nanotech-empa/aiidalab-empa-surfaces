@@ -6,8 +6,9 @@ from IPython.display import clear_output
 class ObsoleteWidget(ipw.VBox):
     def __init__(self, workchain=None):
         if not workchain:
+            super().__init__()
             return
-        self.node = load_node(workchain)
+        self.node_uuid = str(load_node(workchain).uuid)
 
         self.output = ipw.Output()
         btn_mark_as_obsolete = ipw.Button(
@@ -20,7 +21,8 @@ class ObsoleteWidget(ipw.VBox):
         super().__init__([app])
 
     def on_obsolete_click(self, _=None):
-        self.node.set_extra("obsolete", True)
+        node = load_node(self.node_uuid)
+        node.base.extras.set("obsolete", True)
         with self.output:
             clear_output()
-            print("Node {self.node.pk} will not be listed in search")
+            print(f"Node {node.pk} will not be listed in search")

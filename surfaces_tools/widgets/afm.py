@@ -51,9 +51,10 @@ class ViewAfmLegacy(ipw.VBox):
     """Widget to view the legacy AFM calculations."""
 
     def __init__(self, pk):
-        self.workcalc = orm.load_node(pk=pk)
-        self.afm_pp_calc = spm.get_calc_by_label(self.workcalc, "afm_pp")
-        self.afm_2pp_calc = spm.get_calc_by_label(self.workcalc, "afm_2pp")
+        workcalc = orm.load_node(pk=pk)
+        self.workchain_pk = workcalc.pk
+        afm_pp_calc = spm.get_calc_by_label(workcalc, "afm_pp")
+        afm_2pp_calc = spm.get_calc_by_label(workcalc, "afm_2pp")
         self.afm_out = ipw.Output()
         self.download_zip_link = ipw.HTML()
         self.mk_zip_btn = ipw.Button(description="Make ZIP", disabled=True)
@@ -67,13 +68,13 @@ class ViewAfmLegacy(ipw.VBox):
             orientation="horizontal",
         )
 
-        scan_start_z = self.workcalc.inputs.afm_pp_params.dict.scanMin[2]
-        ampl = self.workcalc.inputs.afm_pp_params.dict.Amplitude
-        self.dz = self.workcalc.inputs.afm_pp_params.dict.scanStep[2]
+        scan_start_z = workcalc.inputs.afm_pp_params.dict.scanMin[2]
+        ampl = workcalc.inputs.afm_pp_params.dict.Amplitude
+        self.dz = workcalc.inputs.afm_pp_params.dict.scanStep[2]
         self.h0 = scan_start_z + ampl / 2.0
 
-        self.data_pp = load_afm_pp_data(self.afm_pp_calc)
-        self.data_2pp = load_afm_pp_data(self.afm_2pp_calc)
+        self.data_pp = load_afm_pp_data(afm_pp_calc)
+        self.data_2pp = load_afm_pp_data(afm_2pp_calc)
 
         self.extent = [
             self.data_pp[0][0, 0],
@@ -118,7 +119,7 @@ class ViewAfmLegacy(ipw.VBox):
 
         super().__init__(
             [
-                ipw.HTML(spm.get_slab_calc_info(self.workcalc.inputs.structure)),
+                ipw.HTML(spm.get_slab_calc_info(workcalc.inputs.structure)),
                 ipw.HBox([self.mk_zip_btn, self.zip_progress]),
                 self.download_zip_link,
                 self.afm_out,
@@ -184,7 +185,7 @@ class ViewAfmLegacy(ipw.VBox):
                 )
                 zip_file.writestr(f"pp2/pp2_{i_z:02d}.txt", txtdata.getvalue())
 
-        filename = f"afm_{self.workcalc.pk}.zip"
+        filename = f"afm_{self.workchain_pk}.zip"
 
         with open("tmp/" + filename, "wb") as f:
             f.write(zip_buffer.getvalue())
@@ -195,8 +196,9 @@ class ViewAfmWidget(ipw.VBox):
     """Widget to view the legacy AFM calculations."""
 
     def __init__(self, pk):
-        self.workcalc = orm.load_node(pk=pk)
-        self.ppafm_calc = spm.get_calc_by_label(self.workcalc, "ppafm")
+        workcalc = orm.load_node(pk=pk)
+        self.workchain_pk = workcalc.pk
+        ppafm_calc = spm.get_calc_by_label(workcalc, "ppafm")
         self.afm_out = ipw.Output()
         self.download_zip_link = ipw.HTML()
         self.mk_zip_btn = ipw.Button(description="Make ZIP", disabled=True)
@@ -210,12 +212,12 @@ class ViewAfmWidget(ipw.VBox):
             orientation="horizontal",
         )
 
-        scan_start_z = self.workcalc.inputs.ppafm_params.dict.scanMin[2]
-        ampl = self.workcalc.inputs.ppafm_params.dict.Amplitude
-        self.dz = self.workcalc.inputs.ppafm_params.dict.scanStep[2]
+        scan_start_z = workcalc.inputs.ppafm_params.dict.scanMin[2]
+        ampl = workcalc.inputs.ppafm_params.dict.Amplitude
+        self.dz = workcalc.inputs.ppafm_params.dict.scanStep[2]
         self.h0 = scan_start_z + ampl / 2.0
 
-        self.data_ppafm = load_afm_pp_data(self.ppafm_calc)
+        self.data_ppafm = load_afm_pp_data(ppafm_calc)
 
         self.extent = [
             self.data_ppafm[0][0, 0],
@@ -234,7 +236,7 @@ class ViewAfmWidget(ipw.VBox):
 
         super().__init__(
             [
-                ipw.HTML(spm.get_slab_calc_info(self.workcalc.inputs.structure)),
+                ipw.HTML(spm.get_slab_calc_info(workcalc.inputs.structure)),
                 ipw.HBox([self.mk_zip_btn, self.zip_progress]),
                 self.download_zip_link,
                 self.afm_out,
@@ -298,7 +300,7 @@ class ViewAfmWidget(ipw.VBox):
                 )
                 zip_file.writestr(f"ppafm_{i_z:02d}.txt", txtdata.getvalue())
 
-        filename = f"afm_{self.workcalc.pk}.zip"
+        filename = f"afm_{self.workchain_pk}.zip"
 
         # Create the tmp directory if it doesn't exist
         Path("tmp").mkdir(parents=True, exist_ok=True)
