@@ -47,13 +47,21 @@ def make_afm_pic(fig, ax, data, i_z, title, extent):
     ax.set_ylabel(r"Tip$_y$ [$\AA$]")
 
 
+def save_afm_zip(buffer, workchain_pk):
+    path = Path("tmp") / f"afm_{workchain_pk}.zip"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(buffer.getvalue())
+    return download_link(path.name)
+
+
 class ViewAfmLegacy(ipw.VBox):
     """Widget to view the legacy AFM calculations."""
 
     def __init__(self, pk):
-        self.workcalc = orm.load_node(pk=pk)
-        self.afm_pp_calc = spm.get_calc_by_label(self.workcalc, "afm_pp")
-        self.afm_2pp_calc = spm.get_calc_by_label(self.workcalc, "afm_2pp")
+        workcalc = orm.load_node(pk=pk)
+        self.workchain_pk = workcalc.pk
+        afm_pp_calc = spm.get_calc_by_label(workcalc, "afm_pp")
+        afm_2pp_calc = spm.get_calc_by_label(workcalc, "afm_2pp")
         self.afm_out = ipw.Output()
         self.download_zip_link = ipw.HTML()
         self.mk_zip_btn = ipw.Button(description="Make ZIP", disabled=True)
@@ -67,13 +75,13 @@ class ViewAfmLegacy(ipw.VBox):
             orientation="horizontal",
         )
 
-        scan_start_z = self.workcalc.inputs.afm_pp_params.dict.scanMin[2]
-        ampl = self.workcalc.inputs.afm_pp_params.dict.Amplitude
-        self.dz = self.workcalc.inputs.afm_pp_params.dict.scanStep[2]
+        scan_start_z = workcalc.inputs.afm_pp_params.dict.scanMin[2]
+        ampl = workcalc.inputs.afm_pp_params.dict.Amplitude
+        self.dz = workcalc.inputs.afm_pp_params.dict.scanStep[2]
         self.h0 = scan_start_z + ampl / 2.0
 
-        self.data_pp = load_afm_pp_data(self.afm_pp_calc)
-        self.data_2pp = load_afm_pp_data(self.afm_2pp_calc)
+        self.data_pp = load_afm_pp_data(afm_pp_calc)
+        self.data_2pp = load_afm_pp_data(afm_2pp_calc)
 
         self.extent = [
             self.data_pp[0][0, 0],
@@ -118,7 +126,7 @@ class ViewAfmLegacy(ipw.VBox):
 
         super().__init__(
             [
-                ipw.HTML(spm.get_slab_calc_info(self.workcalc.inputs.structure)),
+                ipw.HTML(spm.get_slab_calc_info(workcalc.inputs.structure)),
                 ipw.HBox([self.mk_zip_btn, self.zip_progress]),
                 self.download_zip_link,
                 self.afm_out,
@@ -130,9 +138,8 @@ class ViewAfmLegacy(ipw.VBox):
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, False) as zip_file:
-            for i_z in range(self.data_pp[2].shape[0]):
-                self.zip_progress.value = i_z / float(self.data_pp[2].shape[0] - 1)
-
+            height_count = self.data_pp[2].shape[0]
+            for i_z in range(height_count):
                 tipz = self.h0 + i_z * self.dz
 
                 # Add images to the zip
@@ -184,19 +191,18 @@ class ViewAfmLegacy(ipw.VBox):
                 )
                 zip_file.writestr(f"pp2/pp2_{i_z:02d}.txt", txtdata.getvalue())
 
-        filename = f"afm_{self.workcalc.pk}.zip"
+                self.zip_progress.value = (i_z + 1) / height_count
 
-        with open("tmp/" + filename, "wb") as f:
-            f.write(zip_buffer.getvalue())
-        self.download_zip_link.value = download_link(filename)
+        self.download_zip_link.value = save_afm_zip(zip_buffer, self.workchain_pk)
 
 
 class ViewAfmWidget(ipw.VBox):
-    """Widget to view the legacy AFM calculations."""
+    """Widget to view ppafm calculations."""
 
     def __init__(self, pk):
-        self.workcalc = orm.load_node(pk=pk)
-        self.ppafm_calc = spm.get_calc_by_label(self.workcalc, "ppafm")
+        workcalc = orm.load_node(pk=pk)
+        self.workchain_pk = workcalc.pk
+        ppafm_calc = spm.get_calc_by_label(workcalc, "ppafm")
         self.afm_out = ipw.Output()
         self.download_zip_link = ipw.HTML()
         self.mk_zip_btn = ipw.Button(description="Make ZIP", disabled=True)
@@ -210,12 +216,12 @@ class ViewAfmWidget(ipw.VBox):
             orientation="horizontal",
         )
 
-        scan_start_z = self.workcalc.inputs.ppafm_params.dict.scanMin[2]
-        ampl = self.workcalc.inputs.ppafm_params.dict.Amplitude
-        self.dz = self.workcalc.inputs.ppafm_params.dict.scanStep[2]
+        scan_start_z = workcalc.inputs.ppafm_params.dict.scanMin[2]
+        ampl = workcalc.inputs.ppafm_params.dict.Amplitude
+        self.dz = workcalc.inputs.ppafm_params.dict.scanStep[2]
         self.h0 = scan_start_z + ampl / 2.0
 
-        self.data_ppafm = load_afm_pp_data(self.ppafm_calc)
+        self.data_ppafm = load_afm_pp_data(ppafm_calc)
 
         self.extent = [
             self.data_ppafm[0][0, 0],
@@ -234,7 +240,7 @@ class ViewAfmWidget(ipw.VBox):
 
         super().__init__(
             [
-                ipw.HTML(spm.get_slab_calc_info(self.workcalc.inputs.structure)),
+                ipw.HTML(spm.get_slab_calc_info(workcalc.inputs.structure)),
                 ipw.HBox([self.mk_zip_btn, self.zip_progress]),
                 self.download_zip_link,
                 self.afm_out,
@@ -262,9 +268,8 @@ class ViewAfmWidget(ipw.VBox):
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, False) as zip_file:
-            for i_z in range(self.data_ppafm[2].shape[0]):
-                self.zip_progress.value = i_z / float(self.data_ppafm[2].shape[0] - 1)
-
+            height_count = self.data_ppafm[2].shape[0]
+            for i_z in range(height_count):
                 tipz = self.h0 + i_z * self.dz
 
                 # Add images to the zip
@@ -298,11 +303,6 @@ class ViewAfmWidget(ipw.VBox):
                 )
                 zip_file.writestr(f"ppafm_{i_z:02d}.txt", txtdata.getvalue())
 
-        filename = f"afm_{self.workcalc.pk}.zip"
+                self.zip_progress.value = (i_z + 1) / height_count
 
-        # Create the tmp directory if it doesn't exist
-        Path("tmp").mkdir(parents=True, exist_ok=True)
-
-        with open("tmp/" + filename, "wb") as f:
-            f.write(zip_buffer.getvalue())
-        self.download_zip_link.value = download_link(filename)
+        self.download_zip_link.value = save_afm_zip(zip_buffer, self.workchain_pk)
