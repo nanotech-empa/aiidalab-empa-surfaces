@@ -47,6 +47,13 @@ def make_afm_pic(fig, ax, data, i_z, title, extent):
     ax.set_ylabel(r"Tip$_y$ [$\AA$]")
 
 
+def save_afm_zip(buffer, workchain_pk):
+    path = Path("tmp") / f"afm_{workchain_pk}.zip"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(buffer.getvalue())
+    return download_link(path.name)
+
+
 class ViewAfmLegacy(ipw.VBox):
     """Widget to view the legacy AFM calculations."""
 
@@ -131,9 +138,8 @@ class ViewAfmLegacy(ipw.VBox):
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, False) as zip_file:
-            for i_z in range(self.data_pp[2].shape[0]):
-                self.zip_progress.value = i_z / float(self.data_pp[2].shape[0] - 1)
-
+            height_count = self.data_pp[2].shape[0]
+            for i_z in range(height_count):
                 tipz = self.h0 + i_z * self.dz
 
                 # Add images to the zip
@@ -185,15 +191,13 @@ class ViewAfmLegacy(ipw.VBox):
                 )
                 zip_file.writestr(f"pp2/pp2_{i_z:02d}.txt", txtdata.getvalue())
 
-        filename = f"afm_{self.workchain_pk}.zip"
+                self.zip_progress.value = (i_z + 1) / height_count
 
-        with open("tmp/" + filename, "wb") as f:
-            f.write(zip_buffer.getvalue())
-        self.download_zip_link.value = download_link(filename)
+        self.download_zip_link.value = save_afm_zip(zip_buffer, self.workchain_pk)
 
 
 class ViewAfmWidget(ipw.VBox):
-    """Widget to view the legacy AFM calculations."""
+    """Widget to view ppafm calculations."""
 
     def __init__(self, pk):
         workcalc = orm.load_node(pk=pk)
@@ -264,9 +268,8 @@ class ViewAfmWidget(ipw.VBox):
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, False) as zip_file:
-            for i_z in range(self.data_ppafm[2].shape[0]):
-                self.zip_progress.value = i_z / float(self.data_ppafm[2].shape[0] - 1)
-
+            height_count = self.data_ppafm[2].shape[0]
+            for i_z in range(height_count):
                 tipz = self.h0 + i_z * self.dz
 
                 # Add images to the zip
@@ -300,11 +303,6 @@ class ViewAfmWidget(ipw.VBox):
                 )
                 zip_file.writestr(f"ppafm_{i_z:02d}.txt", txtdata.getvalue())
 
-        filename = f"afm_{self.workchain_pk}.zip"
+                self.zip_progress.value = (i_z + 1) / height_count
 
-        # Create the tmp directory if it doesn't exist
-        Path("tmp").mkdir(parents=True, exist_ok=True)
-
-        with open("tmp/" + filename, "wb") as f:
-            f.write(zip_buffer.getvalue())
-        self.download_zip_link.value = download_link(filename)
+        self.download_zip_link.value = save_afm_zip(zip_buffer, self.workchain_pk)
