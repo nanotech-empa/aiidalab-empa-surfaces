@@ -189,6 +189,25 @@ def create_panel(page, namespace):
                     resources.threads_per_task,
                 ),
             }
+            if section._restart_replica_count is not None:
+                ready, message, draft_params = details.return_final_dictionary()
+                result["neb"]["input_validation"] = {"valid": ready, "message": message}
+                if ready:
+                    from aiida import orm
+
+                    parent = orm.load_node(draft_params["restart_from"])
+                    changed = {}
+                    for port in ("neb_params", "sys_params", "dft_params"):
+                        previous = parent.inputs[port].get_dict()
+                        current = draft_params.get(port, {})
+                        changed[port] = sorted(
+                            key
+                            for key in previous.keys() | current.keys()
+                            if key not in previous
+                            or key not in current
+                            or previous[key] != current[key]
+                        )
+                    result["neb"]["changed_parent_settings"] = changed
         if electrostatics is not None and hasattr(resources, "tasks_per_node"):
             result["cp2k_resources"] = {
                 "nodes": resources.nodes,

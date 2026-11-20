@@ -77,7 +77,10 @@ resource widgets are available to fill; never invent a configured code.
   to the parent PK and verify the saved replica count in `context.neb`.
   Apply the parent replica count and `neb.replicas_per_group` before the node
   count. Check protocol, constraints, band settings and the effective allocation
-  against the parent before reviewing submission. With 15 replicas, 40 nodes,
+  against the parent before reviewing submission. Read `context.neb.input_validation`
+  and `changed_parent_settings`. An empty list for each of `sys_params`,
+  `dft_params` and `neb_params` verifies equality with the parent, including
+  the constraints. Check code, protocol and allocation separately. With 15 replicas, 40 nodes,
   8 ranks per node and NPROC_REP of 64, the original 320 ranks run five groups
   of three replicas. One replica per group makes the form adjust 40 nodes to 45.
 - Use the matching adsorption-energy, phonon, NICS or other notebook only when
