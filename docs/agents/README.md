@@ -89,3 +89,20 @@ then press **Export**. A navigation link does not prefill fields or publish.
 Inspect unsupported-result messages rather than fabricating an object. For an
 archive import use the Import simulations GUI and inspect the receiving AiiDA
 record; do not call the old chatbot's import function from conversation text.
+
+## Read the effective CP2K inputs
+
+In the shared chat, inspect `app_get_state.context.electrostatics`. The
+`proposal` describes the dropdowns. The `effective` axes and solver describe
+the input used for submission, including inherited NEB settings. On an ordinary
+fresh form a molecule can intentionally use XYZ until Apply selected settings.
+For advice, report both states and leave the form alone. For a request to set
+isolated boundaries, explicitly set `electrostatics.apply_selected` to true
+through `app_update_draft`, then read the effective axes and solver back.
+Report a blocked state if the widget rejects the selection.
+
+For resource advice read the selected Code UUID and `context.cp2k_resources`
+when available. Use `inspect_cp2k_resources` to compare the Code with the CSCS
+Daint recipe. Check memory per MPI rank for hybrid calculations. A request to
+rerun a stored workflow with a different structure goes through the common
+native AiiDA rerun tools and can be made from any chat.

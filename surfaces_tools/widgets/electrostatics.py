@@ -249,14 +249,48 @@ class PoissonSettingsWidget(ipw.VBox):
             else {"periodic": "XYZ"}
         )
 
+    def submission_state(self):
+        """Read the effective boundary condition without applying a preview."""
+        state = {
+            "apply_selected": self.active.value,
+            "proposal": {
+                "periodic": self.periodic.value,
+                "poisson_solver": self.solver.value,
+            },
+            "effective": None,
+        }
+        if self.original is None:
+            return {**state, "status": "no_structure"}
+        if self.active.value and self._proposal_error:
+            return {**state, "status": "blocked", "error": self._proposal_error}
+        try:
+            params = (
+                self.settings() if self.active.value else self._effective_settings()
+            )
+            atoms = self.applied if self.active.value else self.original
+            if atoms is None:
+                raise ValueError("The selected cell has not been applied.")
+            validate_cell(atoms, params)
+            model = poisson_settings(params)
+        except (ValueError, KeyError, AttributeError) as exc:
+            return {**state, "status": "blocked", "error": str(exc)}
+        state["effective"] = {
+            "periodic": model["PERIODIC"],
+            "poisson_solver": model["POISSON_SOLVER"],
+        }
+        state["status"] = "applied" if self.active.value else "inherited_or_default"
+        return state
+
     def _refresh(self):
         try:
             proposal = self._proposal()
         except (ValueError, KeyError) as exc:
+            self._proposal_error = str(exc)
             self._show_current_settings(error=str(exc))
             self.active.disabled = not self.active.value
             self.preview.value = f'<p style="color:#a00">{html.escape(str(exc))}</p>'
             return None
+        self._proposal_error = None
         self.active.disabled = False
         self._show_current_settings()
 
