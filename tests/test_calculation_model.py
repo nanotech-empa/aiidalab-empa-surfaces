@@ -10,11 +10,23 @@ from aiida.common import LinkType
 from ase import Atoms
 from ase.io import read, write
 
-from surfaces_tools.utils.calculation_model import structure_for_display
+from surfaces_tools.utils.calculation_model import (
+    replica_model_html,
+    structure_for_display,
+)
 from surfaces_tools.widgets.analyze_structure import StructureAnalyzer
 from surfaces_tools.widgets.electrostatics import PoissonSettingsWidget
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
+
+
+def test_neb_groups_common_models_and_keeps_exceptions_visible():
+    summary = replica_model_html(
+        [(7, "Periodic XYZ"), (8, "Periodic XYZ"), (9, "Model <unknown>")]
+    )
+    assert summary.count("Periodic XYZ") == 1 and "2 replicas" in summary
+    assert "7, 8" in summary and "1 replica" in summary
+    assert "Model &lt;unknown&gt;</p>" in summary
 
 
 @pytest.mark.parametrize("axes", ["NONE", "X", "Y", "Z", "XY", "XZ", "YZ", "XYZ"])

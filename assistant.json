@@ -2,6 +2,12 @@
   "schema_version": 1,
   "title": "On-surface chemistry",
   "notebook": "submit_geometry_optimization.ipynb",
+  "workflow_pages": {
+    "neb": {
+      "notebook": "submit_neb.ipynb",
+      "process_labels": ["Cp2kNebWorkChain"]
+    }
+  },
   "assistant": {
     "embedded": true
   },
@@ -23,6 +29,8 @@
         "export",
         "esporta",
         "submit",
+        "neb",
+        "continuation",
         "sottomissione"
       ]
     },

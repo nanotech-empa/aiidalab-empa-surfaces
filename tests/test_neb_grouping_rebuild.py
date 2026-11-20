@@ -212,6 +212,26 @@ def test_integer_layout_matrix_after_show_and_tab_changes(
     assert_layout(form, group, nodes, tasks, nproc)
 
 
+def test_chat_reads_grouping_and_effective_node_count(form_factory, monkeypatch):
+    from surfaces_tools.assistant import create_panel
+
+    forms = pytest.importorskip("aiidalab_ai_assistant.forms")
+    monkeypatch.setattr(forms, "panel", lambda adapter: adapter)
+    form = form_factory(2)
+    adapter = create_panel("submit_neb.ipynb", form.namespace)
+    state = adapter.context()
+    assert state["fields"]["neb.restart_from"] == ""
+    adapter.update(state["revision"], {"neb.replica_count": 15})
+    set_layout(form, 1, 40, 8)
+    state = adapter.context()
+    assert state["context"]["neb"]["layout"]["nodes"] == 45
+    adapter.update(state["revision"], {"neb.replicas_per_group": 3})
+    form.resources.nodes_widget.value = 40
+    state = adapter.context()
+    layout = state["context"]["neb"]["layout"]
+    assert (layout["n_groups"], layout["nodes"], layout["nproc_replica"]) == (5, 40, 64)
+
+
 def test_intentional_group_changes_and_invalidated_divisor(form_factory):
     form = form_factory(5)
     set_layout(form, 5, 1, 4)

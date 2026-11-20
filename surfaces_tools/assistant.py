@@ -105,9 +105,35 @@ def create_panel(page, namespace):
     electrostatics = getattr(roots.get("input_details"), "electrostatics", None)
     resources = roots.get("resources")
     dft = roots.get("dft_settings_widget")
+    details = roots.get("input_details")
+
+    def neb_section():
+        if page == "submit_neb.ipynb":
+            return next(
+                (
+                    section
+                    for section in getattr(details, "displayed_sections", ())
+                    if hasattr(section, "n_replica_per_group")
+                ),
+                None,
+            )
 
     def fields():
-        values, _ = form_controls(roots)
+        section = neb_section()
+        named = {}
+        if section is not None:
+            named = {
+                "neb.restart_from": section.restart_from,
+                "neb.replica_count": section.n_replica,
+                "neb.replicas_per_group": section.n_replica_per_group,
+                "neb.band_type": section.band_type,
+                "neb.k_spring": section.k_spring,
+                "neb.align_frames": section.align_frames,
+                "neb.rotate_frames": section.rotate_frames,
+                "neb.optimize_endpoints": section.optimize_endpoints,
+                "neb.steps_before_ci": section.nsteps_it,
+            }
+        values, _ = form_controls({**named, **roots})
         if electrostatics is not None:
             values["electrostatics.apply_selected"] = electrostatics.active
         if structure_tools:
@@ -147,6 +173,41 @@ def create_panel(page, namespace):
         }
         if electrostatics is not None:
             result["electrostatics"] = electrostatics.submission_state()
+        section = neb_section()
+        if section is not None:
+            from .utils.neb_resources import resource_layout
+
+            result["neb"] = {
+                "restart_from": section.restart_from.value,
+                "saved_replicas": section._restart_replica_count,
+                "restart_message": section.restart_info.value,
+                "layout": resource_layout(
+                    section.n_replica.value,
+                    section.n_replica_per_group.value,
+                    resources.nodes,
+                    resources.tasks_per_node,
+                    resources.threads_per_task,
+                ),
+            }
+            if section._restart_replica_count is not None:
+                ready, message, draft_params = details.return_final_dictionary()
+                result["neb"]["input_validation"] = {"valid": ready, "message": message}
+                if ready:
+                    from aiida import orm
+
+                    parent = orm.load_node(draft_params["restart_from"])
+                    changed = {}
+                    for port in ("neb_params", "sys_params", "dft_params"):
+                        previous = parent.inputs[port].get_dict()
+                        current = draft_params.get(port, {})
+                        changed[port] = sorted(
+                            key
+                            for key in previous.keys() | current.keys()
+                            if key not in previous
+                            or key not in current
+                            or previous[key] != current[key]
+                        )
+                    result["neb"]["changed_parent_settings"] = changed
         if electrostatics is not None and hasattr(resources, "tasks_per_node"):
             result["cp2k_resources"] = {
                 "nodes": resources.nodes,
