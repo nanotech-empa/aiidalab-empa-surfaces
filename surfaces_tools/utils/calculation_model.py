@@ -50,6 +50,23 @@ def structure_for_display(structure):
     return atoms, message
 
 
+def replica_model_html(notices):
+    """Group equal model notices and keep source PKs accessible."""
+    groups = {}
+    for pk, notice in notices:
+        groups.setdefault(notice, []).append(str(pk))
+    rows = []
+    for notice, sources in groups.items():
+        count = len(sources)
+        label = "replica" if count == 1 else "replicas"
+        rows.append(
+            f"<p><b>{count} {label}</b> · {html.escape(notice)}</p>"
+            f"<details><summary>Replica source PKs ({count})</summary>"
+            f"{html.escape(', '.join(sources))}</details>"
+        )
+    return "".join(rows)
+
+
 def neb_status_for_view(workchain):
     """Read current status or reconstruct legacy status from retained native logs."""
     if "output_parameters" in workchain.outputs:
@@ -94,20 +111,17 @@ def neb_status_html(status):
             else "not established"
         )
 
+    reason = status["termination_reason"]
+    headline = (
+        "Walltime reached"
+        if reason == "walltime"
+        else reason.replace("_", " ").capitalize()
+    )
+    if status["exceeded_walltime"] and reason != "walltime":
+        headline += " · Walltime reached"
     return (
-        "<p><b>NEB result status:</b> "
-        + html.escape(status["termination_reason"])
-        + ". "
-        "Timed out: "
-        + (
-            "yes"
-            if status["exceeded_walltime"]
-            else "no timeout found in retained logs"
-        )
-        + "; "
-        "electronic convergence across recorded SCF calls: "
-        + verdict(status["electronic_converged"])
-        + "; "
-        "band convergence: " + verdict(status["band_converged"]) + ". "
-        "Plots show accepted band steps. Partial results remain available; a barrier trend alone is not proof of convergence.</p>"
+        f"<p><b>NEB result status:</b> {html.escape(headline)}<br>"
+        f"Band: {verdict(status['band_converged'])} · "
+        f"Recorded SCF calls: {verdict(status['electronic_converged'])}</p>"
+        "<small>Plots show accepted band steps.</small>"
     )

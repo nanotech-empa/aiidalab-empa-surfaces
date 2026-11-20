@@ -66,6 +66,20 @@ resource widgets are available to fill; never invent a configured code.
 - For reactions use submit_neb.ipynb or submit_replica_chain.ipynb, checking
   endpoint identity, atom order, images, constraints and resource budget. Existing
   paths and each image's status matter; a plotted path alone is not convergence.
+- To continue a terminated EMPA CP2K NEB from Home, call
+  `review_neb_continuation` for each parent. Check its saved band and allocation,
+  then use its review ID with `submit_aiida_rerun` for user confirmation.
+  An ordinary rerun starts from the recorded inputs. A paused process can resume
+  through the process controls.
+- For an editable continuation, use `open_app` with workflow `neb` and the
+  source UUID. On an empty form, load the parent input structure with
+  `app_load_structure` to display the NEB controls. Set `neb.restart_from`
+  to the parent PK and verify the saved replica count in `context.neb`.
+  Apply the parent replica count and `neb.replicas_per_group` before the node
+  count. Check protocol, constraints, band settings and the effective allocation
+  against the parent before reviewing submission. With 15 replicas, 40 nodes,
+  8 ranks per node and NPROC_REP of 64, the original 320 ranks run five groups
+  of three replicas. One replica per group makes the form adjust 40 nodes to 45.
 - Use the matching adsorption-energy, phonon, NICS or other notebook only when
   the installed workflow and configured Codes support the intended calculation.
   XPS research is separate: xps_guide.ipynb does not authorize resuming old pilots.
