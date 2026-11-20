@@ -72,6 +72,15 @@ def test_default_is_off_and_apply_restore_is_exact():
     assert not widget.active.value
     assert not published
     assert widget.return_dict() == {"dft_params": {"periodic": "XYZ"}}
+    assert widget.submission_state()["effective"] == {
+        "periodic": "XYZ",
+        "poisson_solver": "PERIODIC",
+    }
+    assert widget.submission_state()["proposal"] == {
+        "periodic": "NONE",
+        "poisson_solver": "MT",
+    }
+    assert not published
     assert "15 Å" in widget.preview.value
     widget.extra.value = '{"MT": {"ALPHA": 9.0}}'
     widget.active.value = True
@@ -108,6 +117,7 @@ def test_invalid_advanced_settings_block_submission_and_can_be_deactivated():
     widget.active.value = True
     widget.extra.value = '{"PERIODIC": "X"}'
     assert not widget.active.disabled
+    assert widget.submission_state()["status"] == "blocked"
     with pytest.raises(ValueError, match="valid Poisson"):
         widget.return_dict()
     widget.active.value = False

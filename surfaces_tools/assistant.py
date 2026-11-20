@@ -102,8 +102,14 @@ def create_panel(page, namespace):
         if name in namespace
     ]
 
+    electrostatics = getattr(roots.get("input_details"), "electrostatics", None)
+    resources = roots.get("resources")
+    dft = roots.get("dft_settings_widget")
+
     def fields():
         values, _ = form_controls(roots)
+        if electrostatics is not None:
+            values["electrostatics.apply_selected"] = electrostatics.active
         if structure_tools:
             values.update(structure_tools.fields())
         return values
@@ -139,6 +145,19 @@ def create_panel(page, namespace):
             "submitted_processes": submitted,
             "execution": "Review science and resources, then request the current execution action. Only the user's action button executes it.",
         }
+        if electrostatics is not None:
+            result["electrostatics"] = electrostatics.submission_state()
+        if electrostatics is not None and hasattr(resources, "tasks_per_node"):
+            result["cp2k_resources"] = {
+                "nodes": resources.nodes,
+                "ranks_per_node": resources.tasks_per_node,
+                "cpus_per_rank": resources.threads_per_task,
+                "wallclock_seconds": resources.walltime_seconds,
+            }
+            if dft is not None and dft.xc_functional.value == "PBE0":
+                result["cp2k_resources"]["hfx_memory_mib_per_rank"] = (
+                    dft.hfx_max_memory.value
+                )
         if structure_tools:
             result.update(structure_tools.context())
         return result
