@@ -19,6 +19,7 @@ class BuildSlab(ipw.VBox):
     def __init__(self, title=""):
         self.title = title
         self._molecule = None
+        self._publishing_slab = False
         self.drop_surface = ipw.Dropdown(
             description="Surface",
             options=[
@@ -108,12 +109,20 @@ class BuildSlab(ipw.VBox):
             nz=nz,
             which_surf=which_surf,
         )
-        self.structure = self._molecule + self.slab
+        # The linked manager feeds this structure back before its classification
+        # is refreshed. Do not autosize from the generated slab during that loop.
+        self._publishing_slab = True
+        try:
+            self.structure = self._molecule + self.slab
+        finally:
+            self._publishing_slab = False
 
     @tr.observe("molecule", "details")
     def on_struct_change(self, change=None):
         """Selected molecule from structure."""
 
+        if self._publishing_slab:
+            return
         if self.molecule and self.details and self.details["system_type"] == "Molecule":
             nx, ny = slabs.guess_slab_size(self.molecule, self.drop_surface.value)
             self.nx_slider.value = nx
