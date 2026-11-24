@@ -88,6 +88,10 @@ def create_panel(page, namespace):
                 for i, widget in enumerate(getattr(selector, "assistant_editors", ()))
             }
         )
+    microscopy = (
+        namespace.get("stm_microscopy_export") if page == "view_stm.ipynb" else None
+    )
+    plotter = namespace.get("series_plotter_inst") if page == "view_stm.ipynb" else None
     spm_buttons = namespace.get("submit_button") if page == "submit_spm.ipynb" else None
 
     diagnostics = [
@@ -133,6 +137,12 @@ def create_panel(page, namespace):
                 "neb.optimize_endpoints": section.optimize_endpoints,
                 "neb.steps_before_ci": section.nsteps_it,
             }
+        if plotter is not None:
+            named["stm.series"] = plotter.selections_vbox
+        if microscopy is not None:
+            named["stm.include_curve"] = microscopy.include_curve
+            if microscopy.export_widget is not None:
+                named["stm.export_review"] = microscopy.export_widget
         values, _ = form_controls({**named, **roots})
         if electrostatics is not None:
             values["electrostatics.apply_selected"] = electrostatics.active
@@ -143,10 +153,21 @@ def create_panel(page, namespace):
     def draft_buttons():
         _, values = form_controls(roots)
         values.update(draft)
+        if microscopy is not None:
+            values["prepare_microscopy_export"] = microscopy.prepare_button
+            if microscopy.export_widget is not None:
+                _, review_buttons = form_controls(
+                    {"stm.export_review": microscopy.export_widget}
+                )
+                values.update(review_buttons)
         return values
 
     def execution_buttons():
-        active = execution
+        active = dict(execution)
+        if microscopy is not None and microscopy.export_widget is not None:
+            active["export_stm_microscopy"] = (
+                microscopy.export_widget.save_simulations_button
+            )
         if spm_buttons is not None:
             active = {
                 name: widget
@@ -171,6 +192,12 @@ def create_panel(page, namespace):
             "submitted_processes": submitted,
             "execution": "Review science and resources, then request the current execution action. Only the user's action button executes it.",
         }
+        if microscopy is not None:
+            result.update(microscopy.context())
+            try:
+                result["stm_selection"] = plotter.microscopy_selection()
+            except ValueError as error:
+                result["stm_selection"] = {"error": str(error)}
         if electrostatics is not None:
             result["electrostatics"] = electrostatics.submission_state()
         section = neb_section()
@@ -232,5 +259,6 @@ def create_panel(page, namespace):
             draft_buttons=draft_buttons,
             execution_buttons=execution_buttons,
             structure_tools=structure_tools,
+            prepare_export=microscopy.prepare if microscopy is not None else None,
         )
     )

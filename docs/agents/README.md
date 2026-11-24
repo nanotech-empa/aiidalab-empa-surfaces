@@ -148,3 +148,17 @@ when available. Use `inspect_cp2k_resources` to compare the Code with the CSCS
 Daint recipe. Check memory per MPI rank for hybrid calculations. A request to
 rerun a stored workflow with a different structure goes through the common
 native AiiDA rerun tools and can be made from any chat.
+
+### Stored STM maps into openBIS microscopy
+
+In `view_stm.ipynb`, use the visible series and energy selection, then
+`app_prepare_export` to open the shared review. Inspect `stm_selection`,
+`microscopy_review`, destination fields and the `export_stm_microscopy` action.
+Choose existing laboratory destination/material references with the normal
+review controls. Use `app_review_action` and the user's confirmation before
+`app_execute_action`; preparation must never publish. A changed revision requires
+another review. Inspect final dataset IDs/preview status and report incomplete
+steps honestly. Do not bypass the common exporter with direct server writes.
+See [the user guide](../stm-microscopy-export.md) for units, original data,
+oblique-grid interpolation and retry behavior. Never describe a native signal
+as an absolutely calibrated experimental current.
