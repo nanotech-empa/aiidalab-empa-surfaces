@@ -162,3 +162,17 @@ steps honestly. Do not bypass the common exporter with direct server writes.
 See [the user guide](../stm-microscopy-export.md) for units, original data,
 oblique-grid interpolation and retry behavior. Never describe a native signal
 as an absolutely calibrated experimental current.
+
+For STM/orbital comparison galleries, preserve the intentional horizontal
+scroll (bias/orbital columns, cases as rows). Let gallery height grow; do not add
+a vertical output scrollbar or convert these scientific comparison columns into
+wrapped rows under the general no-nested-scroll rule. State the reviewed map
+and curve dataset counts, biases and series parameters before confirming export.
+
+For SXM area changes, use the visible width/height/centre controls in Å and
+`stm.reset_image_area` for the native-cell rectangle. Inspect
+`microscopy_image_area` and `microscopy_source_geometry` (native CP2K PBC).
+Periodic filling follows lattice vectors, never artificial independent image
+edge repetition. State area/PBC and map/curve counts in the export review;
+changed controls invalidate it. DAT means always use original-grid samples,
+independent of the SXM crop. Do not infer an experimental current calibration.

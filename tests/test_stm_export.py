@@ -48,8 +48,25 @@ def test_plotting_multiple_sources_still_allowed_but_export_is_explicit(plotter)
     assert len(plotter.series) == 2
 
 
+@pytest.fixture
+def cell_geometry(monkeypatch):
+    export = pytest.importorskip("aiida_openbis.export")
+    geometry = {
+        "source_uuid": "source",
+        "periodic_setting": "XY",
+        "periodic_axes": [True, True],
+        "default_image_area": {
+            "width_angstrom": 4.0,
+            "height_angstrom": 3.0,
+            "center_angstrom": [2.0, 1.5],
+        },
+    }
+    monkeypatch.setattr(export, "describe_stm_imaging", lambda _: geometry)
+    return geometry
+
+
 def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
-    monkeypatch, plotter
+    monkeypatch, plotter, cell_geometry
 ):
     forms = pytest.importorskip("aiidalab_ai_assistant.forms")
     export = pytest.importorskip("aiida_openbis.export")
@@ -63,6 +80,8 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
         lambda **kwargs: {
             "source_uuid": kwargs["source_uuid"],
             "include_curve": kwargs["include_curve"],
+            "entries": kwargs["selections"],
+            "image_area": kwargs["image_area"],
         },
     )
 
@@ -100,16 +119,47 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
     controller.close()
 
 
-def test_map_grid_expands_in_page_without_nested_scroll(plotter, monkeypatch):
+def test_comparison_gallery_keeps_bias_columns_case_rows_and_horizontal_only_scroll(
+    plotter, monkeypatch
+):
     import matplotlib.pyplot as plt
 
     monkeypatch.setattr(plt, "show", lambda: None)
     try:
+        plotter.add_selection_row()
         plotter.plot_series(None)
         layout = plotter.plot_output.children[-1].layout
-        assert layout.overflow == "visible"
+        assert layout.overflow == "auto hidden"
         assert layout.height == "auto"
-        assert layout.flex_flow == "row wrap"
-        assert len(plotter.plot_output.children[-1].children) == 2
+        assert layout.flex_flow == "row nowrap"
+        columns = plotter.plot_output.children[-1].children
+        assert len(columns) == 2
+        assert all(column.layout.flex == "0 0 auto" for column in columns)
+        figures = [plt.figure(number) for number in plt.get_fignums()]
+        assert len(figures) == 2  # Two selected biases.
+        for figure in figures:
+            assert len(figure.axes) == 2  # Both selected cases remain rows.
+            assert all(
+                axis.get_subplotspec().get_gridspec().nrows == 2 for axis in figure.axes
+            )
     finally:
         plt.close("all")
+
+
+def test_area_controls_defaults_reset_and_changes_invalidate_frozen_review(
+    plotter, cell_geometry
+):
+    controller = StmMicroscopyExport(plotter)
+    controller.set_source_uuid("source")
+    assert controller.image_area() == cell_geometry["default_image_area"]
+    assert "XY" in controller.area_info.value
+    controller.area_width.value = 8
+    controller.area_center_x.value = -2
+    assert controller.image_area()["width_angstrom"] == 8
+    controller.review = {"entries": [], "include_curve": False}
+    controller.export_widget = ipw.VBox()
+    controller.area_height.value = 9
+    assert controller.review is None and controller.export_widget is None
+    controller.reset_area_button.click()
+    assert controller.image_area() == cell_geometry["default_image_area"]
+    controller.close()

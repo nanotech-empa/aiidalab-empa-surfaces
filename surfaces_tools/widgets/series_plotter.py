@@ -361,12 +361,12 @@ class SeriesPlotter:
         num_series = len(self.elem_list)
 
         box_layout = ipw.Layout(
-            overflow="visible",
+            overflow="auto hidden",
             border="3px solid black",
             width="100%",
             height="auto",
             display="flex",
-            flex_flow="row wrap",
+            flex_flow="row nowrap",
             align_items="flex-start",
         )
 
@@ -379,7 +379,7 @@ class SeriesPlotter:
         index_list = self.select_indexes_function()
 
         for i in index_list:
-            plot_out = ipw.Output()
+            plot_out = ipw.Output(layout=ipw.Layout(flex="0 0 auto", height="auto"))
             plot_hbox.children += (plot_out,)
             with plot_out:
                 fig = plt.figure(

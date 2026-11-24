@@ -141,6 +141,14 @@ def create_panel(page, namespace):
             named["stm.series"] = plotter.selections_vbox
         if microscopy is not None:
             named["stm.include_curve"] = microscopy.include_curve
+            named.update(
+                {
+                    "stm.image_width_angstrom": microscopy.area_width,
+                    "stm.image_height_angstrom": microscopy.area_height,
+                    "stm.image_center_x_angstrom": microscopy.area_center_x,
+                    "stm.image_center_y_angstrom": microscopy.area_center_y,
+                }
+            )
             if microscopy.export_widget is not None:
                 named["stm.export_review"] = microscopy.export_widget
         values, _ = form_controls({**named, **roots})
@@ -155,6 +163,7 @@ def create_panel(page, namespace):
         values.update(draft)
         if microscopy is not None:
             values["prepare_microscopy_export"] = microscopy.prepare_button
+            values["stm.reset_image_area"] = microscopy.reset_area_button
             if microscopy.export_widget is not None:
                 _, review_buttons = form_controls(
                     {"stm.export_review": microscopy.export_widget}
