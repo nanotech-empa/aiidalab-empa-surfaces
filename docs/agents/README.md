@@ -9,6 +9,31 @@ sections have numeric path segments; identify them using `controls.label` and
 it after structure, protocol, boundary, mode or section changes because the GUI
 rebuilds controls. Preserve unrelated user edits.
 
+## Open the matching page
+
+Read the app's `workflow_pages` through `list_apps`, then use `open_app` with the
+requested workflow. The source calculation and destination task are independent:
+an optimized geometry is a valid source for STM or PDOS without reopening geometry
+optimization. Carry its UUID as `process_uuid` and use the returned link directly.
+
+| Requested task | Workflow | Notebook |
+| --- | --- | --- |
+| Geometry optimization | `geometry_optimization` | `submit_geometry_optimization.ipynb` |
+| Single-point SCF | `scf` | `submit_scf.ipynb` |
+| NEB | `neb` | `submit_neb.ipynb` |
+| PDOS | `pdos` | `submit_pdos.ipynb` |
+| STM / AFM / SPM | `stm` (alias `spm`, `afm`, `hrstm`) | `submit_spm.ipynb` |
+| STM results | `stm_results` | `view_stm.ipynb` |
+| PDOS results | `pdos_results` | `view_pdos.ipynb` |
+| NEB results | `neb_results` | `view_neb.ipynb` |
+
+The manifest also declares the other supported submission, search, result and
+structure-tool notebooks. XPS links only to its Work in progress guide. On an
+SPM form select the intended STM/AFM mode through its actual controls. Inspect
+the saved optimized structure and original spin guess, load that structure and
+verify the requested draft's charge, UKS, multiplicity and magnetic atoms; a page
+link does not transfer those settings automatically. Never submit during a handoff.
+
 When asked to prepare/fill a calculation, perform the requested draft edits and
 read them back. `draft_actions` lists current edit/apply/estimate controls;
 `app_prepare_action` invokes one with a fresh revision. `execution_actions`

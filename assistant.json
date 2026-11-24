@@ -3,9 +3,169 @@
   "title": "On-surface chemistry",
   "notebook": "submit_geometry_optimization.ipynb",
   "workflow_pages": {
+    "geometry_optimization": {
+      "notebook": "submit_geometry_optimization.ipynb",
+      "title": "Geometry optimization",
+      "aliases": [
+        "geometry",
+        "geoopt"
+      ]
+    },
+    "scf": {
+      "notebook": "submit_scf.ipynb",
+      "title": "Single-point SCF"
+    },
     "neb": {
       "notebook": "submit_neb.ipynb",
-      "process_labels": ["Cp2kNebWorkChain"]
+      "title": "NEB"
+    },
+    "pdos": {
+      "notebook": "submit_pdos.ipynb",
+      "title": "PDOS"
+    },
+    "stm": {
+      "notebook": "submit_spm.ipynb",
+      "title": "STM / SPM",
+      "aliases": [
+        "spm",
+        "afm",
+        "hrstm"
+      ]
+    },
+    "adsorption_energy": {
+      "notebook": "submit_adsorption_energy.ipynb",
+      "title": "Adsorption energy",
+      "aliases": [
+        "adsorption"
+      ]
+    },
+    "phonons": {
+      "notebook": "submit_phonons.ipynb",
+      "title": "Vibrations / phonons",
+      "aliases": [
+        "vibrations"
+      ]
+    },
+    "replica_chain": {
+      "notebook": "submit_replica_chain.ipynb",
+      "title": "Replica chain",
+      "aliases": [
+        "replica"
+      ]
+    },
+    "gw": {
+      "notebook": "submit_gw.ipynb",
+      "title": "GW"
+    },
+    "gw_ic": {
+      "notebook": "submit_gw_ic.ipynb",
+      "title": "GW image charge"
+    },
+    "nics": {
+      "notebook": "submit_nics.ipynb",
+      "title": "NICS"
+    },
+    "casscf": {
+      "notebook": "submit_casscf.ipynb",
+      "title": "Gaussian CASSCF"
+    },
+    "benchmark": {
+      "notebook": "submit_benchmark.ipynb",
+      "title": "CP2K benchmark"
+    },
+    "search": {
+      "notebook": "search.ipynb",
+      "title": "Search calculations"
+    },
+    "geometry_results": {
+      "notebook": "view_geometry_optimization.ipynb",
+      "title": "Geometry / SCF results",
+      "aliases": [
+        "scf_results"
+      ]
+    },
+    "neb_results": {
+      "notebook": "view_neb.ipynb",
+      "title": "NEB results"
+    },
+    "pdos_results": {
+      "notebook": "view_pdos.ipynb",
+      "title": "PDOS results"
+    },
+    "stm_results": {
+      "notebook": "view_stm.ipynb",
+      "title": "STM results"
+    },
+    "afm_results": {
+      "notebook": "view_afm.ipynb",
+      "title": "AFM results"
+    },
+    "hrstm_results": {
+      "notebook": "view_hrstm.ipynb",
+      "title": "HRSTM results"
+    },
+    "adsorption_results": {
+      "notebook": "view_adsorption_energy.ipynb",
+      "title": "Adsorption-energy results"
+    },
+    "phonon_results": {
+      "notebook": "view_phonons.ipynb",
+      "title": "Vibrational results",
+      "aliases": [
+        "vibration_results"
+      ]
+    },
+    "replica_results": {
+      "notebook": "view_replica.ipynb",
+      "title": "Replica results"
+    },
+    "gw_results": {
+      "notebook": "view_gw.ipynb",
+      "title": "GW results"
+    },
+    "gw_ic_results": {
+      "notebook": "view_gw_ic.ipynb",
+      "title": "GW image-charge results"
+    },
+    "nics_results": {
+      "notebook": "view_nics.ipynb",
+      "title": "NICS results"
+    },
+    "casscf_results": {
+      "notebook": "view_gaussian_casscf_series.ipynb",
+      "title": "Gaussian CASSCF results"
+    },
+    "benchmark_results": {
+      "notebook": "view_benchmark.ipynb",
+      "title": "Benchmark results"
+    },
+    "orbitals": {
+      "notebook": "view_orbitals.ipynb",
+      "title": "Orbital results"
+    },
+    "unfolding_results": {
+      "notebook": "view_cp2k_unfolding.ipynb",
+      "title": "CP2K unfolded bands"
+    },
+    "cubes": {
+      "notebook": "handle_cubes.ipynb",
+      "title": "Cube viewer"
+    },
+    "export_structure": {
+      "notebook": "export_structure.ipynb",
+      "title": "View and export structure"
+    },
+    "cdxml_editor": {
+      "notebook": "cdxml_editor.ipynb",
+      "title": "CDXML editor"
+    },
+    "comments": {
+      "notebook": "comments.ipynb",
+      "title": "Comments"
+    },
+    "xps": {
+      "notebook": "xps_guide.ipynb",
+      "title": "CP2K XPS \u00b7 Work in progress"
     }
   },
   "assistant": {
@@ -31,7 +191,15 @@
         "submit",
         "neb",
         "continuation",
-        "sottomissione"
+        "sottomissione",
+        "stm",
+        "spm",
+        "pdos",
+        "afm",
+        "phonons",
+        "geometry",
+        "scf",
+        "workflow"
       ]
     },
     {
