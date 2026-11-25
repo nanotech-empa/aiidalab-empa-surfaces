@@ -174,5 +174,16 @@ For SXM area changes, use the visible width/height/centre controls in Å and
 `microscopy_image_area` and `microscopy_source_geometry` (native CP2K PBC).
 Periodic filling follows lattice vectors, never artificial independent image
 edge repetition. State area/PBC and map/curve counts in the export review;
-changed controls invalidate it. DAT means always use original-grid samples,
+changed controls invalidate it. Local point/line sampling uses physical original-grid coordinates,
 independent of the SXM crop. Do not infer an experimental current calibration.
+
+For local curves, choose `stm.analysis_series`, then the draft action
+`stm.open_sampling_map`. STS supports points and all stored energies; STM
+supports two-endpoint lines and the chosen `stm.analysis_bias`. Set
+`stm.coordinate_x_angstrom`/`stm.coordinate_y_angstrom`, then invoke
+`stm.add_coordinate` once per point or twice per line. Inspect
+`microscopy_sampling` for labels, colours, coordinates, pending line endpoints
+and validation. `stm.remove_marker`, `stm.clear_markers`, and
+`stm.download_dat` operate on that same visible panel. Do not invent a global
+average or treat STM distance profiles as STS spectra. Prepare/review the common
+export only after the sampling state is valid; marker changes invalidate it.

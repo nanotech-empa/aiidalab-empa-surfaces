@@ -8,8 +8,8 @@ You need the existing openBIS connection configured in the ELN app.
 
 Each distinct selected series/bias pair is one microscopy map dataset. For
 example, one constant-current series at −3 V gives one dataset; two series at
-two biases give four. The review states the number of map and optional curve
-datasets. It freezes the selection at **Prepare microscopy export**; prepare
+two biases give four. The review counts maps and any explicitly drawn local
+spectra/profile groups and curves. It freezes the selection at **Prepare microscopy export**; prepare
 again after changing series/energies. Previously plotted images do not add
 more selections. Existing matching server datasets are reused.
 
@@ -43,13 +43,46 @@ and grid in a portable NPZ and a JSON provenance sidecar.
   supply that missing data and is rejected. Original arrays and full grid
   metadata remain intact. Area changes require a new review and identify a
   different SXM dataset; they do not move atoms or recenter the simulation.
-- **Optional curves:** select *Also export 1D curves: average image value vs bias* and
-  at least two energies for each series. DAT contains energy versus the mean of
-  finite samples of the original map, with the native quantity and unit. This
-  means average height for constant-current STM, average simulated current for
-  constant-height STM, or average simulated dI/dV for STS. It is an image-wide
-  average rather than a spectrum at a selected pixel; SXM area changes do not
-  change it.
+
+## STS point spectra and STM line profiles
+
+Open **Extract STS point spectra or STM line profiles (optional)**. Choose the
+stored series under **Analyse**, then **Open sampling map**. Its rectangular
+view uses the same physical XY coordinates and native PBC as SXM export.
+
+- **STS series:** click one or more points. P1, P2, … have different colours
+  matching their dI/dV-versus-bias curves. Each spectrum uses all stored energies
+  at that fixed XY point, without averaging the image or interpolating energies.
+  Changing **Map bias [V]** changes the reference image; it does not truncate
+  the spectrum. A constant-current STS series remains dI/dV sampled on its
+  stored constant-isovalue surface.
+- **STM series:** click a start and an end for each L1, L2, … line. A
+  constant-current (constant-isovalue) map gives **height versus distance**;
+  a constant-height map gives **simulated current versus distance**. The profile
+  is for the selected bias. Changing bias updates it along the same physical
+  line. Both endpoints are included; linear sampling intervals are no larger
+  than one native grid step. Extra interpolated samples do not add resolution.
+- Select a marker and **Remove selected marker**, or **Clear points/lines**.
+  The exact-coordinate section accepts Å coordinates instead of mouse clicks:
+  add one coordinate per point, or two in sequence for a line. Changing the
+  source/analysis series clears the old selections. Incomplete or invalid
+  lines must be completed/removed before preparing an export.
+- **Download DAT files** creates a ZIP of the curves and their sampling
+  coordinates/provenance, without publishing. It contains one file per point
+  or line. Spectra have bias [V] and native simulated dI/dV; profiles have
+  distance [Å] and height [Å] or native simulated current. Colours, labels,
+  source identity, grid/PBC, line endpoints and selected bias are recorded.
+
+Drawn curves are included when **Prepare microscopy export** is pressed.
+The review counts SXM datasets, grouped DAT datasets and individual curves.
+One STS series is one DAT dataset containing its point files; one STM series
+at one bias is one DAT dataset containing its profile files. Microscopy's
+existing grouping/legend controls select those files. Its colormap remains
+under microscopy-viewer control; selected marker colours are retained in the
+metadata. Changing markers invalidates a prior review. Clear markers for an
+images-only export. SXM crop/size changes preserve physical sampling coordinates.
+There is no global-image-average checkbox.
+
 
 Plot colors, symmetry and display normalization do not modify exported values.
 Export one calculation at a time; plotting several collections remains supported.

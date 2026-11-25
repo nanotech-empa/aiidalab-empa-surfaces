@@ -25,17 +25,14 @@ class StmMicroscopyExport(ipw.VBox):
         self.area_info = ipw.HTML(
             "<p>Load a stored STM result to set the SXM area.</p>"
         )
-        self.include_curve = ipw.Checkbox(
-            description="Also export 1D curves: average image value vs bias",
-            value=False,
-            indent=False,
-            layout=ipw.Layout(width="auto"),
+        from .stm_sampling import StmSamplingPanel
+
+        self.sampling = StmSamplingPanel(plotter, self.image_area)
+        self.sampling_section = ipw.Accordion(
+            children=[self.sampling], selected_index=None
         )
-        self.curve_help = ipw.HTML(
-            "<p>One curve per selected series, using at least two biases. "
-            "Each point averages the available pixels in the original image: height for "
-            "constant-current STM, simulated current for constant-height STM, "
-            "or dI/dV for STS. This is an image-wide average, not a spectrum at a selected point. The SXM area settings do not change this average.</p>"
+        self.sampling_section.set_title(
+            0, "Extract STS point spectra or STM line profiles (optional)"
         )
         self.prepare_button = ipw.Button(
             description="Prepare microscopy export",
@@ -48,7 +45,7 @@ class StmMicroscopyExport(ipw.VBox):
         self.reset_area_button.on_click(self._reset_area)
         for control in self._area_controls():
             control.observe(self._selection_changed, names="value")
-        self.include_curve.observe(self._selection_changed, names="value")
+        self.sampling.observe(self._selection_changed, names="changed")
         super().__init__(
             [
                 ipw.HTML(
@@ -59,7 +56,7 @@ class StmMicroscopyExport(ipw.VBox):
                 ipw.HTML(
                     "<p><b>SXM image area</b> · Cartesian XY coordinates in Å. "
                     "Periodic directions are tiled from the native simulation cell. "
-                    "Original maps are retained; optional curves average the original grid.</p>"
+                    "Original maps are retained. Optional DAT files contain explicitly selected point spectra or line profiles.</p>"
                 ),
                 ipw.HBox(
                     [self.area_width, self.area_height],
@@ -71,8 +68,7 @@ class StmMicroscopyExport(ipw.VBox):
                 ),
                 self.reset_area_button,
                 self.area_info,
-                self.include_curve,
-                self.curve_help,
+                self.sampling_section,
                 self.prepare_button,
                 self.status,
                 self.review_box,
@@ -106,7 +102,13 @@ class StmMicroscopyExport(ipw.VBox):
 
             close_owned_widgets(previous)
 
-    def _selection_changed(self, _):
+    def _selection_changed(self, change):
+        if (
+            not self._setting_area
+            and isinstance(change, dict)
+            and change.get("owner") in self._area_controls()
+        ):
+            self.sampling.refresh_area()
         if not self._setting_area and self.review is not None:
             self._clear_review()
             self.status.value = (
@@ -145,12 +147,21 @@ class StmMicroscopyExport(ipw.VBox):
             + "</b>. Default: smallest XY rectangle enclosing the simulation cell. "
             "Periodic directions repeat the calculated map. Beyond nonperiodic boundaries, areas without calculated values are left empty.</p>"
         )
+        self.sampling.configure(geometry)
 
     def prepare(self):
         from aiida_openbis.export import make_export_widget, review_stm_imaging
 
         self._clear_review()
         selection = self.plotter.microscopy_selection()
+        sampling_state = self.sampling.context()
+        if (
+            sampling_state["markers"]
+            and sampling_state["source_uuid"] != selection["source_uuid"]
+        ):
+            raise ValueError(
+                "Select maps and point/line curves from the same stored workflow before exporting."
+            )
         if (
             self.source_geometry is None
             or self.source_geometry["source_uuid"] != selection["source_uuid"]
@@ -158,7 +169,7 @@ class StmMicroscopyExport(ipw.VBox):
             self.set_source_uuid(selection["source_uuid"])
         review = review_stm_imaging(
             **selection,
-            include_curve=self.include_curve.value,
+            sampling=self.sampling.requests(),
             image_area=self.image_area(),
         )
         widget = make_export_widget(selection["source_uuid"], microscopy_review=review)
@@ -179,9 +190,10 @@ class StmMicroscopyExport(ipw.VBox):
         counts = (
             {
                 "maps": len(reviewed["entries"]),
-                "curves": len({item["series_index"] for item in reviewed["entries"]})
-                if reviewed["include_curve"]
-                else 0,
+                "curve_datasets": len(reviewed["curve_groups"]),
+                "extracted_curves": sum(
+                    group["curve_count"] for group in reviewed["curve_groups"]
+                ),
             }
             if reviewed is not None
             else None
@@ -193,6 +205,7 @@ class StmMicroscopyExport(ipw.VBox):
             "microscopy_source_geometry": self.source_geometry,
             "microscopy_dataset_counts": counts,
             "microscopy_review": self.review,
+            "microscopy_sampling": self.sampling.context(),
             "message": self.status.value,
             "publication_status": getattr(
                 getattr(self.export_widget, "export_status_html", None), "value", ""
@@ -210,15 +223,14 @@ class StmMicroscopyExport(ipw.VBox):
         self.reset_area_button.on_click(self._reset_area, remove=True)
         for control in self._area_controls():
             control.unobserve(self._selection_changed, names="value")
-        self.include_curve.unobserve(self._selection_changed, names="value")
+        self.sampling.unobserve(self._selection_changed, names="changed")
         from ._lifecycle import close_owned_widgets
 
         close_owned_widgets(
             *self._area_controls(),
             self.reset_area_button,
             self.area_info,
-            self.include_curve,
-            self.curve_help,
+            self.sampling_section,
             self.prepare_button,
             self.status,
             self.review_box,

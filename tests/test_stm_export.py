@@ -79,7 +79,8 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
         "review_stm_imaging",
         lambda **kwargs: {
             "source_uuid": kwargs["source_uuid"],
-            "include_curve": kwargs["include_curve"],
+            "sampling": kwargs["sampling"],
+            "curve_groups": [],
             "entries": kwargs["selections"],
             "image_area": kwargs["image_area"],
         },
@@ -156,7 +157,7 @@ def test_area_controls_defaults_reset_and_changes_invalidate_frozen_review(
     controller.area_width.value = 8
     controller.area_center_x.value = -2
     assert controller.image_area()["width_angstrom"] == 8
-    controller.review = {"entries": [], "include_curve": False}
+    controller.review = {"entries": [], "curve_groups": []}
     controller.export_widget = ipw.VBox()
     controller.area_height.value = 9
     assert controller.review is None and controller.export_widget is None
