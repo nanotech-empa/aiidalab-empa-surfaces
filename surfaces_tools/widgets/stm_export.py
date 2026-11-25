@@ -187,6 +187,9 @@ class StmMicroscopyExport(ipw.VBox):
 
     def context(self):
         reviewed = self.review
+        publication_plan = getattr(
+            self.export_widget, "microscopy_publication_plan", lambda: None
+        )()
         counts = (
             {
                 "maps": len(reviewed["entries"]),
@@ -203,7 +206,10 @@ class StmMicroscopyExport(ipw.VBox):
             if self.source_geometry
             else None,
             "microscopy_source_geometry": self.source_geometry,
-            "microscopy_dataset_counts": counts,
+            "microscopy_dataset_counts": (
+                publication_plan["dataset_counts"] if publication_plan else counts
+            ),
+            "microscopy_publication_plan": publication_plan,
             "microscopy_review": self.review,
             "microscopy_sampling": self.sampling.context(),
             "message": self.status.value,

@@ -159,6 +159,10 @@ review controls. Use `app_review_action` and the user's confirmation before
 `app_execute_action`; preparation must never publish. A changed revision requires
 another review. Inspect final dataset IDs/preview status and report incomplete
 steps honestly. Do not bypass the common exporter with direct server writes.
+When `microscopy_publication_plan.mode` is `append_dat`, review the existing
+SPM permId, its actual collection and the number of new DAT files. This action
+adds only new point spectra or line profiles to that simulation. Use the
+publication plan's counts when they differ from the original map selection.
 See [the user guide](../stm-microscopy-export.md) for units, original data,
 oblique-grid interpolation and retry behavior. Never describe a native signal
 as an absolutely calibrated experimental current.

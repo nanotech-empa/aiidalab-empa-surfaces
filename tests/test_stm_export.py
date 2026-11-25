@@ -109,6 +109,18 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
     assert not state["execution_actions"]
     adapter.prepare_export(state["revision"])
     assert len(prepared) == 1 and not written
+    publication_plan = {
+        "mode": "append_dat",
+        "spm_permid": "existing-spm",
+        "collection": "/SPACE/PROJECT/ORIGINAL",
+        "dataset_counts": {"maps": 0, "curve_datasets": 1, "extracted_curves": 2},
+    }
+    controller.export_widget.microscopy_publication_plan = lambda: publication_plan
+    assert controller.context()["microscopy_publication_plan"] == publication_plan
+    assert (
+        controller.context()["microscopy_dataset_counts"]
+        == publication_plan["dataset_counts"]
+    )
     state = adapter.context()
     assert "export_stm_microscopy" in state["execution_actions"]
     reviewed = adapter.review("export_stm_microscopy", state["revision"])

@@ -87,8 +87,11 @@ There is no global-image-average checkbox.
 Plot colors, symmetry and display normalization do not modify exported values.
 Export one calculation at a time; plotting several collections remains supported.
 A repeated export checks dataset identity in openBIS and reuses the existing
-map, including when local AiiDA extras were reset. After an interrupted preview,
-use **Retry incomplete steps**; do not create another simulation to repair it.
+simulation, including when local AiiDA extras were reset. The first export
+includes a finished geometry optimization when it produced the stored STM
+input. For an already exported STM simulation, **Add DAT to openBIS** shows the
+destination and adds only new point spectra or line profiles to that object.
+Use **Retry incomplete steps** to finish an interrupted first export.
 Concurrent exports of the same selection from independent clients should be
 avoided: the server does not enforce uniqueness of this metadata key.
 
