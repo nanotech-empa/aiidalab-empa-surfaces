@@ -26,10 +26,16 @@ class StmMicroscopyExport(ipw.VBox):
             "<p>Load a stored STM result to set the SXM area.</p>"
         )
         self.include_curve = ipw.Checkbox(
-            description="Include original-map mean curves (at least two biases per series)",
+            description="Also export 1D curves: average image value vs bias",
             value=False,
             indent=False,
             layout=ipw.Layout(width="auto"),
+        )
+        self.curve_help = ipw.HTML(
+            "<p>One curve per selected series, using at least two biases. "
+            "Each point averages the available pixels in the original image: height for "
+            "constant-current STM, simulated current for constant-height STM, "
+            "or dI/dV for STS. This is an image-wide average, not a spectrum at a selected point. The SXM area settings do not change this average.</p>"
         )
         self.prepare_button = ipw.Button(
             description="Prepare microscopy export",
@@ -66,6 +72,7 @@ class StmMicroscopyExport(ipw.VBox):
                 self.reset_area_button,
                 self.area_info,
                 self.include_curve,
+                self.curve_help,
                 self.prepare_button,
                 self.status,
                 self.review_box,
@@ -135,8 +142,8 @@ class StmMicroscopyExport(ipw.VBox):
         self.area_info.value = (
             "<p>Native CP2K cell periodicity: <b>"
             + html.escape(geometry["periodic_setting"])
-            + "</b>. Default: smallest Cartesian rectangle containing cell vectors A and B. "
-            "Outside nonperiodic map directions: no data (NaN).</p>"
+            + "</b>. Default: smallest XY rectangle enclosing the simulation cell. "
+            "Periodic directions repeat the calculated map. Beyond nonperiodic boundaries, areas without calculated values are left empty.</p>"
         )
 
     def prepare(self):
@@ -211,6 +218,7 @@ class StmMicroscopyExport(ipw.VBox):
             self.reset_area_button,
             self.area_info,
             self.include_curve,
+            self.curve_help,
             self.prepare_button,
             self.status,
             self.review_box,

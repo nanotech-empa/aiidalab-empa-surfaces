@@ -43,9 +43,13 @@ and grid in a portable NPZ and a JSON provenance sidecar.
   supply that missing data and is rejected. Original arrays and full grid
   metadata remain intact. Area changes require a new review and identify a
   different SXM dataset; they do not move atoms or recenter the simulation.
-- **Optional curves:** explicitly select *Include original-map mean curves* and
+- **Optional curves:** select *Also export 1D curves: average image value vs bias* and
   at least two energies for each series. DAT contains energy versus the mean of
-  finite samples of the original map, with the native quantity and unit.
+  finite samples of the original map, with the native quantity and unit. This
+  means average height for constant-current STM, average simulated current for
+  constant-height STM, or average simulated dI/dV for STS. It is an image-wide
+  average rather than a spectrum at a selected pixel; SXM area changes do not
+  change it.
 
 Plot colors, symmetry and display normalization do not modify exported values.
 Export one calculation at a time; plotting several collections remains supported.
