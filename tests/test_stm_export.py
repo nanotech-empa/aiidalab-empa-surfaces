@@ -166,6 +166,7 @@ def test_keep_map_and_curves_reset_and_remove(monkeypatch, plotter, cell_geometr
         controller.sampling.series.value = "ch-stm fwhm=0.10 h=5.5"
         controller.sampling.bias.value = 2
         controller.keep_button.click()
+        assert controller.kept_items.value == (0, 2)
         assert controller.sampling.series.value == ""
         assert controller.sampling.map.layout.display == "none"
         controller.sampling.series.value = "ch-sts fwhm=0.10 h=5.5"
@@ -207,6 +208,7 @@ def test_keep_map_and_curves_reset_and_remove(monkeypatch, plotter, cell_geometr
         assert [p["id"] for p in combined["sampling"][0]["points"]] == ["P1", "P2"]
         controller.kept_items.value = (1, 1)
         controller.remove_kept.click()
+        assert controller.kept_items.value == (0, 2)
         assert controller.prepare()["microscopy_review"]["sampling"] == []
         controller.clear_kept.click()
         assert controller.prepare()["microscopy_review"] is None

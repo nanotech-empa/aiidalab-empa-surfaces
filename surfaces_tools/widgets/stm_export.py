@@ -140,8 +140,13 @@ class StmMicroscopyExport(ipw.VBox):
         )
 
     def _refresh_kept(self):
+        previous = self.kept_items.value
         options = [(entry["label"], key) for key, entry in self._kept.items()]
         self.kept_items.options = options
+        if options:
+            self.kept_items.value = (
+                previous if previous in self._kept else options[0][1]
+            )
         for control in (self.kept_items, self.remove_kept, self.clear_kept):
             control.disabled = not options
         counts = [
