@@ -151,6 +151,8 @@ def create_panel(page, namespace):
             )
             named.update(
                 {
+                    "stm.export_sxm_maps": microscopy.maps,
+                    "stm.export_dat_curves": microscopy.curves,
                     "stm.image_width_angstrom": microscopy.area_width,
                     "stm.image_height_angstrom": microscopy.area_height,
                     "stm.image_center_x_angstrom": microscopy.area_center_x,
@@ -220,10 +222,6 @@ def create_panel(page, namespace):
         }
         if microscopy is not None:
             result.update(microscopy.context())
-            try:
-                result["stm_selection"] = plotter.microscopy_selection()
-            except ValueError as error:
-                result["stm_selection"] = {"error": str(error)}
         if electrostatics is not None:
             result["electrostatics"] = electrostatics.submission_state()
         section = neb_section()

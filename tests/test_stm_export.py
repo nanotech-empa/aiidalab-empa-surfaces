@@ -23,28 +23,30 @@ def plotter():
     plotter.close()
 
 
-def test_selection_uses_original_indices_not_plot_normalization(plotter):
+def test_export_options_use_original_indices_not_plot_normalization(plotter):
     plotter.elem_list[0][3].value = True
-    assert plotter.microscopy_selection() == {
-        "source_uuid": "source",
-        "selections": [
-            {"series_index": 0, "energy_index": 0},
-            {"series_index": 0, "energy_index": 2},
-        ],
-    }
+    assert [item for _, item in plotter.microscopy_map_options("source")] == [
+        (0, 0),
+        (0, 1),
+        (0, 2),
+    ]
 
 
 def test_plotting_multiple_sources_still_allowed_but_export_is_explicit(plotter):
     plotter.add_series_collection(
-        {"x_arr": np.arange(5), "y_arr": np.arange(4)},
+        {"energies": [0, 1, 2], "x_arr": np.arange(5), "y_arr": np.arange(4)},
         [{"type": "const-height stm", "height": 6, "fwhm": 0.1}],
         np.ones((1, 3, 4, 3)),
         source_uuid="other-source",
     )
     plotter.add_selection_row()
     plotter.elem_list[1][0].value = "ch-stm fwhm=0.10 h=6.0"
-    with pytest.raises(ValueError, match="one stored"):
-        plotter.microscopy_selection()
+    assert all(
+        "h=5.5" in label for label, _ in plotter.microscopy_map_options("source")
+    )
+    assert all(
+        "h=6.0" in label for label, _ in plotter.microscopy_map_options("other-source")
+    )
     assert len(plotter.series) == 2
 
 
@@ -96,6 +98,7 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
 
     monkeypatch.setattr(export, "make_export_widget", make)
     controller = StmMicroscopyExport(plotter)
+    controller.set_source_uuid("source")
     adapter = create_panel(
         "view_stm.ipynb",
         {
@@ -109,6 +112,18 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
     assert not state["execution_actions"]
     adapter.prepare_export(state["revision"])
     assert len(prepared) == 1 and not written
+    assert prepared[-1][1]["microscopy_review"] is None
+    assert controller.context()["microscopy_dataset_counts"] == {
+        "maps": 0,
+        "curve_datasets": 0,
+        "extracted_curves": 0,
+    }
+    controller.maps.value = ((0, 2),)
+    assert controller.export_widget is None
+    adapter.prepare_export(adapter.context()["revision"])
+    assert prepared[-1][1]["microscopy_review"]["entries"] == [
+        {"series_index": 0, "energy_index": 2}
+    ]
     publication_plan = {
         "mode": "append_dat",
         "spm_permid": "existing-spm",
@@ -130,6 +145,51 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
         adapter.execute("export_stm_microscopy", reviewed["state"]["revision"])
     assert not written
     controller.close()
+
+
+def test_prepared_curves_require_explicit_selection(
+    monkeypatch, plotter, cell_geometry
+):
+    from aiida_openbis import export
+
+    monkeypatch.setattr(
+        export, "make_export_widget", lambda *args, **kwargs: ipw.VBox()
+    )
+    monkeypatch.setattr(
+        export,
+        "review_stm_imaging",
+        lambda **kwargs: {
+            "entries": kwargs["selections"],
+            "curve_groups": [],
+            **kwargs,
+        },
+    )
+    controller = StmMicroscopyExport(plotter)
+    try:
+        controller.set_source_uuid("source")
+        controller.sampling.selected.options = [
+            ("First point", "P1"),
+            ("Second point", "P2"),
+        ]
+        controller.sampling.changed += 1
+        points = [{"id": "P1"}, {"id": "P2"}]
+        monkeypatch.setattr(
+            controller.sampling,
+            "requests",
+            lambda *args, **kwargs: [
+                {"kind": "sts_points", "series_index": 0, "points": points}
+            ],
+        )
+        assert not controller.curves.value
+        assert controller.prepare()["microscopy_review"] is None
+        controller.curves.value = ("P2",)
+        review = controller.prepare()["microscopy_review"]
+        assert review["entries"] == []
+        assert review["sampling"][0]["points"] == points[1:]
+        controller.set_source_uuid("source")
+        assert not controller.maps.value and not controller.curves.value
+    finally:
+        controller.close()
 
 
 def test_comparison_gallery_keeps_bias_columns_case_rows_and_horizontal_only_scroll(

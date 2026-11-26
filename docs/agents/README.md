@@ -151,8 +151,11 @@ native AiiDA rerun tools and can be made from any chat.
 
 ### Stored STM maps into openBIS microscopy
 
-In `view_stm.ipynb`, use the visible series and energy selection, then
-`app_prepare_export` to open the shared review. Inspect `stm_selection`,
+In `view_stm.ipynb`, use `app_prepare_export` to open the shared review for the
+SPM simulation and its AiiDA archive. Add only the optional SXM maps or DAT curves
+the user explicitly requests, using `stm.export_sxm_maps` or `stm.export_dat_curves`.
+The display selectors and prepared local curves do not select files for export.
+Inspect `stm_selection`,
 `microscopy_review`, destination fields and the `export_stm_microscopy` action.
 Choose existing laboratory destination/material references with the normal
 review controls. Use `app_review_action` and the user's confirmation before

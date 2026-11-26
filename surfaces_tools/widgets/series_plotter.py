@@ -274,27 +274,14 @@ class SeriesPlotter:
             general_info, series_data.shape[-2:]
         )
 
-    def microscopy_selection(self):
-        """Identify stored fields, never image-normalized display pixels."""
-        selections, sources = [], set()
-        indices = [int(value) for value in self.select_indexes_function()]
-        for row in self.elem_list:
-            label = row[0].value
-            source = self.series_sources.get(label)
-            if source is None:
-                raise ValueError(
-                    "Reload a stored STM workflow before preparing microscopy export."
-                )
-            sources.add(source["source_uuid"])
-            selections.extend(
-                {"series_index": source["series_index"], "energy_index": index}
-                for index in indices
-            )
-        if len(sources) != 1 or not selections:
-            raise ValueError(
-                "Select maps from one stored STM workflow for each microscopy export."
-            )
-        return {"source_uuid": sources.pop(), "selections": selections}
+    def microscopy_map_options(self, source_uuid):
+        """List stored map identities for the current export source."""
+        return [
+            (f"{label} · {energy:.8g} V", (source["series_index"], index))
+            for label, source in sorted(self.series_sources.items())
+            if source["source_uuid"] == source_uuid
+            for index, energy in enumerate(self.series[label][2]["energies"])
+        ]
 
     def setup_added_collections(self, wc_pk):
         self.add_selection_row()
