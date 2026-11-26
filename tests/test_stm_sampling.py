@@ -132,6 +132,8 @@ def test_bad_line_cannot_silently_disappear_from_review_and_source_change_clears
     panel.add_position([2, 1])
     controller.review = {"entries": [], "curve_groups": []}
     panel.bias.value = 1
+    assert controller.review is not None
+    controller.keep_button.click()
     assert controller.review is None
     panel.configure(controller.source_geometry)
     assert panel.requests() == [] and panel.series.value == ""

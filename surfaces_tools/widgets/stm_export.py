@@ -14,10 +14,12 @@ class StmMicroscopyExport(ipw.VBox):
         self.source_uuid = None
         self.source_geometry = None
         self._setting_area = False
-        self.maps = ipw.SelectMultiple(description="SXM maps", rows=5, disabled=True)
-        self.curves = ipw.SelectMultiple(
-            description="DAT curves", rows=4, disabled=True
-        )
+        self._kept = {}
+        self.keep_button = ipw.Button(description="Keep to export", disabled=True)
+        self.kept_items = ipw.Dropdown(description="Kept for export", disabled=True)
+        self.remove_kept = ipw.Button(description="Remove", disabled=True)
+        self.clear_kept = ipw.Button(description="Clear all", disabled=True)
+        self.kept_status = ipw.HTML()
         self.area_width = ipw.FloatText(description="Width [Å]", disabled=True)
         self.area_height = ipw.FloatText(description="Height [Å]", disabled=True)
         self.area_center_x = ipw.FloatText(description="Centre X [Å]", disabled=True)
@@ -34,7 +36,7 @@ class StmMicroscopyExport(ipw.VBox):
 
         self.sampling = StmSamplingPanel(plotter, self.image_area)
         self.sampling_section = ipw.Accordion(
-            children=[self.sampling], selected_index=None
+            children=[ipw.VBox([self.sampling, self.keep_button])], selected_index=None
         )
         self.sampling_section.set_title(
             0, "Extract STS point spectra or STM line profiles (optional)"
@@ -48,18 +50,19 @@ class StmMicroscopyExport(ipw.VBox):
         self.review_box = ipw.VBox()
         self.prepare_button.on_click(self._prepare_clicked)
         self.reset_area_button.on_click(self._reset_area)
-        for control in (*self._area_controls(), self.maps, self.curves):
+        self.keep_button.on_click(self._keep_clicked)
+        self.remove_kept.on_click(self._remove_kept_clicked)
+        self.clear_kept.on_click(self._clear_kept_clicked)
+        for control in self._area_controls():
             control.observe(self._selection_changed, names="value")
         self.sampling.observe(self._sampling_changed, names="changed")
         super().__init__(
             [
                 ipw.HTML(
                     "<h3>Export STM simulation to openBIS</h3>"
-                    "<p>The standard export includes the AiiDA archive. Select individual "
-                    "maps or prepared curves below to add optional SXM or DAT files. "
-                    "Use Ctrl/Cmd to select more than one item.</p>"
+                    "<p>The standard export includes the AiiDA archive. Use "
+                    "<b>Keep to export</b> to add the current map and any points or lines.</p>"
                 ),
-                self.maps,
                 ipw.HTML(
                     "<p><b>SXM image area</b> · Cartesian XY coordinates in Å. "
                     "Periodic directions are tiled from the native simulation cell. "
@@ -76,7 +79,9 @@ class StmMicroscopyExport(ipw.VBox):
                 self.reset_area_button,
                 self.area_info,
                 self.sampling_section,
-                self.curves,
+                self.kept_items,
+                ipw.HBox([self.remove_kept, self.clear_kept]),
+                self.kept_status,
                 self.prepare_button,
                 self.status,
                 self.review_box,
@@ -125,23 +130,96 @@ class StmMicroscopyExport(ipw.VBox):
                 "<p role='status'>Export options changed. Prepare a new review.</p>"
             )
 
-    def _sampling_changed(self, change):
+    def _sampling_changed(self, _):
         geometry = self.sampling.geometry
-        options = (
-            tuple(self.sampling.selected.options)
-            if self.source_geometry is not None
-            and geometry is not None
+        self.keep_button.disabled = not (
+            self.source_geometry
+            and geometry
             and geometry["source_uuid"] == self.source_uuid
-            else ()
+            and self.sampling.series.value
         )
-        if self.curves.options != options:
-            retained = set(self.curves.value)
-            self.curves.options = options
-            self.curves.value = tuple(
-                value for _, value in options if value in retained
-            )
-        self.curves.disabled = not options
-        self._selection_changed(change)
+
+    def _refresh_kept(self):
+        options = [(entry["label"], key) for key, entry in self._kept.items()]
+        self.kept_items.options = options
+        for control in (self.kept_items, self.remove_kept, self.clear_kept):
+            control.disabled = not options
+        counts = [
+            len(entry["request"].get(field, []))
+            for entry in self._kept.values()
+            if entry["request"] is not None
+            for field in ("points", "lines")
+        ]
+        self.kept_status.value = (
+            f"<p>{len(options)} SXM map(s), {sum(counts)} DAT curve(s) kept for export.</p>"
+            if options
+            else "<p>Only the simulation and AiiDA archive will be exported.</p>"
+        )
+
+    def _keep_clicked(self, _):
+        if self.keep_button.disabled:
+            return
+        try:
+            series = self.sampling.series.value
+            source = self.plotter.series_sources[series]
+            index, bias = source["series_index"], int(self.sampling.bias.value)
+            key = (index, bias)
+            if source["source_uuid"] != self.source_uuid:
+                raise ValueError("Choose a map from the current simulation.")
+            requests = self.sampling.requests()
+            request = requests[0] if requests else None
+            if request and request["kind"] == "sts_points":
+                request["reference_energy_index"] = bias
+            previous = self._kept.get(key, {}).get("request")
+            if previous and request:
+                from aiida_openbis.stm_sampling import marker_color
+
+                field = "points" if request["kind"] == "sts_points" else "lines"
+                coordinates = (
+                    ("position_angstrom",)
+                    if field == "points"
+                    else ("start_angstrom", "end_angstrom")
+                )
+                markers = list(previous[field])
+                prefix = "P" if field == "points" else "L"
+                serial = max(int(marker["id"][1:]) for marker in markers)
+                for item in request[field]:
+                    if not any(
+                        all(saved[c] == item[c] for c in coordinates)
+                        for saved in markers
+                    ):
+                        serial += 1
+                        markers.append(
+                            {
+                                **item,
+                                "id": f"{prefix}{serial}",
+                                "color": marker_color(serial - 1),
+                            }
+                        )
+                request = {**previous, field: markers}
+            elif previous:
+                request = previous
+            voltage = self.plotter.series[series][2]["energies"][bias]
+        except (ValueError, KeyError, IndexError) as error:
+            self.status.value = "<p role='alert'>" + html.escape(str(error)) + "</p>"
+            return
+        self._kept[key] = {"label": f"{series} · {voltage:.8g} V", "request": request}
+        self.sampling.series.value = ""
+        self._clear_review()
+        self._refresh_kept()
+        self.status.value = "<p role='status'>Map kept for export. Choose the next map or prepare the export.</p>"
+
+    def _remove_kept_clicked(self, _):
+        self._kept.pop(self.kept_items.value, None)
+        self._clear_review()
+        self._refresh_kept()
+        self.status.value = ""
+
+    def _clear_kept_clicked(self, _):
+        self._kept.clear()
+        self._clear_review()
+        self._refresh_kept()
+        self.status.value = ""
 
     def _reset_area(self, _=None):
         if self.source_geometry is None:
@@ -163,16 +241,13 @@ class StmMicroscopyExport(ipw.VBox):
         self._clear_review()
         self.source_uuid = str(source_uuid)
         self.source_geometry = None
-        self.maps.options = ()
-        self.maps.disabled = True
-        self.curves.options = ()
-        self.curves.disabled = True
+        self._kept.clear()
+        self._refresh_kept()
+        self.keep_button.disabled = True
         for control in (*self._area_controls(), self.reset_area_button):
             control.disabled = True
         geometry = describe_stm_imaging(self.source_uuid)
         self.source_geometry = geometry
-        self.maps.options = self.plotter.microscopy_map_options(self.source_uuid)
-        self.maps.disabled = not self.maps.options
         self._reset_area()
         for control in (*self._area_controls(), self.reset_area_button):
             control.disabled = False
@@ -189,9 +264,9 @@ class StmMicroscopyExport(ipw.VBox):
             "source_uuid": self.source_uuid,
             "selections": [
                 {"series_index": series, "energy_index": energy}
-                for series, energy in self.maps.value
+                for series, energy in self._kept
             ],
-            "curve_ids": list(self.curves.value),
+            "kept_labels": [entry["label"] for entry in self._kept.values()],
         }
 
     def prepare(self):
@@ -201,19 +276,11 @@ class StmMicroscopyExport(ipw.VBox):
         if self.source_uuid is None:
             raise ValueError("Load a stored STM simulation before preparing an export.")
         selections = self.selection()["selections"]
-        sampling = []
-        if self.curves.value:
-            for request in self.sampling.requests():
-                field = "points" if request["kind"] == "sts_points" else "lines"
-                markers = [
-                    item for item in request[field] if item["id"] in self.curves.value
-                ]
-                if markers:
-                    sampling.append({**request, field: markers})
-            if not sampling:
-                raise ValueError(
-                    "Select available DAT curves before preparing the export."
-                )
+        sampling = [
+            entry["request"]
+            for entry in self._kept.values()
+            if entry["request"] is not None
+        ]
         review = None
         if selections or sampling:
             review = review_stm_imaging(
@@ -278,15 +345,20 @@ class StmMicroscopyExport(ipw.VBox):
         self._closed = True
         self.prepare_button.on_click(self._prepare_clicked, remove=True)
         self.reset_area_button.on_click(self._reset_area, remove=True)
-        for control in (*self._area_controls(), self.maps, self.curves):
+        self.keep_button.on_click(self._keep_clicked, remove=True)
+        self.remove_kept.on_click(self._remove_kept_clicked, remove=True)
+        self.clear_kept.on_click(self._clear_kept_clicked, remove=True)
+        for control in self._area_controls():
             control.unobserve(self._selection_changed, names="value")
         self.sampling.unobserve(self._sampling_changed, names="changed")
         from ._lifecycle import close_owned_widgets
 
         close_owned_widgets(
             *self._area_controls(),
-            self.maps,
-            self.curves,
+            self.kept_items,
+            self.remove_kept,
+            self.clear_kept,
+            self.kept_status,
             self.reset_area_button,
             self.area_info,
             self.sampling_section,

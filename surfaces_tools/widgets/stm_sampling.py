@@ -204,6 +204,12 @@ class StmSamplingPanel(ipw.VBox):
     def _series_changed(self, _):
         self._ready = False
         self.map.layout.display = "none"
+        self.map.image = ""
+        self.status.value = ""
+        self.add_coordinate.disabled = True
+        self.clear_button.disabled = True
+        self.bias.disabled = True
+        self.bias.options = [("—", 0)]
         self.clear()
         self.load_button.disabled = not bool(self.series.value)
         if self.series.value:
@@ -217,9 +223,9 @@ class StmSamplingPanel(ipw.VBox):
             self._loading = False
             self.bias.disabled = False
             self.instructions.value = (
-                "<p><b>STS point spectra:</b> click points on the map. Every point has a matching coloured dI/dV(V) curve using all stored energies. Map bias changes the reference image, not the spectrum. Drawn spectra are included in the export review.</p>"
+                "<p><b>STS point spectra:</b> click points on the map. Every point has a matching coloured dI/dV(V) curve using all stored energies. Map bias changes the reference image, not the spectrum. Keep to export saves the current map and points.</p>"
                 if "sts" in info["type"]
-                else "<p><b>STM line profiles:</b> click a start and an end. Each line has a matching coloured height or current profile versus distance. Changing the map bias updates the profile; export records that bias. Drawn profiles are included in the export review.</p>"
+                else "<p><b>STM line profiles:</b> click a start and an end. Each line has a matching coloured height or current profile versus distance. Keep to export saves the current map and lines at the selected bias.</p>"
             )
 
     def _render_map(self):

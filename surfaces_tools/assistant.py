@@ -151,8 +151,7 @@ def create_panel(page, namespace):
             )
             named.update(
                 {
-                    "stm.export_sxm_maps": microscopy.maps,
-                    "stm.export_dat_curves": microscopy.curves,
+                    "stm.kept_map": microscopy.kept_items,
                     "stm.image_width_angstrom": microscopy.area_width,
                     "stm.image_height_angstrom": microscopy.area_height,
                     "stm.image_center_x_angstrom": microscopy.area_center_x,
@@ -177,6 +176,9 @@ def create_panel(page, namespace):
             values.update(
                 {
                     "stm.open_sampling_map": microscopy.sampling.load_button,
+                    "stm.keep_to_export": microscopy.keep_button,
+                    "stm.remove_kept_map": microscopy.remove_kept,
+                    "stm.clear_kept_maps": microscopy.clear_kept,
                     "stm.add_coordinate": microscopy.sampling.add_coordinate,
                     "stm.remove_marker": microscopy.sampling.remove_button,
                     "stm.clear_markers": microscopy.sampling.clear_button,

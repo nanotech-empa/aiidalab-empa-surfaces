@@ -14,8 +14,11 @@ def plotter():
     general = {"energies": [-0.5, 0, 0.5], "x_arr": np.arange(5), "y_arr": np.arange(4)}
     plotter.add_series_collection(
         general,
-        [{"type": "const-height stm", "height": 5.5, "fwhm": 0.1}],
-        np.ones((1, 3, 4, 3)),
+        [
+            {"type": "const-height stm", "height": 5.5, "fwhm": 0.1},
+            {"type": "const-height sts", "height": 5.5, "fwhm": 0.1},
+        ],
+        np.ones((2, 3, 4, 3)),
         source_uuid="source",
     )
     plotter.setup_added_collections(1)
@@ -23,16 +26,7 @@ def plotter():
     plotter.close()
 
 
-def test_export_options_use_original_indices_not_plot_normalization(plotter):
-    plotter.elem_list[0][3].value = True
-    assert [item for _, item in plotter.microscopy_map_options("source")] == [
-        (0, 0),
-        (0, 1),
-        (0, 2),
-    ]
-
-
-def test_plotting_multiple_sources_still_allowed_but_export_is_explicit(plotter):
+def test_sampling_picker_excludes_other_workflows(plotter, cell_geometry):
     plotter.add_series_collection(
         {"energies": [0, 1, 2], "x_arr": np.arange(5), "y_arr": np.arange(4)},
         [{"type": "const-height stm", "height": 6, "fwhm": 0.1}],
@@ -41,13 +35,15 @@ def test_plotting_multiple_sources_still_allowed_but_export_is_explicit(plotter)
     )
     plotter.add_selection_row()
     plotter.elem_list[1][0].value = "ch-stm fwhm=0.10 h=6.0"
-    assert all(
-        "h=5.5" in label for label, _ in plotter.microscopy_map_options("source")
-    )
-    assert all(
-        "h=6.0" in label for label, _ in plotter.microscopy_map_options("other-source")
-    )
-    assert len(plotter.series) == 2
+    controller = StmMicroscopyExport(plotter)
+    try:
+        controller.set_source_uuid("source")
+        assert all(
+            "h=5.5" in label for _, label in controller.sampling.series.options[1:]
+        )
+        assert len(plotter.series) == 3
+    finally:
+        controller.close()
 
 
 @pytest.fixture
@@ -118,7 +114,9 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
         "curve_datasets": 0,
         "extracted_curves": 0,
     }
-    controller.maps.value = ((0, 2),)
+    controller.sampling.series.value = "ch-stm fwhm=0.10 h=5.5"
+    controller.sampling.bias.value = 2
+    controller.keep_button.click()
     assert controller.export_widget is None
     adapter.prepare_export(adapter.context()["revision"])
     assert prepared[-1][1]["microscopy_review"]["entries"] == [
@@ -147,9 +145,7 @@ def test_chat_prepares_same_widget_and_execution_requires_fresh_review(
     controller.close()
 
 
-def test_prepared_curves_require_explicit_selection(
-    monkeypatch, plotter, cell_geometry
-):
+def test_keep_map_and_curves_reset_and_remove(monkeypatch, plotter, cell_geometry):
     from aiida_openbis import export
 
     monkeypatch.setattr(
@@ -167,27 +163,53 @@ def test_prepared_curves_require_explicit_selection(
     controller = StmMicroscopyExport(plotter)
     try:
         controller.set_source_uuid("source")
-        controller.sampling.selected.options = [
-            ("First point", "P1"),
-            ("Second point", "P2"),
-        ]
-        controller.sampling.changed += 1
-        points = [{"id": "P1"}, {"id": "P2"}]
+        controller.sampling.series.value = "ch-stm fwhm=0.10 h=5.5"
+        controller.sampling.bias.value = 2
+        controller.keep_button.click()
+        assert controller.sampling.series.value == ""
+        assert controller.sampling.map.layout.display == "none"
+        controller.sampling.series.value = "ch-sts fwhm=0.10 h=5.5"
+        controller.sampling.bias.value = 1
+        points = [{"id": "P1", "position_angstrom": [1, 2]}]
         monkeypatch.setattr(
             controller.sampling,
             "requests",
             lambda *args, **kwargs: [
-                {"kind": "sts_points", "series_index": 0, "points": points}
+                {"kind": "sts_points", "series_index": 1, "points": points}
             ],
         )
-        assert not controller.curves.value
-        assert controller.prepare()["microscopy_review"] is None
-        controller.curves.value = ("P2",)
+        assert controller.prepare()["microscopy_review"]["sampling"] == []
+        controller.keep_button.click()
         review = controller.prepare()["microscopy_review"]
-        assert review["entries"] == []
-        assert review["sampling"][0]["points"] == points[1:]
-        controller.set_source_uuid("source")
-        assert not controller.maps.value and not controller.curves.value
+        assert review["entries"] == [
+            {"series_index": 0, "energy_index": 2},
+            {"series_index": 1, "energy_index": 1},
+        ]
+        assert review["sampling"][0]["points"] == points
+        assert review["sampling"][0]["reference_energy_index"] == 1
+        controller.sampling.series.value = "ch-sts fwhm=0.10 h=5.5"
+        controller.sampling.bias.value = 1
+        next_point = {"id": "P1", "position_angstrom": [2, 3]}
+        monkeypatch.setattr(
+            controller.sampling,
+            "requests",
+            lambda *args, **kwargs: [
+                {
+                    "kind": "sts_points",
+                    "series_index": 1,
+                    "points": [*points, next_point],
+                }
+            ],
+        )
+        controller.keep_button.click()
+        combined = controller.prepare()["microscopy_review"]
+        assert combined["entries"] == review["entries"]
+        assert [p["id"] for p in combined["sampling"][0]["points"]] == ["P1", "P2"]
+        controller.kept_items.value = (1, 1)
+        controller.remove_kept.click()
+        assert controller.prepare()["microscopy_review"]["sampling"] == []
+        controller.clear_kept.click()
+        assert controller.prepare()["microscopy_review"] is None
 
         def geometry_unavailable(_):
             raise ValueError("No native grid")
@@ -195,9 +217,8 @@ def test_prepared_curves_require_explicit_selection(
         monkeypatch.setattr(export, "describe_stm_imaging", geometry_unavailable)
         with pytest.raises(ValueError, match="No native grid"):
             controller.set_source_uuid("without-grid")
-        controller.sampling.selected.options = [("Stale point", "P1")]
         controller.sampling.changed += 1
-        assert controller.curves.disabled and not controller.curves.options
+        assert controller.keep_button.disabled and not controller.kept_items.options
         assert controller.prepare()["microscopy_review"] is None
     finally:
         controller.close()

@@ -274,15 +274,6 @@ class SeriesPlotter:
             general_info, series_data.shape[-2:]
         )
 
-    def microscopy_map_options(self, source_uuid):
-        """List stored map identities for the current export source."""
-        return [
-            (f"{label} · {energy:.8g} V", (source["series_index"], index))
-            for label, source in sorted(self.series_sources.items())
-            if source["source_uuid"] == source_uuid
-            for index, energy in enumerate(self.series[label][2]["energies"])
-        ]
-
     def setup_added_collections(self, wc_pk):
         self.add_selection_row()
         self.add_row_btn.disabled = False
