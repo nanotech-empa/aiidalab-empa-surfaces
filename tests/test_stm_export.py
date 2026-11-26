@@ -188,6 +188,17 @@ def test_prepared_curves_require_explicit_selection(
         assert review["sampling"][0]["points"] == points[1:]
         controller.set_source_uuid("source")
         assert not controller.maps.value and not controller.curves.value
+
+        def geometry_unavailable(_):
+            raise ValueError("No native grid")
+
+        monkeypatch.setattr(export, "describe_stm_imaging", geometry_unavailable)
+        with pytest.raises(ValueError, match="No native grid"):
+            controller.set_source_uuid("without-grid")
+        controller.sampling.selected.options = [("Stale point", "P1")]
+        controller.sampling.changed += 1
+        assert controller.curves.disabled and not controller.curves.options
+        assert controller.prepare()["microscopy_review"] is None
     finally:
         controller.close()
 

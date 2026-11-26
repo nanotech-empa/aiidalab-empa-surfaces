@@ -126,7 +126,14 @@ class StmMicroscopyExport(ipw.VBox):
             )
 
     def _sampling_changed(self, change):
-        options = tuple(self.sampling.selected.options)
+        geometry = self.sampling.geometry
+        options = (
+            tuple(self.sampling.selected.options)
+            if self.source_geometry is not None
+            and geometry is not None
+            and geometry["source_uuid"] == self.source_uuid
+            else ()
+        )
         if self.curves.options != options:
             retained = set(self.curves.value)
             self.curves.options = options
