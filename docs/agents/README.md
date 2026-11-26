@@ -148,3 +148,52 @@ when available. Use `inspect_cp2k_resources` to compare the Code with the CSCS
 Daint recipe. Check memory per MPI rank for hybrid calculations. A request to
 rerun a stored workflow with a different structure goes through the common
 native AiiDA rerun tools and can be made from any chat.
+
+### Stored STM maps into openBIS microscopy
+
+In `view_stm.ipynb`, use `app_prepare_export` to open the shared review for the
+SPM simulation and its AiiDA archive. To add optional files, set
+`stm.analysis_series` and `stm.analysis_bias`, prepare any requested points or
+lines and click `stm.keep_to_export`. Each keep stores the current SXM map and
+any prepared DAT curves, then clears the sampling editor. Use `stm.kept_map`
+and `stm.remove_kept_map` to remove one entry, or `stm.clear_kept_maps` to
+export only the simulation and archive.
+Inspect `stm_selection`,
+`microscopy_review`, destination fields and the `export_stm_microscopy` action.
+Choose existing laboratory destination/material references with the normal
+review controls. Use `app_review_action` and the user's confirmation before
+`app_execute_action`; preparation must never publish. A changed revision requires
+another review. Inspect final dataset IDs/preview status and report incomplete
+steps honestly. Do not bypass the common exporter with direct server writes.
+When `microscopy_publication_plan.mode` is `append_dat`, review the existing
+SPM permId, its actual collection and the number of new DAT files. This action
+adds only new point spectra or line profiles to that simulation. Use the
+publication plan's counts when they differ from the original map selection.
+See [the user guide](../stm-microscopy-export.md) for units, original data,
+oblique-grid interpolation and retry behavior. Never describe a native signal
+as an absolutely calibrated experimental current.
+
+For STM/orbital comparison galleries, preserve the intentional horizontal
+scroll (bias/orbital columns, cases as rows). Let gallery height grow; do not add
+a vertical output scrollbar or convert these scientific comparison columns into
+wrapped rows under the general no-nested-scroll rule. State the reviewed map
+and curve dataset counts, biases and series parameters before confirming export.
+
+For SXM area changes, use the visible width/height/centre controls in Å and
+`stm.reset_image_area` for the native-cell rectangle. Inspect
+`microscopy_image_area` and `microscopy_source_geometry` (native CP2K PBC).
+Periodic filling follows lattice vectors, never artificial independent image
+edge repetition. State area/PBC and map/curve counts in the export review;
+changed controls invalidate it. Local point/line sampling uses physical original-grid coordinates,
+independent of the SXM crop. Do not infer an experimental current calibration.
+
+For local curves, choose `stm.analysis_series`, then the draft action
+`stm.open_sampling_map`. STS supports points and all stored energies; STM
+supports two-endpoint lines and the chosen `stm.analysis_bias`. Set
+`stm.coordinate_x_angstrom`/`stm.coordinate_y_angstrom`, then invoke
+`stm.add_coordinate` once per point or twice per line. Inspect
+`microscopy_sampling` for labels, colours, coordinates, pending line endpoints
+and validation. `stm.remove_marker`, `stm.clear_markers`, and
+`stm.download_dat` operate on that same visible panel. Do not invent a global
+average or treat STM distance profiles as STS spectra. Prepare/review the common
+export only after the sampling state is valid; marker changes invalidate it.

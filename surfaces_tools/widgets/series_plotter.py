@@ -4,7 +4,6 @@ import os
 import zipfile
 
 import ipywidgets as ipw
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from IPython.display import HTML, display
@@ -201,6 +200,7 @@ def make_orb_label(index, homo_index):
 class SeriesPlotter:
     def __init__(self, select_indexes_function, zip_prepend):
         self.series = {}
+        self.series_sources = {}
 
         self.extent = None
         self.figure_xy_ratio = None
@@ -246,12 +246,21 @@ class SeriesPlotter:
 
         self.link_out = ipw.Output()
 
-    def add_series_collection(self, general_info, series_info, series_data):
-        for info, data in zip(series_info, series_data):
+    def add_series_collection(
+        self, general_info, series_info, series_data, *, source_uuid=None
+    ):
+        for series_index, (info, data) in enumerate(zip(series_info, series_data)):
             spin = general_info.get("spin")
             series_label = make_series_label(info, i_spin=spin)
 
             self.series[series_label] = (data, info, general_info)
+            if source_uuid is not None:
+                self.series_sources[series_label] = {
+                    "source_uuid": str(source_uuid),
+                    "series_index": series_index,
+                }
+            else:
+                self.series_sources.pop(series_label, None)
 
             if info["type"] == "const-height orbital":
                 sq_info = copy.deepcopy(info)
@@ -327,21 +336,20 @@ class SeriesPlotter:
         close_owned_widgets(row)
 
     def plot_series(self, b):
-        fig_y_in_px = 0.8 * self.fig_y * matplotlib.rcParams["figure.dpi"]
-
         num_series = len(self.elem_list)
 
         box_layout = ipw.Layout(
-            overflow_x="scroll",
+            overflow="auto hidden",
             border="3px solid black",
             width="100%",
-            height=f"{fig_y_in_px * num_series + 70}px",
-            display="inline-flex",
-            flex_flow="column wrap",
+            height="auto",
+            display="flex",
+            flex_flow="row nowrap",
             align_items="flex-start",
         )
 
         plot_hbox = ipw.Box(layout=box_layout)
+        plot_hbox.add_class("stm-series-plots")
         self.plot_output.children += (plot_hbox,)
 
         plot_hbox.children = ()
@@ -349,7 +357,7 @@ class SeriesPlotter:
         index_list = self.select_indexes_function()
 
         for i in index_list:
-            plot_out = ipw.Output()
+            plot_out = ipw.Output(layout=ipw.Layout(flex="0 0 auto", height="auto"))
             plot_hbox.children += (plot_out,)
             with plot_out:
                 fig = plt.figure(
@@ -552,4 +560,5 @@ class SeriesPlotter:
             self.link_out,
         )
         self.series.clear()
+        self.series_sources.clear()
         self.select_indexes_function = None

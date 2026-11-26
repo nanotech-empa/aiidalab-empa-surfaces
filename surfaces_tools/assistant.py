@@ -88,6 +88,10 @@ def create_panel(page, namespace):
                 for i, widget in enumerate(getattr(selector, "assistant_editors", ()))
             }
         )
+    microscopy = (
+        namespace.get("stm_microscopy_export") if page == "view_stm.ipynb" else None
+    )
+    plotter = namespace.get("series_plotter_inst") if page == "view_stm.ipynb" else None
     spm_buttons = namespace.get("submit_button") if page == "submit_spm.ipynb" else None
 
     diagnostics = [
@@ -133,6 +137,29 @@ def create_panel(page, namespace):
                 "neb.optimize_endpoints": section.optimize_endpoints,
                 "neb.steps_before_ci": section.nsteps_it,
             }
+        if plotter is not None:
+            named["stm.series"] = plotter.selections_vbox
+        if microscopy is not None:
+            named.update(
+                {
+                    "stm.analysis_series": microscopy.sampling.series,
+                    "stm.analysis_bias": microscopy.sampling.bias,
+                    "stm.marker": microscopy.sampling.selected,
+                    "stm.coordinate_x_angstrom": microscopy.sampling.x,
+                    "stm.coordinate_y_angstrom": microscopy.sampling.y,
+                }
+            )
+            named.update(
+                {
+                    "stm.kept_map": microscopy.kept_items,
+                    "stm.image_width_angstrom": microscopy.area_width,
+                    "stm.image_height_angstrom": microscopy.area_height,
+                    "stm.image_center_x_angstrom": microscopy.area_center_x,
+                    "stm.image_center_y_angstrom": microscopy.area_center_y,
+                }
+            )
+            if microscopy.export_widget is not None:
+                named["stm.export_review"] = microscopy.export_widget
         values, _ = form_controls({**named, **roots})
         if electrostatics is not None:
             values["electrostatics.apply_selected"] = electrostatics.active
@@ -143,10 +170,34 @@ def create_panel(page, namespace):
     def draft_buttons():
         _, values = form_controls(roots)
         values.update(draft)
+        if microscopy is not None:
+            values["prepare_microscopy_export"] = microscopy.prepare_button
+            values["stm.reset_image_area"] = microscopy.reset_area_button
+            values.update(
+                {
+                    "stm.open_sampling_map": microscopy.sampling.load_button,
+                    "stm.keep_to_export": microscopy.keep_button,
+                    "stm.remove_kept_map": microscopy.remove_kept,
+                    "stm.clear_kept_maps": microscopy.clear_kept,
+                    "stm.add_coordinate": microscopy.sampling.add_coordinate,
+                    "stm.remove_marker": microscopy.sampling.remove_button,
+                    "stm.clear_markers": microscopy.sampling.clear_button,
+                    "stm.download_dat": microscopy.sampling.download_button,
+                }
+            )
+            if microscopy.export_widget is not None:
+                _, review_buttons = form_controls(
+                    {"stm.export_review": microscopy.export_widget}
+                )
+                values.update(review_buttons)
         return values
 
     def execution_buttons():
-        active = execution
+        active = dict(execution)
+        if microscopy is not None and microscopy.export_widget is not None:
+            active["export_stm_microscopy"] = (
+                microscopy.export_widget.save_simulations_button
+            )
         if spm_buttons is not None:
             active = {
                 name: widget
@@ -171,6 +222,8 @@ def create_panel(page, namespace):
             "submitted_processes": submitted,
             "execution": "Review science and resources, then request the current execution action. Only the user's action button executes it.",
         }
+        if microscopy is not None:
+            result.update(microscopy.context())
         if electrostatics is not None:
             result["electrostatics"] = electrostatics.submission_state()
         section = neb_section()
@@ -232,5 +285,6 @@ def create_panel(page, namespace):
             draft_buttons=draft_buttons,
             execution_buttons=execution_buttons,
             structure_tools=structure_tools,
+            prepare_export=microscopy.prepare if microscopy is not None else None,
         )
     )

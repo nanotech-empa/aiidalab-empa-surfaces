@@ -37,7 +37,7 @@ FORM_ROOTS = {
         "serial_execution",
         "max_cp2k_attempts",
     ],
-    "view_stm.ipynb": ["pk_select", "energy_range_slider", "voltages_text"],
+    "view_stm.ipynb": ["pk_select", "energy_range_slider", "voltages_text", "tab"],
     "submit_casscf.ipynb": [
         "code_input_widget",
         "formchk_code_input_widget",
